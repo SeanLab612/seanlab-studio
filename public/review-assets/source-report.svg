@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="680" viewBox="0 0 520 680">
+  <rect width="520" height="680" fill="#f6f1e7"/>
+  <rect x="42" y="42" width="436" height="596" rx="8" fill="#fffdfa" stroke="#d9d1c3" stroke-width="2"/>
+  <rect x="76" y="82" width="78" height="24" rx="12" fill="#355f9f"/>
+  <text x="76" y="150" font-family="Arial" font-size="28" font-weight="700" fill="#202a38">2026 Market Outlook</text>
+  <text x="76" y="184" font-family="Arial" font-size="15" fill="#718096">Liquidity, earnings and valuation</text>
+  <rect x="76" y="222" width="350" height="12" rx="6" fill="#8d98a8"/>
+  <rect x="76" y="250" width="310" height="9" rx="4" fill="#c5cad2"/>
+  <rect x="76" y="272" width="334" height="9" rx="4" fill="#c5cad2"/>
+  <rect x="76" y="294" width="286" height="9" rx="4" fill="#c5cad2"/>
+  <rect x="76" y="340" width="368" height="128" rx="14" fill="#eef4fc"/>
+  <path d="M98 434 C145 418 170 442 215 392 S300 408 340 358 S390 374 424 326" fill="none" stroke="#4c82d0" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="424" cy="326" r="8" fill="#4c82d0"/>
+  <rect x="76" y="510" width="350" height="10" rx="5" fill="#b8bec8"/>
+  <rect x="76" y="535" width="324" height="10" rx="5" fill="#d0d4da"/>
+  <rect x="76" y="560" width="276" height="10" rx="5" fill="#d0d4da"/>
+  <text x="76" y="612" font-family="Arial" font-size="13" fill="#718096">RESEARCH NOTE · JAN 2026</text>
+</svg>

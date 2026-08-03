@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/resolved-scene-timeline.schema.json",
+  "title": "Resolved Screen Scene Timeline",
+  "type": "object",
+  "required": ["schemaVersion", "status", "scenes", "unresolved", "summary"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "status": {"enum": ["resolved", "blocked", "empty"]},
+    "scenes": {"type": "array"},
+    "unresolved": {"type": "array"},
+    "summary": {
+      "type": "object",
+      "required": ["authored", "resolved", "requiredUnresolved"],
+      "properties": {
+        "authored": {"type": "integer", "minimum": 0},
+        "resolved": {"type": "integer", "minimum": 0},
+        "requiredUnresolved": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

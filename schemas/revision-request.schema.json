@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/revision-request.schema.json",
+  "title": "Review Revision Request",
+  "type": "object",
+  "required": ["schemaVersion", "revisionId", "projectId", "reviewer", "reason", "decision", "expected", "operations"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "revisionId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,63}$"},
+    "projectId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+    "reviewer": {"type": "string", "minLength": 1, "maxLength": 120},
+    "reason": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "decision": {"enum": ["rejected", "revision-requested"]},
+    "createdAt": {"type": "string"},
+    "expected": {
+      "type": "object",
+      "properties": {
+        "manifestSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "captionsSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "planningSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "reviewPropsSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "reviewVideoSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "reviewEvidenceSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "visualQaReportSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "regressionReportSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["type", "patch"],
+            "properties": {
+              "type": {"const": "edit-policy.update"},
+              "patch": {
+                "type": "object",
+                "minProperties": 1,
+                "properties": {
+                  "minimumCompressedGapSeconds": {"type": "number", "minimum": 0.1},
+                  "keptGapSeconds": {"type": "number", "minimum": 0},
+                  "minimumCandidateConfidence": {"type": "number", "minimum": 0, "maximum": 1},
+                  "minimumBoundarySilenceSeconds": {"type": "number", "minimum": 0.06},
+                  "maximumCandidateSeconds": {"type": "number", "exclusiveMinimum": 0},
+                  "manualRemovals": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["start", "end", "reason"],
+                      "properties": {
+                        "start": {"type": "number", "minimum": 0},
+                        "end": {"type": "number", "exclusiveMinimum": 0},
+                        "reason": {"type": "string", "minLength": 1, "maxLength": 240}
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "rejectedCandidateIds": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,80}$"}
+                  },
+                  "protectedAnchors": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["id", "text"],
+                      "properties": {
+                        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+                        "text": {"type": "string", "minLength": 2},
+                        "occurrence": {"type": "integer", "minimum": 1},
+                        "paddingBeforeSeconds": {"type": "number", "minimum": 0, "maximum": 10},
+                        "paddingAfterSeconds": {"type": "number", "minimum": 0, "maximum": 10}
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["type", "patch"],
+            "properties": {
+              "type": {"const": "caption-policy.update"},
+              "patch": {
+                "type": "object",
+                "minProperties": 1,
+                "properties": {
+                  "maximumDurationSeconds": {"type": "number", "exclusiveMinimum": 0},
+                  "maximumCharacters": {"type": "number", "exclusiveMinimum": 0},
+                  "pauseBreakSeconds": {"type": "number", "exclusiveMinimum": 0},
+                  "softPunctuationMinimumCharacters": {"type": "number", "exclusiveMinimum": 0},
+                  "orphanMaximumCharacters": {"type": "number", "exclusiveMinimum": 0},
+                  "displayPunctuation": {"enum": ["source", "none"]}
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["type", "cueIndex", "expectedZh", "en"],
+            "properties": {
+              "type": {"const": "translation.update"},
+              "cueIndex": {"type": "integer", "minimum": 0},
+              "expectedZh": {"type": "string", "minLength": 1},
+              "en": {"type": "string", "minLength": 1}
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["type", "cueIndex", "expectedSegmentId", "patch"],
+            "properties": {
+              "type": {"const": "visual-cue.update"},
+              "cueIndex": {"type": "integer", "minimum": 0},
+              "expectedSegmentId": {"type": "string", "minLength": 1},
+              "patch": {
+                "type": "object",
+                "minProperties": 1,
+                "properties": {
+                  "start": {"type": "number", "minimum": 0},
+                  "end": {"type": "number", "exclusiveMinimum": 0},
+                  "eyebrow": {"type": "string", "minLength": 1},
+                  "title": {"type": "string", "minLength": 1},
+                  "subtitle": {"type": "string", "minLength": 1},
+                  "subtitleEn": {"type": "string", "minLength": 1},
+                  "accent": {"type": "string", "minLength": 1},
+                  "layoutTemplateId": {
+                    "enum": ["speaker-center-left", "speaker-center-right", "speaker-left-overlay-right", "speaker-right-overlay-left", "bilateral-comparison", "media-evidence"]
+                  },
+                  "component": {
+                    "type": "object",
+                    "required": ["id", "props"],
+                    "properties": {
+                      "id": {
+                        "enum": ["distribution-bars", "scenario-branches", "market-cap-lines", "person-evidence-card", "factor-sequence", "ranked-metric-list", "binary-versus", "key-stat-summary", "media-comparison", "image-evidence-inset", "process-steps", "causal-chain", "quote-source-card", "historical-timeline", "decision-matrix", "model-classification-map", "capability-surface-grid", "tradeoff-scale", "rough-annotation"]
+                      },
+                      "props": {"type": "object"}
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"decision": {"const": "rejected"}}},
+      "then": {
+        "properties": {
+          "expected": {
+            "required": ["visualQaReportSha256", "regressionReportSha256"],
+            "anyOf": [
+              {"required": ["reviewEvidenceSha256"]},
+              {"required": ["reviewVideoSha256"]}
+            ]
+          },
+          "operations": {"maxItems": 0}
+        }
+      },
+      "else": {"properties": {"operations": {"minItems": 1}}}
+    }
+  ],
+  "additionalProperties": false
+}

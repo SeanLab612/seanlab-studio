@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/project-preflight.schema.json",
+  "title": "Project Preflight Report",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "generatedAt", "projectId", "status", "summary", "checks"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"}, "kind": {"const": "project-preflight"},
+    "generatedAt": {"type": "string", "format": "date-time"}, "projectId": {"type": "string"},
+    "status": {"enum": ["passed", "warning", "failed"]}, "summary": {"type": "object"},
+    "checks": {"type": "array", "items": {"type": "object", "required": ["id", "label", "status", "summary"]}}
+  }
+}

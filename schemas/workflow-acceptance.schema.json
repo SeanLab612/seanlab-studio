@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/workflow-acceptance.schema.json",
+  "title": "Workflow Acceptance Report",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "generatedAt", "projectId", "mode", "status", "doctor", "preflight", "artifacts", "resume", "findings"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"}, "kind": {"const": "workflow-acceptance"},
+    "generatedAt": {"type": "string", "format": "date-time"}, "projectId": {"type": "string"},
+    "mode": {"enum": ["full", "verify-existing"]}, "status": {"enum": ["passed", "warning", "failed"]},
+    "doctor": {"type": "object"}, "preflight": {"type": "object"}, "artifacts": {"type": "object"},
+    "resume": {"type": "object"}, "findings": {"type": "array"}
+  }
+}

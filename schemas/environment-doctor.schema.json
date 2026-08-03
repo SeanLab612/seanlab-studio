@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/environment-doctor.schema.json",
+  "title": "Environment Doctor Report",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "generatedAt", "status", "summary", "checks"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "kind": {"const": "environment-doctor"},
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "repositoryRoot": {"type": "string"},
+    "status": {"enum": ["passed", "warning", "failed"]},
+    "summary": {"type": "object"},
+    "checks": {"type": "array", "items": {"$ref": "#/$defs/check"}}
+  },
+  "$defs": {
+    "check": {
+      "type": "object",
+      "required": ["id", "label", "status", "summary"],
+      "properties": {
+        "id": {"type": "string"}, "label": {"type": "string"},
+        "status": {"enum": ["passed", "warning", "failed", "skipped"]},
+        "summary": {"type": "string"}, "details": {}, "remediation": {"type": "string"}
+      }
+    }
+  }
+}

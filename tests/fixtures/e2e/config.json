@@ -1,0 +1,6 @@
+{
+  "transcript": "tests/fixtures/e2e/transcript.json",
+  "editDir": "tests/fixtures/e2e/workspace",
+  "planningFile": "tests/fixtures/e2e/visual-brief.json",
+  "captionDisplayPunctuation": "source"
+}

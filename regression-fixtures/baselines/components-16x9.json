@@ -1,0 +1,174 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "approved-components-20",
+  "canvas": {
+    "width": 1920,
+    "height": 1080
+  },
+  "hammingThreshold": 10,
+  "approvedBy": "project-reviewer",
+  "approvedAt": "2026-07-18T04:26:21.970716+00:00",
+  "sourceReportSha256": "5ee609de73ec52dda281887b695a71fee621e2b0f5a9b1f770b24c529a9e7bd1",
+  "entries": [
+    {
+      "id": "distribution-bars",
+      "composition": "ReviewDistributionBars",
+      "frame": 180,
+      "dhash": "efcfcb999999bdb5",
+      "sourceSha256": "6d8da4e8d02d2c2f49f6960a4ccef94b8fec9eff19c2c6e63b4b43727cb9d3fd",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/distribution-bars.jpg"
+    },
+    {
+      "id": "scenario-branches",
+      "composition": "ReviewScenarioBranches",
+      "frame": 180,
+      "dhash": "af0fdbd9d9d9bdb5",
+      "sourceSha256": "13a012a6e4dcb7a5f7d511b6e08b5d32cc575ebd31fe9a4137f5312c3184367f",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/scenario-branches.jpg"
+    },
+    {
+      "id": "market-cap-lines",
+      "composition": "ReviewMarketCapLines",
+      "frame": 180,
+      "dhash": "efcfcbd9d999bdb5",
+      "sourceSha256": "a825b88141188cde71d92aa974c233e2b19047496178c0fd98e36ea7c3f4744e",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/market-cap-lines.jpg"
+    },
+    {
+      "id": "person-evidence-card",
+      "composition": "ReviewPersonEvidenceCard",
+      "frame": 180,
+      "dhash": "efcfcbd9d9d9bdb5",
+      "sourceSha256": "d1a021ef2a1780631300831848babc54ec413f333596a5af770c81107339eddd",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/person-evidence-card.jpg"
+    },
+    {
+      "id": "factor-sequence",
+      "composition": "ReviewFactorSequenceFour",
+      "frame": 180,
+      "dhash": "ef8f9bd9d9d9bdb5",
+      "sourceSha256": "342f52bc13994468396942cbe16c51a8e64322ce14a266c9557c9b708a6e2203",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/factor-sequence.jpg"
+    },
+    {
+      "id": "ranked-metric-list",
+      "composition": "ReviewRankedMetricScore",
+      "frame": 180,
+      "dhash": "efcfdb5959d9bdb5",
+      "sourceSha256": "5965bd5c1d392b10a78cf8d56d746cb57be349fb3aec1622e65b4ef3a97cf914",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/ranked-metric-list.jpg"
+    },
+    {
+      "id": "binary-versus",
+      "composition": "ReviewBinaryVersus",
+      "frame": 180,
+      "dhash": "af4fdbd9d9d9bdb5",
+      "sourceSha256": "c4d148c8f1bb1485acfff15f186055f85156ca0f9efbdbf7f87bc4a9c9880395",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/binary-versus.jpg"
+    },
+    {
+      "id": "key-stat-summary",
+      "composition": "ReviewKeyStatSummary",
+      "frame": 180,
+      "dhash": "efcf5bd9d9d9bdb5",
+      "sourceSha256": "609b946af6900be88a4cfa974cccf0340f3bb6018170317ed1af2f638f2679e9",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/key-stat-summary.jpg"
+    },
+    {
+      "id": "media-comparison",
+      "composition": "ReviewMediaComparisonTwo",
+      "frame": 180,
+      "dhash": "ef8f8bd9d9d9bdb5",
+      "sourceSha256": "b43b405566762b13eed63273260f0f8bd6680b83c87b451d9809e9a7f4ffedc4",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/media-comparison.jpg"
+    },
+    {
+      "id": "image-evidence-inset",
+      "composition": "ReviewImageEvidenceLandscape",
+      "frame": 150,
+      "dhash": "efcfcbc9c9b9bdb5",
+      "sourceSha256": "073485b537cde0c25635d940c3e2c477072515ee7d5a5efae98d5cfcf5fa5c2b",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/image-evidence-inset.jpg"
+    },
+    {
+      "id": "process-steps",
+      "composition": "ReviewProcessSteps",
+      "frame": 180,
+      "dhash": "afcfdb99d9d9bdb5",
+      "sourceSha256": "268b548a27d9daf3378ad58ca820b839a38f835016ecd24d896c11fe58dc7d18",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/process-steps.jpg"
+    },
+    {
+      "id": "causal-chain",
+      "composition": "ReviewCausalChain",
+      "frame": 180,
+      "dhash": "af4fdb99d9d9bdb5",
+      "sourceSha256": "eb0ebca1dc9320e8c713513b45e00effe693a7a8124e809b5835ea8d773d73f5",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/causal-chain.jpg"
+    },
+    {
+      "id": "quote-source-card",
+      "composition": "ReviewQuoteSourceReport",
+      "frame": 180,
+      "dhash": "ef6febe9d9d9bdb5",
+      "sourceSha256": "ff9ce958c6c1674f1d91c389912bb3c585429c845140258ff882aac97b0d1401",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/quote-source-card.jpg"
+    },
+    {
+      "id": "historical-timeline",
+      "composition": "ReviewHistoricalTimeline",
+      "frame": 180,
+      "dhash": "efcfcbd9d9d9bdb5",
+      "sourceSha256": "9cdb71c3bdf66fd6d01936fcc8a2a8067489fed540109013dc803995416df1d6",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/historical-timeline.jpg"
+    },
+    {
+      "id": "decision-matrix",
+      "composition": "ReviewDecisionMatrix",
+      "frame": 180,
+      "dhash": "ef4fdbd9d9f9bdb5",
+      "sourceSha256": "dd85e8dd7d69f4bd9e1c4abec7942a672798cda8b424014eb3a923026b592906",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/decision-matrix.jpg"
+    },
+    {
+      "id": "model-classification-map",
+      "composition": "ReviewModelClassificationMap",
+      "frame": 180,
+      "dhash": "ef4f5bd9d9d9bdb5",
+      "sourceSha256": "7e6d55fd338c9c79e2d3500fd41f5bc0d895ff68e2e2401509fa1f3eaf94bad6",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/model-classification-map.jpg"
+    },
+    {
+      "id": "core-positioning-node",
+      "composition": "ReviewCorePositioningNode",
+      "frame": 180,
+      "dhash": "efcfdbd9d9d9bdb5",
+      "sourceSha256": "44b532428627a6f4c69716c4da253f61af70326552cb210990f56f20f3a64b87",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/core-positioning-node.jpg"
+    },
+    {
+      "id": "capability-surface-grid",
+      "composition": "ReviewCapabilitySurfaceGrid",
+      "frame": 180,
+      "dhash": "efcfcbd9d9d9bdb5",
+      "sourceSha256": "e8855ab6ffbf13bc5bfaab8f83ae417c8e3ea731224608ec4c04ef2e04b22a84",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/capability-surface-grid.jpg"
+    },
+    {
+      "id": "tradeoff-scale",
+      "composition": "ReviewTradeoffScale",
+      "frame": 180,
+      "dhash": "ef4f5b5959d9bdb5",
+      "sourceSha256": "41378f3407cd456ab2090bce5506b01533fb727078b3417890dcb1dcac34a9fe",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/tradeoff-scale.jpg"
+    },
+    {
+      "id": "rough-annotation",
+      "composition": "ReviewRoughAnnotationNegation",
+      "frame": 90,
+      "dhash": "efcfdb59d9d9bdbd",
+      "sourceSha256": "cfcc9b25d9a2d34726c71f5f162e188cc2c26c80a72f52fd7f3c8334d967fe30",
+      "reviewProxy": "regression-fixtures/golden/16x9/components/rough-annotation.jpg"
+    }
+  ]
+}

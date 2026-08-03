@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "studio-v0.2-browser-loop",
+  "description": "SeanLab Studio browser acceptance checkpoints over the shared creator workflow contracts.",
+  "steps": [
+    { "id": "project-create", "surface": "studio", "expected": "project-created" },
+    { "id": "script-lock", "surface": "studio", "expected": "script-locked" },
+    { "id": "shooting-handoff", "surface": "studio", "expected": "video-ready" },
+    { "id": "recut-approval", "surface": "studio", "expected": "recut-approved" },
+    { "id": "static-review", "surface": "studio", "expected": "review-ready" },
+    { "id": "revision-preview", "surface": "studio", "expected": "impact-previewed" },
+    { "id": "revision-apply", "surface": "shared-contract", "expected": "approval-revoked" },
+    { "id": "narrow-rerun", "surface": "shared-contract", "expected": "upstream-hashes-preserved" },
+    { "id": "reapproval", "surface": "studio", "expected": "review-approved" },
+    { "id": "delivery", "surface": "studio", "expected": "delivery-validated" },
+    { "id": "final-acceptance", "surface": "studio", "expected": "delivery-complete" }
+  ]
+}

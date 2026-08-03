@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/portable-project-bundle.schema.json",
+  "title": "Portable Project Bundle",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "createdAt", "projectId", "sourceIncluded", "security", "inventory"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"}, "kind": {"const": "portable-project-bundle"},
+    "createdAt": {"type": "string", "format": "date-time"}, "projectId": {"type": "string"},
+    "sourceIncluded": {"const": false}, "reviewVideoIncluded": {"type": "boolean"},
+    "security": {"type": "object"}, "excluded": {"type": "array", "items": {"type": "string"}},
+    "inventory": {"type": "array", "items": {"type": "object", "required": ["path", "bytes", "sha256", "kind"]}}
+  }
+}

@@ -1,0 +1,163 @@
+{
+  "schemaVersion": "1.0",
+  "id": "seanlab-studio",
+  "project": {
+    "brief": {
+      "topic": "SeanLab Studio 本地视频生产流程",
+      "category": "tool-review"
+    },
+    "sourceContext": [
+      {
+        "id": "source-1",
+        "label": "冻结的产品说明",
+        "status": "resolved",
+        "content": "SeanLab Studio 是本地口播视频生产工具。项目创建时固定一个 Agent，fallback 为 none。口播最终稿锁定后才能进入拍摄交接。智能粗剪先生成连续 720p 预览并要求人工批准。视频理解读取保留标点的 semantic captions，只输出证据范围和语义意图。本地代码负责组件选择、素材解析、布局、动效、音效、视觉节奏、QA 和渲染。静态风险帧通过后才允许渲染最终成片。交付从不可变批准快照恢复，不重新调用 Agent 或翻译。"
+      }
+    ],
+    "materials": [
+      {
+        "id": "studio-shot",
+        "assetId": "studio-shot",
+        "kind": "screenshot",
+        "label": "Studio 静态审核界面",
+        "required": false,
+        "description": "展示风险帧、QA 结果和批准状态",
+        "evidenceRole": "interface",
+        "sourceLabel": "SeanLab Studio",
+        "anchorText": "静态风险帧通过后",
+        "fit": "contain",
+        "focalPoint": {"x": 0.5, "y": 0.5}
+      }
+    ]
+  },
+  "narration": {
+    "requiredTerms": [
+      ["720p", "720P"],
+      "semantic captions",
+      "批准快照",
+      ["fallback", "不自动切换", "不会自动切换", "不设置备用", "没有备用"]
+    ],
+    "forbiddenTerms": ["云端协作", "自动发布", "多人权限", "80%视觉覆盖率"]
+  },
+  "recut": {
+    "transcript": {
+      "words": [
+        {"text": "大家好", "start": 0.0, "end": 0.4, "type": "word"},
+        {"text": "这里是", "start": 0.42, "end": 0.7, "type": "word"},
+        {"text": "SeanLab", "start": 0.72, "end": 1.1, "type": "word"},
+        {"text": "嗯", "start": 1.8, "end": 1.95, "type": "word"},
+        {"text": "今天", "start": 2.35, "end": 2.6, "type": "word"},
+        {"text": "我们", "start": 2.62, "end": 2.82, "type": "word"},
+        {"text": "先看", "start": 2.84, "end": 3.1, "type": "word"},
+        {"text": "今天", "start": 3.75, "end": 4.0, "type": "word"},
+        {"text": "我们", "start": 4.02, "end": 4.22, "type": "word"},
+        {"text": "直接看", "start": 4.24, "end": 4.58, "type": "word"},
+        {"text": "完整流程", "start": 4.6, "end": 5.05, "type": "word"},
+        {"text": "粗剪", "start": 5.4, "end": 5.7, "type": "word"},
+        {"text": "必须", "start": 5.72, "end": 5.94, "type": "word"},
+        {"text": "人工批准", "start": 5.96, "end": 6.4, "type": "word"},
+        {"text": "然后", "start": 6.7, "end": 6.95, "type": "word"},
+        {"text": "才进入", "start": 6.97, "end": 7.28, "type": "word"},
+        {"text": "字幕", "start": 7.3, "end": 7.55, "type": "word"},
+        {"text": "和", "start": 7.57, "end": 7.66, "type": "word"},
+        {"text": "语义理解", "start": 7.68, "end": 8.1, "type": "word"}
+      ]
+    },
+    "acceptableCandidateSets": [
+      [
+        {"kind": "filler", "startWord": 3, "endWord": 3},
+        {"kind": "false-start", "startWord": 4, "endWord": 6}
+      ],
+      [
+        {"kind": "false-start", "startWord": 3, "endWord": 6}
+      ],
+      [
+        {"kind": "duplicate-retake", "startWord": 3, "endWord": 6}
+      ]
+    ],
+    "protectedWordRanges": [
+      {"startWord": 11, "endWord": 13}
+    ]
+  },
+  "semantic": {
+    "captions": [
+      {
+        "start": 0.0,
+        "end": 4.0,
+        "zh": "SeanLab Studio 在项目创建时固定一个 Agent，fallback 是 none。",
+        "en": "SeanLab Studio pins one Agent at project creation with no fallback.",
+        "role": "caption"
+      },
+      {
+        "start": 4.0,
+        "end": 8.0,
+        "zh": "口播最终稿锁定后，才能进入拍摄交接。",
+        "en": "The final narration must be locked before shooting handoff.",
+        "role": "caption"
+      },
+      {
+        "start": 8.0,
+        "end": 12.0,
+        "zh": "智能粗剪先生成连续的 720p 预览，并且必须人工批准。",
+        "en": "The intelligent recut first creates a continuous 720p preview for human approval.",
+        "role": "caption"
+      },
+      {
+        "start": 12.0,
+        "end": 16.0,
+        "zh": "字幕和后续时间轴只能读取已经批准的 EDL。",
+        "en": "Captions and downstream timing consume only the approved EDL.",
+        "role": "caption"
+      },
+      {
+        "start": 16.0,
+        "end": 20.0,
+        "zh": "理解层读取保留标点的 semantic captions，只输出证据范围和语义意图。",
+        "en": "Understanding reads punctuation-preserving semantic captions and emits evidence ranges and intent.",
+        "role": "caption"
+      },
+      {
+        "start": 20.0,
+        "end": 24.0,
+        "zh": "组件选择、布局、动效、音效、视觉节奏和 QA 都由本地代码确定。",
+        "en": "Local code determines components, layout, motion, sound, direction, and QA.",
+        "role": "caption"
+      },
+      {
+        "start": 24.0,
+        "end": 28.0,
+        "zh": "这张 Studio 截图展示了风险帧、检查结果和批准状态。",
+        "en": "This Studio screenshot shows risk frames, findings, and approval state.",
+        "role": "caption"
+      },
+      {
+        "start": 28.0,
+        "end": 32.0,
+        "zh": "静态画面通过后才渲染成片，交付也不会重新调用 Agent。",
+        "en": "Delivery renders only after static evidence passes and does not call the Agent again.",
+        "role": "caption"
+      }
+    ],
+    "terminologyProfile": null,
+    "imageEvidence": [
+      {
+        "id": "studio-shot",
+        "role": "interface",
+        "description": "Studio 风险帧、检查结果和批准状态界面",
+        "sourceLabel": "SeanLab Studio",
+        "anchorText": "这张 Studio 截图",
+        "publicSrc": "projects/conformance/image-evidence/studio-shot.png",
+        "orientation": "landscape",
+        "fit": "contain",
+        "focalPoint": {"x": 0.5, "y": 0.5}
+      }
+    ],
+    "expectedEvidenceRanges": [
+      {"startCue": 0, "endCue": 1},
+      {"startCue": 2, "endCue": 3},
+      {"startCue": 4, "endCue": 5},
+      {"startCue": 6, "endCue": 7}
+    ],
+    "forbiddenTerms": ["80%视觉覆盖率", "云端自动发布", "远程素材 URL"]
+  }
+}

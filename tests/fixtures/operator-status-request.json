@@ -1,0 +1,6 @@
+{
+  "schemaVersion": "1.0",
+  "requestId": "status-acceptance-001",
+  "action": "status",
+  "projectId": "workflow-test"
+}

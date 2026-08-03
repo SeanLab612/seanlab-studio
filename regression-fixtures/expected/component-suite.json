@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "approved-components-20",
+  "canvas": {"width": 1920, "height": 1080},
+  "cases": [
+    {"id": "distribution-bars", "composition": "ReviewDistributionBars", "frame": 180},
+    {"id": "scenario-branches", "composition": "ReviewScenarioBranches", "frame": 180},
+    {"id": "market-cap-lines", "composition": "ReviewMarketCapLines", "frame": 180},
+    {"id": "person-evidence-card", "composition": "ReviewPersonEvidenceCard", "frame": 180},
+    {"id": "factor-sequence", "composition": "ReviewFactorSequenceFour", "frame": 180},
+    {"id": "ranked-metric-list", "composition": "ReviewRankedMetricScore", "frame": 180},
+    {"id": "binary-versus", "composition": "ReviewBinaryVersus", "frame": 180},
+    {"id": "key-stat-summary", "composition": "ReviewKeyStatSummary", "frame": 180},
+    {"id": "media-comparison", "composition": "ReviewMediaComparisonTwo", "frame": 180},
+    {"id": "image-evidence-inset", "composition": "ReviewImageEvidenceLandscape", "frame": 150},
+    {"id": "process-steps", "composition": "ReviewProcessSteps", "frame": 180},
+    {"id": "causal-chain", "composition": "ReviewCausalChain", "frame": 180},
+    {"id": "quote-source-card", "composition": "ReviewQuoteSourceReport", "frame": 180},
+    {"id": "historical-timeline", "composition": "ReviewHistoricalTimeline", "frame": 180},
+    {"id": "decision-matrix", "composition": "ReviewDecisionMatrix", "frame": 180},
+    {"id": "model-classification-map", "composition": "ReviewModelClassificationMap", "frame": 180},
+    {"id": "capability-surface-grid", "composition": "ReviewCapabilitySurfaceGrid", "frame": 180},
+    {"id": "tradeoff-scale", "composition": "ReviewTradeoffScale", "frame": 180},
+    {"id": "rough-annotation", "composition": "ReviewRoughAnnotationNegation", "frame": 90}
+  ]
+}

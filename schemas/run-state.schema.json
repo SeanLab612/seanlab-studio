@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/run-state.schema.json",
+  "title": "Video Remotion Workflow State",
+  "type": "object",
+  "required": ["schemaVersion", "projectId", "manifestPath", "updatedAt", "stageOrder", "stages", "events"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "projectId": {"type": "string"},
+    "manifestPath": {"type": "string"},
+    "updatedAt": {"type": "string"},
+    "stageOrder": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "stages": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "status": {"enum": ["pending", "running", "succeeded", "failed", "stale", "approved"]},
+          "failure": {"$ref": "operational-error.schema.json"}
+        },
+        "required": ["status"]
+      }
+    },
+    "events": {"type": "array"},
+    "revisions": {
+      "type": "object",
+      "properties": {
+        "count": {"type": "integer", "minimum": 0},
+        "latestRevisionId": {"type": "string"},
+        "latestDecision": {"enum": ["rejected", "revision-requested"]},
+        "latestAppliedAt": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

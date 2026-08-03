@@ -1,0 +1,26 @@
+[
+  {
+    "id": "ai-software",
+    "domain": "ai-software",
+    "spoken": "我们先用克劳德code整理需求，再让deep seek检查，最后提交到github。",
+    "corrected": "我们先用Claude Code整理需求，再让DeepSeek检查，最后提交到GitHub。",
+    "displaySource": "接下来，我们来看三个模型如何完成同一套工作流。",
+    "expectedTitle": "三个模型完成同一套工作流"
+  },
+  {
+    "id": "finance-markets",
+    "domain": "finance-markets",
+    "spoken": "a股上涨以后，标普500又回撤了二十五个机点，市赢率也开始收缩。",
+    "corrected": "A股上涨以后，标普 500又回撤了二十五个基点，市盈率也开始收缩。",
+    "displaySource": "所以，我们真正要比较的是估值、盈利和流动性。",
+    "expectedTitle": "真正要比较的是估值、盈利和流动性"
+  },
+  {
+    "id": "laboratory-biopharma",
+    "domain": "laboratory-biopharma",
+    "spoken": "更换流动向以后，等待机械稳定，再比较五种抗体的主风纯度。",
+    "corrected": "更换流动相以后，等待基线稳定，再比较五种抗体的主峰纯度。",
+    "displaySource": "接下来，比较五种抗体的主峰纯度。",
+    "expectedTitle": "比较五种抗体的主峰纯度"
+  }
+]

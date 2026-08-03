@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remotion-md.local/schemas/agent-model-governance.schema.json",
+  "type": "object",
+  "required": ["schemaVersion", "contractVersion", "pairs"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "contractVersion": {"const": "agent-model-governance-1.0"},
+    "pairs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "agentId",
+          "model",
+          "status",
+          "testedStages",
+          "conformanceReportSha256",
+          "review"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"},
+          "agentId": {"enum": ["codex-cli", "claude-code"]},
+          "model": {"type": "string", "pattern": "^[A-Za-z0-9._\\[\\]-]+$", "maxLength": 128},
+          "status": {"enum": ["candidate", "approved", "blocked"]},
+          "testedStages": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"enum": ["narration", "recut", "semantic-plan"]}
+          },
+          "conformanceReportSha256": {
+            "type": ["string", "null"],
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "review": {
+            "type": ["object", "null"],
+            "required": ["reviewer", "reviewedAt", "reason"],
+            "additionalProperties": false,
+            "properties": {
+              "reviewer": {"type": "string", "minLength": 1, "maxLength": 80},
+              "reviewedAt": {"type": "string", "format": "date-time"},
+              "reason": {"type": "string", "minLength": 1, "maxLength": 500}
+            }
+          }
+        }
+      }
+    }
+  }
+}

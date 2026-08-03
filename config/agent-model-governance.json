@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0",
+  "contractVersion": "agent-model-governance-1.0",
+  "pairs": [
+    {
+      "id": "codex-cli.gpt-5.6-sol",
+      "agentId": "codex-cli",
+      "model": "gpt-5.6-sol",
+      "status": "approved",
+      "testedStages": [
+        "narration",
+        "recut",
+        "semantic-plan"
+      ],
+      "conformanceReportSha256": "11b3d1854f4ca126e08c100c596329471157179baf1bc6e360eb29c609afcadd",
+      "review": {
+        "reviewer": "Sean",
+        "reviewedAt": "2026-07-17T11:53:20.170Z",
+        "reason": "Sean approved the explicit Codex CLI/gpt-5.6-sol conformance report after narration, recut, semantic evidence, source-grounding, and static image review passed."
+      }
+    }
+  ]
+}

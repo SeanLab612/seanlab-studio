@@ -1,0 +1,6 @@
+{
+  "words": [
+    {"text": "你好", "start": 0, "end": 0.5, "type": "word"},
+    {"text": "世界", "start": 0.5, "end": 1, "type": "word"}
+  ]
+}

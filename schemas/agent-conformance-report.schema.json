@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remotion-md.local/schemas/agent-conformance-report.schema.json",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "contractVersion",
+    "fixtureId",
+    "generatedAt",
+    "agent",
+    "inputHash",
+    "attempts",
+    "summary",
+    "status"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "contractVersion": {"const": "agent-conformance-1.0"},
+    "fixtureId": {"type": "string"},
+    "generatedAt": {"type": "string"},
+    "agent": {
+      "type": "object",
+      "required": ["id", "cliVersion", "requestedModel", "observedModels"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"enum": ["codex-cli", "claude-code"]},
+        "cliVersion": {"type": "string", "minLength": 1},
+        "requestedModel": {"type": ["string", "null"]},
+        "observedModels": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "inputHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "attempts": {"type": "array", "items": {"type": "object"}},
+    "summary": {"type": "object"},
+    "status": {"enum": ["passed", "blocked"]}
+  }
+}

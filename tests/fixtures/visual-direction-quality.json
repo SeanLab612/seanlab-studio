@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0",
+  "policy": {
+    "version": "1.0",
+    "maximumVisualsPerMinute": 12,
+    "minimumBreathingGapSeconds": 0,
+    "minimumVisibleSeconds": 2,
+    "maximumAccentSeconds": 10,
+    "maximumSupportSeconds": 10,
+    "maximumHeroSeconds": 10,
+    "maximumContinuousVisualSeconds": 40,
+    "repetitionWindowSeconds": 0,
+    "minimumHeroGapSeconds": 0,
+    "maximumVisualCoverageRatio": 0.82,
+    "maximumChapterSeconds": 120,
+    "maximumChapterCandidates": 8,
+    "heroConfidence": 0.88,
+    "supportConfidence": 0.72,
+    "accentConfidence": 0.58
+  },
+  "durationSeconds": 50,
+  "chapters": [{ "id": "chapter-1", "label": "QUALITY", "startCue": 0, "endCue": 4, "candidateIds": ["c1", "c2", "c3", "c4", "c5"] }],
+  "decisions": [
+    { "candidateId": "c1", "semanticIndex": 0, "startCue": 0, "endCue": 0, "sourceStart": 0, "sourceEnd": 10, "displayStart": 0, "displayEnd": 10, "action": "show", "importance": "support", "rhetoric": "comparison", "componentId": "binary-versus", "chapterId": "chapter-1", "boundaryActions": ["single-caption"], "adjustments": [], "reasons": [] },
+    { "candidateId": "c2", "semanticIndex": 1, "startCue": 1, "endCue": 1, "sourceStart": 10, "sourceEnd": 20, "displayStart": 10, "displayEnd": 20, "action": "show", "importance": "support", "rhetoric": "process-steps", "componentId": "process-steps", "chapterId": "chapter-1", "boundaryActions": ["single-caption"], "adjustments": [], "reasons": [] },
+    { "candidateId": "c3", "semanticIndex": 2, "startCue": 2, "endCue": 2, "sourceStart": 20, "sourceEnd": 30, "displayStart": 20, "displayEnd": 30, "action": "show", "importance": "support", "rhetoric": "decision-matrix", "componentId": "decision-matrix", "chapterId": "chapter-1", "boundaryActions": ["single-caption"], "adjustments": [], "reasons": [] },
+    { "candidateId": "c4", "semanticIndex": 3, "startCue": 3, "endCue": 3, "sourceStart": 30, "sourceEnd": 40, "displayStart": 30, "displayEnd": 40, "action": "show", "importance": "support", "rhetoric": "key-stat", "componentId": "key-stat-summary", "chapterId": "chapter-1", "boundaryActions": ["single-caption"], "adjustments": [], "reasons": [] },
+    { "candidateId": "c5", "semanticIndex": 4, "startCue": 4, "endCue": 4, "sourceStart": 40, "sourceEnd": 50, "displayStart": null, "displayEnd": null, "action": "skip", "importance": "none", "rhetoric": "comparison", "componentId": "binary-versus", "chapterId": "chapter-1", "boundaryActions": ["single-caption"], "adjustments": [], "reasons": [] }
+  ]
+}

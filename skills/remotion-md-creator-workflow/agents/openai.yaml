@@ -1,0 +1,4 @@
+interface:
+  display_name: "Remotion MD Creator Workflow"
+  short_description: "Run the full creator workflow from topic to delivery"
+  default_prompt: "Use $remotion-md-creator-workflow to guide this creator project from topic intake through approved video delivery."

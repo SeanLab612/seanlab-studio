@@ -1,0 +1,24 @@
+import type { VisualComponentId, VisualRhetoric } from "./types.ts";
+
+export const visualRhetoricByComponent: Record<VisualComponentId, VisualRhetoric> = {
+  "distribution-bars": "distribution",
+  "scenario-branches": "scenario",
+  "market-cap-lines": "trend",
+  "person-evidence-card": "person-evidence",
+  "factor-sequence": "factor-sequence",
+  "ranked-metric-list": "ranking",
+  "binary-versus": "comparison",
+  "key-stat-summary": "key-stat",
+  "media-comparison": "media-comparison",
+  "image-evidence-inset": "image-evidence",
+  "process-steps": "process-steps",
+  "causal-chain": "causal-chain",
+  "quote-source-card": "quote-source",
+  "historical-timeline": "historical-timeline",
+  "decision-matrix": "decision-matrix",
+  "model-classification-map": "model-classification",
+  "core-positioning-node": "core-positioning",
+  "capability-surface-grid": "capability-surface",
+  "tradeoff-scale": "tradeoff",
+  "rough-annotation": "rough-annotation",
+};

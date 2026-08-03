@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/review-evidence.schema.json",
+  "title": "Static or Full-video Review Evidence",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "projectId",
+    "reviewMode",
+    "qaStatus",
+    "artifacts",
+    "approvalBindingSha256",
+    "summary"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "kind": {"const": "review-evidence"},
+    "projectId": {"type": "string"},
+    "reviewMode": {"enum": ["static", "full-video"]},
+    "qaStatus": {"enum": ["passed", "warning", "failed"]},
+    "qaReportSha256": {"type": "string"},
+    "generatedAt": {"type": "string"},
+    "approvalBindingSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["kind", "path", "bytes", "sha256"],
+        "properties": {
+          "kind": {"type": "string"},
+          "path": {"type": "string"},
+          "bytes": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "summary": {"type": "object"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Remotion MD Video Workflow"
+  short_description: "Orchestrate resumable talking-head video production"
+  default_prompt: "Use $remotion-md-video-workflow to take a talking-head video through planning, 1080p review, approval, and delivery."

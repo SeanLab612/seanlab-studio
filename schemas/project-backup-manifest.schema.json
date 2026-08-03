@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seanlab.local/schemas/project-backup-manifest.schema.json",
+  "title": "SeanLab creator project backup manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "backupId",
+    "projectId",
+    "projectTitle",
+    "createdAt",
+    "sourceRoot",
+    "inventory",
+    "totals"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "kind": { "const": "creator-project-backup" },
+    "backupId": { "type": "string", "minLength": 1 },
+    "projectId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$" },
+    "projectTitle": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "sourceRoot": { "type": "string", "minLength": 1 },
+    "inventory": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "bytes", "sha256"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "bytes": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "bytes"],
+      "properties": {
+        "files": { "type": "integer", "minimum": 0 },
+        "bytes": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

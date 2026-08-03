@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "workflow-owned-20260711",
+  "terminologyDomains": ["ai-software", "laboratory-biopharma"],
+  "captionAssertions": {
+    "mustContain": ["LIMS", "流动相", "基线稳定", "Gemini"],
+    "mustNotContain": ["Limits", "流动向", "流动项", "机械稳定", "Gemlight"]
+  },
+  "semanticCues": [
+    {"id": "timeline", "componentId": "historical-timeline", "layoutId": "speaker-center-left", "motionRecipeId": "ordered-explanation", "start": 19.86, "end": 48.14},
+    {"id": "stats", "componentId": "key-stat-summary", "layoutId": "speaker-center-left", "motionRecipeId": "data-comparison", "start": 48.74, "end": 74.1},
+    {"id": "tasks", "componentId": "factor-sequence", "layoutId": "speaker-center-left", "motionRecipeId": "ordered-explanation", "start": 74.34, "end": 105.4},
+    {"id": "core", "componentId": "core-positioning-node", "layoutId": "speaker-center-left", "motionRecipeId": "quiet-introduction", "start": 105.64, "end": 134.681},
+    {"id": "process", "componentId": "process-steps", "layoutId": "speaker-center-left", "motionRecipeId": "ordered-explanation", "start": 134.921, "end": 174.681},
+    {"id": "causal", "componentId": "causal-chain", "layoutId": "speaker-center-left", "motionRecipeId": "directional-progress", "start": 174.921, "end": 200.121},
+    {"id": "versus", "componentId": "binary-versus", "layoutId": "bilateral-comparison", "motionRecipeId": "data-comparison", "start": 200.361, "end": 258.921},
+    {"id": "ranking", "componentId": "ranked-metric-list", "layoutId": "speaker-center-left", "motionRecipeId": "data-comparison", "start": 259.161, "end": 292.981},
+    {"id": "strengths", "componentId": "model-classification-map", "layoutId": "speaker-center-left", "motionRecipeId": "quiet-introduction", "start": 292.981, "end": 322.821},
+    {"id": "matrix", "componentId": "decision-matrix", "layoutId": "speaker-center-left", "motionRecipeId": "quiet-introduction", "start": 323.061, "end": 355.301},
+    {"id": "tradeoff", "componentId": "tradeoff-scale", "layoutId": "speaker-center-left", "motionRecipeId": "data-comparison", "start": 355.541, "end": 391.461}
+  ],
+  "qa": {"status": "passed", "cues": 11, "frames": 44, "errors": 0, "warnings": 0}
+}

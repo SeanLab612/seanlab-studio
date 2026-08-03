@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0",
+  "maxConcurrentJobs": 1,
+  "maxQueuedJobs": 20,
+  "minimumFreeBytes": 10737418240,
+  "projectQuotaBytes": 214748364800,
+  "backupRetention": 3
+}

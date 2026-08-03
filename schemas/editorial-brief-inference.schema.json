@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/editorial-brief-inference.schema.json",
+  "title": "Editorial Brief Inference",
+  "type": "object",
+  "required": ["schemaVersion", "summary", "answers"],
+  "properties": {
+    "schemaVersion": {"type": "string", "enum": ["1.0"]},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 500},
+    "answers": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "required": ["id", "answer", "evidenceQuote"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "motivation",
+              "relationship",
+              "relationship-detail",
+              "audience",
+              "takeaway",
+              "call-to-action",
+              "project-problem",
+              "project-evidence",
+              "project-focus",
+              "project-boundary",
+              "project-verdict",
+              "news-event",
+              "news-why-now",
+              "news-confirmed",
+              "news-unknown",
+              "news-impact",
+              "tutorial-outcome",
+              "tutorial-prerequisites",
+              "tutorial-path",
+              "tutorial-failure",
+              "tutorial-check"
+            ]
+          },
+          "answer": {"type": "string", "minLength": 1, "maxLength": 2000},
+          "evidenceQuote": {"type": "string", "minLength": 1, "maxLength": 300}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

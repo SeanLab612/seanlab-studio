@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/delivery-validation.schema.json",
+  "title": "Delivery Validation Report",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "projectId", "status", "expected", "decode", "output", "provenance", "probe", "findings"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "kind": {"const": "delivery-validation"},
+    "projectId": {"type": "string"},
+    "generatedAt": {"type": "string"},
+    "status": {"enum": ["passed", "failed"]},
+    "expected": {"type": "object"},
+    "decode": {"type": "object"},
+    "output": {"type": "object"},
+    "provenance": {"type": "object"},
+    "probe": {"type": "object"},
+    "media": {"type": "object"},
+    "findings": {"type": "array"}
+  },
+  "additionalProperties": false
+}

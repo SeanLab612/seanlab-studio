@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remotion-md.local/schemas/semantic-narrative-plan.schema.json",
+  "type": "object",
+  "required": ["schemaVersion", "analyzedThroughCue", "videoIdentity", "segments"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"type": "string", "const": "1.0"},
+    "analyzedThroughCue": {"type": "integer", "minimum": 0},
+    "videoIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eyebrow", "title", "subject", "startCue", "endCue", "confidence"],
+      "properties": {
+        "eyebrow": {"type": "string", "minLength": 1, "maxLength": 28},
+        "title": {"type": "string", "minLength": 1, "maxLength": 32},
+        "subject": {"type": "string", "minLength": 1, "maxLength": 48},
+        "startCue": {"type": "integer", "minimum": 0},
+        "endCue": {"type": "integer", "minimum": 0},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "segments": {
+      "type": "array",
+      "maxItems": 48,
+      "items": {"$ref": "#/$defs/segment"}
+    }
+  },
+  "$defs": {
+    "narrative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eyebrow", "title", "subtitleZh", "subtitleEn", "takeaway"],
+      "properties": {
+        "eyebrow": {"type": "string", "minLength": 1, "maxLength": 28},
+        "title": {"type": "string", "minLength": 1, "maxLength": 32},
+        "subtitleZh": {"type": "string", "minLength": 1, "maxLength": 72},
+        "subtitleEn": {"type": "string", "minLength": 1, "maxLength": 120},
+        "takeaway": {"type": "string", "minLength": 1, "maxLength": 72}
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label", "detail", "value", "displayValue", "unit", "timeLabel",
+        "entityId", "entityKind", "x", "y", "xBand", "yBand", "direction", "startCue", "endCue"
+      ],
+      "properties": {
+        "label": {"type": "string", "maxLength": 18},
+        "detail": {"type": "string", "maxLength": 36},
+        "value": {"type": ["number", "null"]},
+        "displayValue": {"type": "string", "maxLength": 24},
+        "unit": {"type": "string", "maxLength": 16},
+        "timeLabel": {"type": "string", "maxLength": 20},
+        "entityId": {"type": "string", "maxLength": 96},
+        "entityKind": {
+          "enum": [
+            "none", "person", "brand", "biotech", "government", "country", "ticker",
+            "exchange", "research", "university", "media", "ai", "design"
+          ]
+        },
+        "x": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "y": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "xBand": {"enum": ["none", "low", "high"]},
+        "yBand": {"enum": ["none", "low", "high"]},
+        "direction": {"enum": ["none", "up", "down", "stable"]},
+        "startCue": {"type": "integer", "minimum": 0},
+        "endCue": {"type": "integer", "minimum": 0}
+      }
+    },
+    "point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timeLabel", "value"],
+      "properties": {
+        "timeLabel": {"type": "string", "maxLength": 20},
+        "value": {"type": "number"}
+      }
+    },
+    "series": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "valueLabel", "points"],
+      "properties": {
+        "name": {"type": "string", "maxLength": 28},
+        "valueLabel": {"type": "string", "maxLength": 24},
+        "points": {"type": "array", "minItems": 2, "maxItems": 12, "items": {"$ref": "#/$defs/point"}}
+      }
+    },
+    "matrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows", "columns", "values", "states", "xLabel", "yLabel"],
+      "properties": {
+        "rows": {"type": "array", "maxItems": 6, "items": {"type": "string", "maxLength": 24}},
+        "columns": {"type": "array", "maxItems": 6, "items": {"type": "string", "maxLength": 24}},
+        "values": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {"type": "array", "maxItems": 6, "items": {"type": "number", "minimum": 0, "maximum": 100}}
+        },
+        "states": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {"type": "array", "maxItems": 6, "items": {"type": "string", "minLength": 1, "maxLength": 24}}
+        },
+        "xLabel": {"type": "string", "maxLength": 24},
+        "yLabel": {"type": "string", "maxLength": 24}
+      }
+    },
+    "quote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "sourceName", "sourceRole"],
+      "properties": {
+        "text": {"type": "string", "maxLength": 160},
+        "sourceName": {"type": "string", "maxLength": 40},
+        "sourceRole": {"type": "string", "maxLength": 56}
+      }
+    },
+    "mediaIntent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "entityId"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "person", "brand", "biotech", "government", "country", "ticker", "exchange",
+            "research", "university", "media", "ai", "design"
+          ]
+        },
+        "entityId": {"type": "string", "minLength": 1, "maxLength": 96}
+      }
+    },
+    "imageEvidence": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["assetId", "purpose", "caption"],
+      "properties": {
+        "assetId": {"type": "string", "minLength": 1, "maxLength": 63},
+        "purpose": {"enum": ["show", "prove", "explain", "compare"]},
+        "caption": {"type": "string", "maxLength": 56}
+      }
+    },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "startCue", "endCue", "visualPriority", "rhetoric", "motionIntent", "reason", "confidence",
+        "narrative", "items", "timeSeries", "matrix", "quote", "mediaIntents", "imageEvidence"
+      ],
+      "properties": {
+        "startCue": {"type": "integer", "minimum": 0},
+        "endCue": {"type": "integer", "minimum": 0},
+        "visualPriority": {"enum": ["skip", "normal", "high"]},
+        "rhetoric": {
+          "enum": [
+            "none", "scenario", "comparison", "trend", "distribution", "person-evidence",
+            "factor-sequence", "process-steps", "ranking", "key-stat", "media-comparison", "image-evidence",
+            "causal-chain", "quote-source", "historical-timeline", "decision-matrix",
+            "model-classification", "core-positioning", "capability-surface", "tradeoff"
+          ]
+        },
+        "motionIntent": {"enum": ["introduce", "compare", "progress", "reorder", "transform", "emphasize"]},
+        "reason": {"type": "string", "maxLength": 160},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "narrative": {"$ref": "#/$defs/narrative"},
+        "items": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/item"}},
+        "timeSeries": {"type": "array", "maxItems": 7, "items": {"$ref": "#/$defs/series"}},
+        "matrix": {"$ref": "#/$defs/matrix"},
+        "quote": {"$ref": "#/$defs/quote"},
+        "mediaIntents": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/mediaIntent"}},
+        "imageEvidence": {"$ref": "#/$defs/imageEvidence"}
+      }
+    }
+  }
+}

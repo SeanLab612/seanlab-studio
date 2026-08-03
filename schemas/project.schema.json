@@ -1,0 +1,432 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/project.schema.json",
+  "title": "Video Remotion Project Manifest",
+  "type": "object",
+  "required": ["schemaVersion", "project", "paths", "providers", "policies", "render", "workflow"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "agent": {
+      "type": "object",
+      "required": ["id", "fallback", "authoringContractVersion", "semanticContractVersion"],
+      "properties": {
+        "id": {"enum": ["codex-cli", "claude-code", "fixture"]},
+        "model": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+        "fallback": {"const": "none"},
+        "authoringContractVersion": {"const": "1.0"},
+        "semanticContractVersion": {"const": "1.1"}
+      },
+      "additionalProperties": false
+    },
+    "project": {
+      "type": "object",
+      "required": ["id", "title"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+        "title": {"type": "string", "minLength": 1},
+        "createdAt": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "paths": {
+      "type": "object",
+      "required": ["source", "transcript", "workspace"],
+      "properties": {
+        "source": {"type": "string", "minLength": 1},
+        "transcript": {"type": "string", "minLength": 1},
+        "workspace": {"type": "string", "minLength": 1},
+        "planning": {"type": "string"},
+        "reviewProps": {"type": "string"},
+        "authoredScenePlan": {"type": "string", "minLength": 1}
+        ,"authoredVisualPlan": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "supplementalMedia": {
+      "type": "object",
+      "required": ["version", "assets"],
+      "properties": {
+        "version": {"const": "1.0"},
+        "assets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "path", "role", "orientation", "required", "audioPolicy"],
+            "properties": {
+              "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+              "path": {"type": "string", "minLength": 1},
+              "role": {"enum": ["repository-overview", "webpage", "result-showcase", "mobile-recording", "screen-evidence"]},
+              "orientation": {"enum": ["landscape", "portrait", "square", "any"]},
+              "required": {"type": "boolean"},
+              "audioPolicy": {"const": "mute"},
+              "description": {"type": "string"},
+              "clip": {
+                "type": "object",
+                "required": ["in", "out"],
+                "properties": {
+                  "in": {"type": "number", "minimum": 0},
+                  "out": {"type": "number", "exclusiveMinimum": 0}
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "imageEvidence": {
+      "type": "object",
+      "required": ["version", "assets"],
+      "properties": {
+        "version": {"const": "1.0"},
+        "assets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "path", "role", "required", "fit", "focalPoint"],
+            "properties": {
+              "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+              "path": {"type": "string", "minLength": 1},
+              "role": {"enum": ["interface", "result", "source", "comparison", "document", "other"]},
+              "description": {"type": "string", "minLength": 1, "maxLength": 240},
+              "sourceLabel": {"type": "string", "maxLength": 80},
+              "anchorText": {"type": "string", "maxLength": 160},
+              "required": {"type": "boolean"},
+              "fit": {"enum": ["contain", "cover"]},
+              "focalPoint": {
+                "type": "object",
+                "required": ["x", "y"],
+                "properties": {
+                  "x": {"type": "number", "minimum": 0, "maximum": 1},
+                  "y": {"type": "number", "minimum": 0, "maximum": 1}
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {"required": {"const": true}},
+                  "required": ["required"]
+                },
+                "then": {
+                  "required": ["anchorText"],
+                  "properties": {"anchorText": {"type": "string", "minLength": 1, "maxLength": 160}}
+                }
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "brand": {
+      "type": "object",
+      "required": ["version", "enabled"],
+      "properties": {
+        "version": {"const": "1.0"},
+        "enabled": {"type": "boolean"},
+        "profileId": {"const": "seanlab-1.0"},
+        "insertion": {
+          "type": "object",
+          "required": ["id", "profileId", "required", "afterAnchor"],
+          "properties": {
+            "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+            "profileId": {"const": "seanlab-1.0"},
+            "required": {"const": true},
+            "afterAnchor": {
+              "type": "object",
+              "required": ["text"],
+              "properties": {
+                "text": {"type": "string", "minLength": 2},
+                "occurrence": {"type": "integer", "minimum": 1}
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "soundPolicy": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "maximumEventsPerMinute": {"type": "number", "minimum": 0, "maximum": 12},
+            "minimumEventGapSeconds": {"type": "number", "minimum": 0.25},
+            "maximumEventsPerCue": {"type": "integer", "minimum": 0, "maximum": 4},
+            "speechGainCeilingDb": {"type": "number", "maximum": -6}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "providers": {
+      "type": "object",
+      "required": ["transcription", "translation", "semanticPlanning"],
+      "properties": {
+        "transcription": {
+          "type": "object",
+          "required": ["provider"],
+          "properties": {
+            "provider": {"enum": ["existing-word-json", "video-use-scribe"]},
+            "language": {"type": "string"},
+            "numSpeakers": {"type": "integer", "minimum": 1}
+          },
+          "additionalProperties": false
+        },
+        "translation": {
+          "type": "object",
+          "required": ["provider"],
+          "properties": {
+            "provider": {"enum": ["mimo", "offline"]},
+            "baseUrl": {"type": "string"},
+            "model": {"type": "string"},
+            "apiKeyEnv": {"type": "string"},
+            "offlineFallbackModel": {"type": "string"},
+            "timeoutSeconds": {"type": "number", "minimum": 1},
+            "maxRetries": {"type": "integer", "minimum": 0, "maximum": 8}
+          },
+          "additionalProperties": false
+        },
+        "semanticPlanning": {
+          "type": "object",
+          "required": ["provider"],
+          "properties": {
+            "provider": {"enum": ["codex-cli", "claude-code", "mimo", "fixture"]},
+            "baseUrl": {"type": "string"},
+            "model": {"type": "string"},
+            "profile": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+            "apiKeyEnv": {"type": "string"},
+            "timeoutSeconds": {"type": "number", "minimum": 1},
+            "maxRetries": {"type": "integer", "minimum": 0, "maximum": 8},
+            "minimumSegmentSeconds": {"type": "number", "minimum": 1},
+            "maximumSegmentSeconds": {"type": "number", "minimum": 2}
+          },
+          "additionalProperties": false
+        },
+        "recutPlanning": {
+          "type": "object",
+          "required": ["provider"],
+          "properties": {
+            "provider": {"enum": ["codex-cli", "claude-code", "fixture"]},
+            "model": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+            "profile": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+            "timeoutSeconds": {"type": "number", "minimum": 1},
+            "maxRetries": {"type": "integer", "minimum": 0, "maximum": 8},
+            "fixture": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminology": {
+      "type": "object",
+      "required": ["version", "domains"],
+      "properties": {
+        "version": {"const": "1.0"},
+        "domains": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["ai-software", "finance-markets", "laboratory-biopharma"]}
+        },
+        "projectOverrides": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "regression": {
+      "type": "object",
+      "required": ["profileId", "enabled", "registry"],
+      "properties": {
+        "profileId": {"const": "foundation-0.1.13"},
+        "enabled": {"type": "boolean"},
+        "registry": {"type": "string", "minLength": 1},
+        "fixtureId": {"type": "string"},
+        "expectedManifest": {"type": "string"},
+        "verifyLocalSources": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "policies": {
+      "type": "object",
+      "required": ["edit", "captions", "layout"],
+      "properties": {
+        "edit": {
+          "type": "object",
+          "required": ["minimumCompressedGapSeconds", "keptGapSeconds", "manualRemovals"],
+          "properties": {
+            "version": {"enum": ["1.0", "2.0"]},
+            "minimumCompressedGapSeconds": {"type": "number", "minimum": 0.1},
+            "keptGapSeconds": {"type": "number", "minimum": 0},
+            "minimumCandidateConfidence": {"type": "number", "minimum": 0, "maximum": 1},
+            "minimumBoundarySilenceSeconds": {"type": "number", "minimum": 0.06, "maximum": 2},
+            "maximumCandidateSeconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 60},
+            "manualRemovals": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["start", "end", "reason"],
+                "properties": {
+                  "start": {"type": "number", "minimum": 0},
+                  "end": {"type": "number", "exclusiveMinimum": 0},
+                  "reason": {"type": "string", "minLength": 1, "maxLength": 240}
+                },
+                "additionalProperties": false
+              }
+            },
+            "rejectedCandidateIds": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,80}$"}
+            },
+            "protectedAnchors": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "text"],
+                "properties": {
+                  "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+                  "text": {"type": "string", "minLength": 2},
+                  "occurrence": {"type": "integer", "minimum": 1},
+                  "paddingBeforeSeconds": {"type": "number", "minimum": 0, "maximum": 10},
+                  "paddingAfterSeconds": {"type": "number", "minimum": 0, "maximum": 10}
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "captions": {"type": "object"},
+        "layout": {"type": "object"},
+        "typography": {
+          "type": "object",
+          "required": ["version", "mode"],
+          "properties": {
+            "version": {"const": "typography-2.0"},
+            "mode": {"enum": ["auto", "system-only", "wenkai-emphasis"]}
+          },
+          "additionalProperties": false
+        },
+        "animation": {
+          "type": "object",
+          "required": ["templateId"],
+          "properties": {
+            "templateId": {"const": "paper-editorial"}
+          },
+          "additionalProperties": false
+        },
+        "visualDirection": {
+          "type": "object",
+          "required": [
+            "version",
+            "maximumVisualsPerMinute",
+            "minimumBreathingGapSeconds",
+            "minimumVisibleSeconds",
+            "maximumAccentSeconds",
+            "maximumSupportSeconds",
+            "maximumHeroSeconds",
+            "maximumContinuousVisualSeconds",
+            "repetitionWindowSeconds",
+            "minimumHeroGapSeconds",
+            "maximumVisualCoverageRatio",
+            "maximumChapterSeconds",
+            "maximumChapterCandidates",
+            "heroConfidence",
+            "supportConfidence",
+            "accentConfidence"
+          ],
+          "properties": {
+            "version": {"const": "1.0"},
+            "maximumVisualsPerMinute": {"type": "integer", "minimum": 1, "maximum": 30},
+            "minimumBreathingGapSeconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 15},
+            "minimumVisibleSeconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 30},
+            "maximumAccentSeconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 30},
+            "maximumSupportSeconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 60},
+            "maximumHeroSeconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 90},
+            "maximumContinuousVisualSeconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 180},
+            "repetitionWindowSeconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 180},
+            "minimumHeroGapSeconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 300},
+            "maximumVisualCoverageRatio": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+            "maximumChapterSeconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 600},
+            "maximumChapterCandidates": {"type": "integer", "minimum": 1, "maximum": 24},
+            "heroConfidence": {"type": "number", "minimum": 0, "maximum": 1},
+            "supportConfidence": {"type": "number", "minimum": 0, "maximum": 1},
+            "accentConfidence": {"type": "number", "minimum": 0, "maximum": 1}
+          },
+          "additionalProperties": false
+        },
+        "visualQa": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "failOnError": {"type": "boolean"},
+            "minimumFontPx": {"type": "number", "minimum": 8},
+            "baselineHammingThreshold": {"type": "integer", "minimum": 0, "maximum": 64},
+            "maximumCropLoss": {"type": "number", "minimum": 0, "maximum": 1},
+            "captureConcurrency": {"type": "integer", "minimum": 1, "maximum": 4}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "assetProfile": {
+      "type": "object",
+      "required": ["id", "designTokens", "motionPrimitives", "layoutTemplates", "semanticComponents", "brandIcons", "systemIcons"],
+      "properties": {
+        "id": {"enum": ["foundation-0.1.8", "foundation-0.1.8-motion-2", "foundation-0.1.10", "foundation-0.1.11"]},
+        "designTokens": {"type": "string"},
+        "motionPrimitives": {"type": "string"},
+        "motionRecipes": {"type": "string"},
+        "layoutTemplates": {"type": "string"},
+        "semanticComponents": {"type": "integer", "minimum": 1},
+        "brandIcons": {"type": "integer", "minimum": 0},
+        "systemIcons": {"type": "integer", "minimum": 0},
+        "chartRecipes": {"type": "integer", "minimum": 0},
+        "peopleCatalog": {"type": "integer", "minimum": 0},
+        "identityAssets": {"type": "integer", "minimum": 0},
+        "approvedPeople": {"type": "integer", "minimum": 0},
+        "approvedIdentityAssets": {"type": "integer", "minimum": 0},
+        "identityAliases": {"type": "string"},
+        "terminologyProfile": {"type": "string"},
+        "regressionFixtures": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "render": {
+      "type": "object",
+      "required": ["review", "delivery"],
+      "properties": {
+        "review": {
+          "type": "object",
+          "required": ["width", "height", "codec", "crf"],
+          "properties": {
+            "width": {"const": 1920},
+            "height": {"const": 1080},
+            "codec": {"type": "string"},
+            "crf": {"type": "number"}
+          },
+          "additionalProperties": false
+        },
+        "delivery": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "workflow": {
+      "type": "object",
+      "required": ["defaultTarget", "requireHumanApproval"],
+      "properties": {
+        "defaultTarget": {"enum": ["plan", "review", "delivery"]},
+        "requireHumanApproval": {"const": true},
+        "reviewMode": {"enum": ["static", "full-video"]},
+        "motionReviewMode": {"enum": ["conditional-excerpts", "full-pacing"]}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

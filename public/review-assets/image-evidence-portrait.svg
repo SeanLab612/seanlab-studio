@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1600" viewBox="0 0 900 1600">
+  <rect width="900" height="1600" rx="64" fill="#f7f8fa"/>
+  <rect x="0" y="0" width="900" height="150" rx="64" fill="#111923"/>
+  <circle cx="80" cy="75" r="28" fill="#59d98e"/><text x="132" y="90" font-family="Arial" font-size="48" font-weight="700" fill="#fff">SeanLab Mobile</text>
+  <rect x="58" y="210" width="784" height="220" rx="34" fill="#e7f5ee"/>
+  <text x="100" y="280" font-family="Arial" font-size="32" fill="#27684b">WORKFLOW STATUS</text>
+  <text x="100" y="365" font-family="Arial" font-size="72" font-weight="700" fill="#15231d">静态审核已就绪</text>
+  <g font-family="Arial" font-size="34" fill="#18231f">
+    <rect x="58" y="480" width="784" height="170" rx="28" fill="#fff" stroke="#dce5e0"/><text x="105" y="550">01  素材已登记</text><text x="105" y="610" fill="#708179">3 个本地证据</text>
+    <rect x="58" y="690" width="784" height="170" rx="28" fill="#fff" stroke="#dce5e0"/><text x="105" y="760">02  理解层已引用</text><text x="105" y="820" fill="#708179">稳定 assetId</text>
+    <rect x="58" y="900" width="784" height="170" rx="28" fill="#fff" stroke="#dce5e0"/><text x="105" y="970">03  裁切已检查</text><text x="105" y="1030" fill="#708179">人脸与字幕安全</text>
+  </g>
+  <rect x="58" y="1160" width="784" height="120" rx="34" fill="#16231e"/><text x="450" y="1238" text-anchor="middle" font-family="Arial" font-size="40" font-weight="700" fill="#fff">查看审核证据</text>
+  <text x="450" y="1490" text-anchor="middle" font-family="Arial" font-size="28" fill="#819087">项目内素材 · 可复现</text>
+</svg>

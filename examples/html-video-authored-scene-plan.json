@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0",
+  "scenes": [
+    {
+      "id": "github-overview",
+      "type": "screen-evidence",
+      "assetId": "html-video-github",
+      "startAnchor": {"text": "这个项目在 GitHub 上已经有大约四千个 Star"},
+      "endAnchor": {"text": "Remotion 渲染和 MP4 导出接进了同一套流程"},
+      "required": true,
+      "speakerPip": {
+        "shape": "circle",
+        "preferredPosition": "top-right",
+        "size": 340
+      }
+    },
+    {
+      "id": "result-showcase",
+      "type": "result-showcase",
+      "assetId": "html-video-result",
+      "startAnchor": {"text": "我用它生成了一组横版信息视频"},
+      "endAnchor": {"text": "最后添加配乐并导出 MP4"},
+      "required": true,
+      "speakerPip": {
+        "shape": "rounded-rectangle",
+        "preferredPosition": "top-left",
+        "size": 380
+      }
+    }
+  ]
+}

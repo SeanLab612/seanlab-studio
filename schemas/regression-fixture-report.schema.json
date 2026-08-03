@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/regression-fixture-report.schema.json",
+  "title": "Regression Fixture Report",
+  "type": "object",
+  "required": ["schemaVersion", "status", "reportSha256"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "profileId": {"type": "string"},
+    "projectId": {"type": "string"},
+    "fixtureId": {"type": "string"},
+    "suiteId": {"type": "string"},
+    "status": {"enum": ["passed", "warning", "failed", "skipped", "awaiting-human-review"]},
+    "summary": {"type": "object"},
+    "findings": {"type": "array"},
+    "reportSha256": {"type": "string", "minLength": 32}
+  },
+  "additionalProperties": true
+}

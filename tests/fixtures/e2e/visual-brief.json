@@ -1,0 +1,15 @@
+{
+  "overlayCues": [
+    {
+      "start": 0,
+      "end": 1,
+      "layoutTemplateId": "speaker-center-left",
+      "generatedVisual": {
+        "component": {"id": "key-stat-summary"},
+        "motion": {"recipeId": "data-comparison"}
+      }
+    }
+  ],
+  "screenScenes": [],
+  "titleCues": []
+}

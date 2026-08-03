@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SeanLab material understanding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "projectSummary", "sources", "materials"],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0" },
+    "projectSummary": { "type": "string", "minLength": 1, "maxLength": 800 },
+    "sources": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sourceId", "summary", "keyFacts", "limitations"],
+        "properties": {
+          "sourceId": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "summary": { "type": "string", "minLength": 1, "maxLength": 600 },
+          "keyFacts": {
+            "type": "array",
+            "maxItems": 12,
+            "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+          },
+          "limitations": {
+            "type": "array",
+            "maxItems": 8,
+            "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+          }
+        }
+      }
+    },
+    "materials": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "materialId",
+          "summary",
+          "visibleText",
+          "visibleActions",
+          "usableEvidence",
+          "suggestedUse",
+          "limitations"
+        ],
+        "properties": {
+          "materialId": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "summary": { "type": "string", "minLength": 1, "maxLength": 600 },
+          "visibleText": {
+            "type": "array",
+            "maxItems": 16,
+            "items": { "type": "string", "minLength": 1, "maxLength": 50 }
+          },
+          "visibleActions": {
+            "type": "array",
+            "maxItems": 12,
+            "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+          },
+          "usableEvidence": {
+            "type": "array",
+            "maxItems": 12,
+            "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+          },
+          "suggestedUse": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "limitations": {
+            "type": "array",
+            "maxItems": 8,
+            "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+          }
+        }
+      }
+    }
+  }
+}

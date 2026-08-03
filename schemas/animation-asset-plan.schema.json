@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seanlab.local/schemas/animation-asset-plan.schema.json",
+  "title": "Animation Asset Plan",
+  "type": "object",
+  "required": ["schemaVersion", "bindings"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["targetId", "imageAssetId", "reason"],
+        "properties": {
+          "targetId": {"type": "string", "minLength": 1, "maxLength": 220},
+          "imageAssetId": {
+            "oneOf": [
+              {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,61}$"},
+              {"type": "null"}
+            ]
+          },
+          "reason": {"type": "string", "minLength": 1, "maxLength": 240}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

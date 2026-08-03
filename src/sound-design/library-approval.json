@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "decision": "approved-library-retention",
+  "approvedBy": "project-owner",
+  "approvedAt": "2026-07-18",
+  "productionMapping": "deferred",
+  "note": "All 18 original sounds may remain in the candidate library. This does not approve automatic selection or production role mapping.",
+  "assetIds": [
+    "seanlab-air-swipe-short-c1",
+    "seanlab-air-swipe-medium-c1",
+    "seanlab-air-swipe-long-c1",
+    "seanlab-reverse-lift-c1",
+    "seanlab-swipe-left-c1",
+    "seanlab-swipe-right-c1",
+    "seanlab-soft-impact-c1",
+    "seanlab-deep-impact-c1",
+    "seanlab-clean-pop-c1",
+    "seanlab-glass-reveal-c1",
+    "seanlab-riser-short-c1",
+    "seanlab-soft-drop-c1",
+    "seanlab-digital-glitch-c1",
+    "seanlab-card-flip-c1",
+    "seanlab-marker-draw-c1",
+    "seanlab-cross-off-c1",
+    "seanlab-highlight-sweep-c1",
+    "seanlab-bracket-tap-c1"
+  ]
+}

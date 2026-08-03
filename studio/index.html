@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SeanLab Creator Studio</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="studio-shell">
+      <header class="global-topbar">
+        <div class="brand topbar-brand">
+          <img class="brand-logo" src="/assets/seanlab-logo-white.svg" alt="SeanLab 标识" />
+          <div><strong>SeanLab Studio</strong><span id="studio-version">本地创作工作台</span></div>
+        </div>
+        <div class="project-title-control">
+          <button type="button" id="project-title-button" class="project-title-button" disabled>未选择项目</button>
+          <form id="rename-form" class="rename-form" hidden>
+            <label class="sr-only" for="rename-input">项目名称</label>
+            <input id="rename-input" name="title" required maxlength="80" />
+            <button type="submit" class="compact-primary">保存</button>
+            <button type="button" class="compact-ghost" id="rename-cancel">取消</button>
+          </form>
+        </div>
+        <nav class="workspace-switcher" id="workspace-switcher" aria-label="项目工作台" hidden>
+          <button type="button" id="open-video-workspace" data-workspace-mode="video" aria-pressed="true">视频制作</button>
+          <button type="button" id="open-cover-workspace" data-workspace-mode="cover" aria-pressed="false">封面制作</button>
+        </nav>
+        <div class="topbar-actions">
+          <div class="resource-library-anchor" id="resource-library-anchor">
+            <button type="button" class="resource-library-button" id="resource-library-toggle" aria-expanded="false" aria-controls="resource-library-panel">
+              <span aria-hidden="true">▦</span>
+              <b>视觉资源库</b>
+            </button>
+            <section class="resource-library-panel" id="resource-library-panel" aria-label="视觉资源库" hidden></section>
+          </div>
+          <div class="topbar-agent" id="topbar-agent" aria-label="当前项目 Agent">
+            <span class="topbar-label">AGENT</span>
+            <img id="topbar-agent-icon" class="agent-logo" src="/assets/agent-icons/codex.svg" alt="" />
+            <span id="topbar-agent-name">未固定</span>
+            <span class="agent-status-text" id="topbar-agent-status">等待选择项目</span>
+          </div>
+          <button type="button" class="settings-button" id="settings-open" aria-label="打开设置" title="设置">
+            <img src="/assets/icons/settings.svg" alt="" />
+          </button>
+        </div>
+      </header>
+      <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-heading">
+          <div class="sidebar-heading-copy"><span>PROJECTS</span><strong>创作项目</strong></div>
+          <div class="sidebar-heading-actions">
+            <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="隐藏项目边栏" aria-expanded="true" title="隐藏项目边栏">
+              <img src="/assets/icons/sidebar.svg" alt="" />
+            </button>
+            <button class="sidebar-create" id="new-project" aria-label="新建创作项目" title="新建创作项目">＋</button>
+          </div>
+        </div>
+        <nav id="project-list" class="project-list"></nav>
+        <div class="sidebar-footer"><button class="ghost" id="refresh">刷新项目</button></div>
+      </aside>
+      <div class="sidebar-resizer" id="sidebar-resizer" role="separator" aria-label="调整项目列表宽度" aria-orientation="vertical" aria-valuemin="180" aria-valuemax="420" aria-valuenow="220" tabindex="0"><span></span></div>
+      <main class="workspace">
+        <header class="workspace-heading"><div class="workspace-heading-copy"><div class="eyebrow" id="workspace-stage">CREATOR WORKFLOW</div><h1 id="workspace-title">选择或创建一个项目</h1></div><div class="workspace-heading-actions"><button type="button" class="context-button recovery-button" id="open-recovery" hidden>故障恢复</button><button type="button" class="context-button" id="project-context-toggle" hidden>项目详情</button><button type="button" class="context-button" id="open-operations" hidden>高级详情</button><div class="agent-pin" id="agent-pin" hidden></div></div></header>
+        <div class="steps" id="steps"></div>
+        <section class="workspace-body" id="workspace-body">
+          <div class="empty-state"><div class="empty-mark">S</div><div class="eyebrow">SEANLAB CREATOR</div><h2>把一个选题，完成为可交付的视频</h2><button class="primary" id="empty-create">创建第一个项目</button></div>
+        </section>
+      </main>
+      <button type="button" class="inspector-backdrop" id="inspector-backdrop" aria-label="关闭详情遮罩" hidden></button>
+      <aside class="inspector" id="project-inspector" aria-label="项目详情">
+        <div class="inspector-head"><div><small>PROJECT DETAILS</small><span>项目详情</span></div><div><span class="status-pill" id="status-pill">未开始</span><button type="button" class="inspector-close" id="inspector-close" aria-label="关闭项目详情">×</button></div></div>
+        <div id="inspector-body" class="inspector-body"><p class="muted">这里会显示资料、素材、拍摄指导、任务运行和审核证据。</p></div>
+      </aside>
+      </div>
+    </div>
+    <dialog id="project-dialog">
+      <form id="project-form" method="dialog">
+        <div class="dialog-head"><div><h2>创建创作项目</h2><p>告诉 Studio 这期想做什么，后续只补充真正缺少的信息。</p></div><button type="button" class="icon-button" data-close-project-dialog>关闭</button></div>
+        <label>项目名称<input name="title" required placeholder="例如：html-video 项目介绍" /></label>
+        <label>这一期想怎么做<textarea name="creatorNotes" required maxlength="8000" rows="5" placeholder="写下主题、想讲的重点、已有素材和期望效果。"></textarea></label>
+        <label>内容分类<select name="category"><option value="github-project">GitHub 项目介绍</option><option value="news-analysis">新闻介绍</option><option value="tutorial">教程类介绍</option></select></label>
+        <label class="project-agent-field">创作助手<span class="project-agent-control"><img id="project-agent-icon" class="agent-logo" src="/assets/agent-icons/codex.svg" alt="" /><select id="agent-options" name="agentId"></select></span><small>创建后将用于整个项目；详细状态可在设置中查看。</small></label>
+        <label id="agent-model-field" hidden>创作模型<select id="agent-model" name="model"></select></label>
+        <p id="project-form-error" class="form-error" role="alert" hidden></p>
+        <div class="dialog-actions"><button type="button" class="secondary" data-close-project-dialog>取消</button><button type="submit" class="primary">创建项目</button></div>
+      </form>
+    </dialog>
+    <dialog id="delete-project-dialog">
+      <form id="delete-project-form" method="dialog">
+        <div class="dialog-head"><div><div class="eyebrow">DELETE PROJECT</div><h2>删除项目</h2></div><button type="button" class="icon-button" data-close-delete-dialog>关闭</button></div>
+        <div class="delete-warning"><strong>将一并删除整个项目文件夹</strong><code id="delete-project-folder"></code><span>包括资料与素材副本、口播稿、工作流缓存、审核产物和成片，且无法恢复。</span><small>项目文件夹之外的原始视频、截图和资料不会被删除。</small></div>
+        <div class="delete-project-name"><span>项目名称</span><code id="delete-project-name"></code><button type="button" class="secondary" id="copy-delete-project-name">复制名称</button></div>
+        <label>粘贴或输入项目名称以确认<input id="delete-project-confirmation" autocomplete="off" /></label>
+        <p id="delete-project-error" class="form-error" role="alert" hidden></p>
+        <div class="dialog-actions"><button type="button" class="secondary" data-close-delete-dialog>取消</button><button type="submit" class="danger">确认删除</button></div>
+      </form>
+    </dialog>
+    <dialog id="settings-dialog" class="settings-dialog">
+      <div class="settings-head">
+        <div><div class="eyebrow">SEANLAB STUDIO</div><h2>设置</h2></div>
+        <button type="button" class="icon-button" id="settings-close">关闭</button>
+      </div>
+      <div class="settings-layout">
+        <nav class="settings-nav" aria-label="设置分类">
+          <button type="button" class="settings-tab active" data-settings-tab="health">健康总览</button>
+          <button type="button" class="settings-tab" data-settings-tab="agent">Agent 与模型</button>
+          <button type="button" class="settings-tab" data-settings-tab="typography">文字与样式</button>
+          <button type="button" class="settings-tab" data-settings-tab="llm">翻译接口</button>
+          <button type="button" class="settings-tab" data-settings-tab="storage">存储与诊断</button>
+          <button type="button" class="settings-tab" data-settings-tab="about">关于</button>
+        </nav>
+        <section class="settings-panel" id="settings-panel"></section>
+      </div>
+    </dialog>
+    <dialog id="review-lightbox" class="review-lightbox">
+      <header class="review-lightbox-head">
+        <div><div class="eyebrow">FULL RESOLUTION</div><h2 id="review-lightbox-title">审核画面</h2><p id="review-lightbox-meta"></p></div>
+        <button type="button" class="icon-button" id="review-lightbox-close">关闭</button>
+      </header>
+      <div class="review-lightbox-toolbar">
+        <button type="button" class="secondary" id="review-prev">上一张</button>
+        <div class="review-zoom"><button type="button" id="review-zoom-out" aria-label="缩小">−</button><span id="review-zoom-value">100%</span><button type="button" id="review-zoom-in" aria-label="放大">＋</button></div>
+        <button type="button" class="secondary" id="review-next">下一张</button>
+      </div>
+      <div class="review-lightbox-canvas"><img id="review-lightbox-image" alt=""/></div>
+      <footer class="review-lightbox-note"><label>记录这张画面的审核意见<textarea id="review-note-text" maxlength="1000"></textarea></label><button type="button" class="primary" id="save-review-note">保存意见</button></footer>
+    </dialog>
+    <dialog id="operations-dialog" class="operations-dialog">
+      <header class="operations-head"><div><div class="eyebrow">ADVANCED DETAILS</div><h2>项目证据与高级操作</h2><p id="operations-project-label"></p></div><button type="button" class="icon-button" id="operations-close">关闭</button></header>
+      <nav class="operations-tabs" aria-label="项目检查分类">
+        <button type="button" class="active" data-operations-tab="content">内容证据</button>
+        <button type="button" data-operations-tab="visual">视觉方案</button>
+        <button type="button" data-operations-tab="revision">结构化返修</button>
+        <button type="button" data-operations-tab="runtime">运行与空间</button>
+      </nav>
+      <section id="operations-body" class="operations-body"><p class="muted">正在读取项目证据…</p></section>
+    </dialog>
+    <dialog id="recovery-dialog" class="recovery-dialog">
+      <header class="recovery-head"><div><div class="eyebrow">RECOVERY CENTER</div><h2>Studio 故障恢复中心</h2><p id="recovery-project-label"></p></div><button type="button" class="icon-button" id="recovery-close">关闭</button></header>
+      <section id="recovery-body" class="recovery-body"><p class="muted">正在校验任务状态和已保留产物…</p></section>
+    </dialog>
+    <dialog id="workflow-progress-dialog" class="workflow-info-dialog">
+      <header class="workflow-info-head"><div><div class="eyebrow">VIDEO WORKFLOW</div><h2>制作进度</h2></div><button type="button" class="icon-button" id="workflow-progress-close">关闭</button></header>
+      <section class="workflow-info-body" id="workflow-progress-body"></section>
+    </dialog>
+    <dialog id="workflow-warning-dialog" class="workflow-info-dialog">
+      <header class="workflow-info-head"><div><div class="eyebrow">RECUT REVIEW</div><h2>粗剪提示</h2></div><button type="button" class="icon-button" id="workflow-warning-close">关闭</button></header>
+      <section class="workflow-info-body" id="workflow-warning-body"></section>
+    </dialog>
+    <dialog id="review-info-dialog" class="workflow-info-dialog review-info-dialog">
+      <header class="workflow-info-head"><div><div class="eyebrow">STATIC REVIEW</div><h2>审核信息</h2></div><button type="button" class="icon-button" id="review-info-close">关闭</button></header>
+      <section class="workflow-info-body" id="review-info-body"></section>
+    </dialog>
+    <div id="toast" class="toast"></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

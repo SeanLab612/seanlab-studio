@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/creator-project.schema.json",
+  "title": "Remotion MD Creator Project",
+  "type": "object",
+  "required": ["schemaVersion", "project", "agent", "brief", "sources", "materials", "authoring", "video"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "project": {
+      "type": "object",
+      "required": ["id", "title", "createdAt", "updatedAt", "status"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+        "title": {"type": "string", "minLength": 1, "maxLength": 80},
+        "createdAt": {"type": "string"},
+        "updatedAt": {"type": "string"},
+        "status": {"enum": ["intake", "drafting", "script-review", "script-locked", "awaiting-media", "video-ready", "video-running", "review", "approved", "delivered"]}
+      },
+      "additionalProperties": false
+    },
+    "agent": {
+      "type": "object",
+      "required": ["id", "fallback", "authoringContractVersion", "semanticContractVersion"],
+      "properties": {
+        "id": {"enum": ["codex-cli", "claude-code", "fixture"]},
+        "model": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+        "fallback": {"const": "none"},
+        "authoringContractVersion": {"const": "1.0"},
+        "semanticContractVersion": {"const": "1.1"}
+      },
+      "additionalProperties": false
+    },
+    "animation": {
+      "type": "object",
+      "required": ["templateId", "lockedAt"],
+      "properties": {
+        "templateId": {"enum": ["paper-editorial"]},
+        "lockedAt": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "brief": {
+      "type": "object",
+      "required": ["topic", "category"],
+      "properties": {
+        "topic": {"type": "string", "minLength": 1},
+        "category": {"enum": ["github-project", "tutorial", "news-analysis", "tool-review", "model-review", "biopharma-extra", "other"]},
+        "targetDurationMinutes": {"type": "number", "minimum": 0.5, "maximum": 60},
+        "audience": {"type": "string"},
+        "creatorNotes": {"type": "string"},
+        "editorialBrief": {
+          "type": "object",
+          "required": ["version", "status", "answers"],
+          "properties": {
+            "version": {"const": "1.0"},
+            "status": {"enum": ["draft", "ready"]},
+            "answers": {
+              "type": "object",
+              "additionalProperties": {"type": "string", "maxLength": 2000}
+            },
+            "updatedAt": {"type": "string"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "label", "value"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+          "kind": {"enum": ["url", "file", "note"]},
+          "label": {"type": "string", "minLength": 1},
+          "value": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "materials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "label", "required"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+          "kind": {"enum": ["screenshot", "screen-recording", "reference", "speaker-video"]},
+          "label": {"type": "string", "minLength": 1},
+          "assetId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+          "required": {"type": "boolean"},
+          "description": {"type": "string", "maxLength": 240},
+          "evidenceRole": {"enum": ["interface", "result", "source", "comparison", "document", "other"]},
+          "sourceLabel": {"type": "string", "maxLength": 80},
+          "anchorText": {"type": "string", "maxLength": 160},
+          "anchorTexts": {"type": "array", "items": {"type": "string", "maxLength": 160}},
+          "fit": {"enum": ["contain", "cover"]},
+          "focalPoint": {
+            "type": "object",
+            "required": ["x", "y"],
+            "properties": {
+              "x": {"type": "number", "minimum": 0, "maximum": 1},
+              "y": {"type": "number", "minimum": 0, "maximum": 1}
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "authoring": {
+      "type": "object",
+      "required": ["state"],
+      "properties": {
+        "state": {"enum": ["not-started", "drafted", "locked"]},
+        "draftScript": {"type": "string"},
+        "sourceContext": {"type": "string"},
+        "finalScript": {"type": "string"},
+        "shootingGuide": {"type": "string"},
+        "authoredScenePlan": {"type": "string"},
+        "authoredVisualPlan": {"type": "string"},
+        "handoff": {"type": "string"},
+        "providerReport": {"type": "string"},
+        "lockedAt": {"type": "string"},
+        "finalScriptSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "video": {
+      "type": "object",
+      "properties": {
+        "projectId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+        "manifest": {"type": "string"},
+        "sourceAssetId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

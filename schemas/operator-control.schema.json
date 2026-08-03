@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/operator-control.schema.json",
+  "title": "Typed Operator Request",
+  "type": "object",
+  "required": ["schemaVersion", "requestId", "action"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "requestId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,63}$"},
+    "action": {"enum": ["doctor", "preflight", "status", "plan", "review", "resume", "apply-revision", "approve-recut", "approve", "export-bundle", "acceptance"]},
+    "projectId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+    "target": {"enum": ["recut", "plan", "review"]}, "fromStage": {"type": "string"},
+    "revisionId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,63}$"},
+    "includeReview": {"type": "boolean"}, "confirmation": {"enum": ["human-recut-approved", "human-review-approved"]},
+    "qaWaiverReason": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/visual-qa-report.schema.json",
+  "title": "16:9 Visual QA Report",
+  "type": "object",
+  "required": ["schemaVersion", "projectId", "reviewMode", "generatedAt", "canvas", "status", "summary", "policy", "renderContext", "dependencies", "baseline", "artifacts", "findings", "reportSha256"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "projectId": {"type": "string"},
+    "reviewMode": {"enum": ["static", "full-video"]},
+    "generatedAt": {"type": "string"},
+    "canvas": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {"width": {"const": 1920}, "height": {"const": 1080}},
+      "additionalProperties": false
+    },
+    "status": {"enum": ["passed", "warning", "failed"]},
+    "summary": {
+      "type": "object",
+      "required": ["cues", "frames", "errors", "warnings", "infos"],
+      "properties": {
+        "cues": {"type": "integer", "minimum": 0},
+        "semanticCues": {"type": "integer", "minimum": 0},
+        "authoredScreenScenes": {"type": "integer", "minimum": 0},
+        "authoredImageScenes": {"type": "integer", "minimum": 0},
+        "animationScenes": {"type": "integer", "minimum": 0},
+        "textAnnotationCues": {"type": "integer", "minimum": 0},
+        "titleContinuityCues": {"type": "integer", "minimum": 0},
+        "visualGroups": {"type": "integer", "minimum": 0},
+        "frames": {"type": "integer", "minimum": 0},
+        "speakerOnlyFrames": {"type": "integer", "minimum": 0},
+        "errors": {"type": "integer", "minimum": 0},
+        "warnings": {"type": "integer", "minimum": 0},
+        "infos": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "policy": {"type": "object"},
+    "renderContext": {
+      "type": "object",
+      "required": ["overlayScale"],
+      "properties": {"overlayScale": {"type": "number", "exclusiveMinimum": 0}},
+      "additionalProperties": false
+    },
+    "dependencies": {
+      "type": "object",
+      "required": ["node", "remotion", "ffmpeg", "opencv"],
+      "properties": {
+        "node": {"type": "string"},
+        "remotion": {"type": "string"},
+        "ffmpeg": {"type": "string"},
+        "opencv": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "baseline": {"type": "object"},
+    "regressionProfile": {"type": "object"},
+    "artifacts": {"type": "object"},
+    "renderMetrics": {"type": ["object", "null"]},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "rule", "message", "cueId"],
+        "properties": {
+          "id": {"type": "string"},
+          "severity": {"enum": ["info", "warning", "error"]},
+          "rule": {"type": "string"},
+          "message": {"type": "string"},
+          "cueId": {"type": "string"},
+          "componentId": {"type": "string"},
+          "layoutId": {"type": "string"},
+          "phase": {"enum": ["entry", "transition", "stable", "exit-risk", "screen-entry", "screen-transition", "screen-stable", "screen-exit-risk", "speaker-return", "image-entry", "image-transition", "image-stable", "image-exit-risk", "animation-entry", "animation-build", "animation-stable", "animation-exit-risk", "annotation-entry", "annotation-stable", "annotation-exit-risk", "title-entry", "title-stable", "title-exit", "speaker-only"]},
+          "frame": {"type": "integer"},
+          "timeSeconds": {"type": "number"},
+          "screenshot": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "reportSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "additionalProperties": false
+}

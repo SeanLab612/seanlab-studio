@@ -1,0 +1,63 @@
+{
+  "name": "seanlab-studio",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Local, review-gated AI workflow for producing talking-head videos with Remotion.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SeanLab612/seanlab-studio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SeanLab612/seanlab-studio/issues"
+  },
+  "homepage": "https://github.com/SeanLab612/seanlab-studio#readme",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "remotion studio src/index.ts",
+    "studio": "node --experimental-strip-types scripts/studio-server.mjs",
+    "studio:start": "node scripts/studio-service.mjs start",
+    "studio:stop": "node scripts/studio-service.mjs stop",
+    "studio:status": "node scripts/studio-service.mjs status",
+    "creator": "node --experimental-strip-types scripts/creator-project.mjs",
+    "workflow": "node scripts/workflow.mjs",
+    "workflow:status": "node --experimental-strip-types scripts/project-status.mjs",
+    "project:init": "node scripts/init-project.mjs",
+    "project:preflight": "node scripts/project-preflight.mjs",
+    "project:backup": "node scripts/project-backup.mjs",
+    "doctor": "node scripts/check-env.mjs",
+    "setup:python": "node scripts/setup-python.mjs",
+    "skill:install": "node scripts/install-skill.mjs",
+    "release:check": "node scripts/release-readiness.mjs",
+    "format": "biome format --write src scripts tests skills studio",
+    "format:check": "biome format src scripts tests skills studio",
+    "lint": "biome lint src scripts tests studio",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:workflow-core": "node --test tests/*.test.mjs",
+    "test:python": "python3 -m unittest discover -s tests -p 'test_*.py'",
+    "test:visual-brief": "node --experimental-strip-types --experimental-specifier-resolution=node scripts/visual-brief-smoke.mjs",
+    "test:registry": "node --experimental-strip-types --experimental-specifier-resolution=node scripts/component-registry-smoke.mjs",
+    "test:icons": "node --experimental-strip-types --experimental-specifier-resolution=node scripts/icon-registry-smoke.mjs",
+    "docs:assets": "node scripts/generate-readme-assets.mjs",
+    "test": "npm run format:check && npm run lint && npm run typecheck && npm run test:unit && npm run test:workflow-core"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.490",
+    "@remotion/media-parser": "4.0.490",
+    "@remotion/rough-notation": "4.0.490",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "remotion": "4.0.490"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.3",
+    "@types/node": "22.15.29",
+    "@types/react": "19.1.6",
+    "@types/react-dom": "19.1.5",
+    "ajv": "^8.20.0",
+    "typescript": "5.8.3"
+  }
+}

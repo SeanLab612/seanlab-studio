@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+  <rect width="1200" height="1200" fill="#d9dde2"/>
+  <circle cx="600" cy="420" r="210" fill="#9ca6b2"/>
+  <path d="M210 1120c35-290 180-440 390-440s355 150 390 440" fill="#9ca6b2"/>
+  <text x="600" y="1160" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" fill="#4f5964">UPLOAD YOUR PHOTO</text>
+</svg>

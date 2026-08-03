@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/writing-learning-candidate.schema.json",
+  "title": "Writing Learning Candidate",
+  "type": "object",
+  "required": ["schemaVersion", "summary", "lessonIds"],
+  "properties": {
+    "schemaVersion": {"type": "string", "enum": ["1.0"]},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 500},
+    "lessonIds": {
+      "type": "array",
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "problem-first-hook",
+          "short-spoken-sentences",
+          "first-person-when-supported",
+          "workflow-before-implementation",
+          "minimal-engineering-jargon",
+          "concrete-example-over-label",
+          "avoid-feature-catalog",
+          "material-order-alignment",
+          "limitation-before-conclusion",
+          "next-episode-hook",
+          "creator-specified-cta-only"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false
+}

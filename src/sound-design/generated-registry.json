@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "1.0",
+  "assets": [
+    {
+      "id": "seanlab-signature-v1",
+      "role": "brand-signature",
+      "file": "assets/audio/seanlab-signature-v1.wav",
+      "durationSeconds": 2.2,
+      "sampleRate": 48000,
+      "channels": 2,
+      "gainDb": -3,
+      "meanVolumeDb": -22.5,
+      "peakDbfs": -11.4,
+      "provenance": "Original deterministic synthesis for SeanLab",
+      "license": "SeanLab owned original",
+      "sha256": "d6f9d2b5b9019499c06280c12e40c3c3261c2ef48bf57f4276a827dcaaa2e461"
+    },
+    {
+      "id": "seanlab-soft-whoosh-v1",
+      "role": "scene-transition",
+      "file": "assets/audio/seanlab-soft-whoosh-v1.wav",
+      "durationSeconds": 0.48,
+      "sampleRate": 48000,
+      "channels": 2,
+      "gainDb": -16,
+      "meanVolumeDb": -11.2,
+      "peakDbfs": -3,
+      "provenance": "Original deterministic filtered-noise synthesis for SeanLab",
+      "license": "SeanLab owned original",
+      "sha256": "4d6250721b982cbfc278e78f0e3ccb2ad00e971fc44d801162c5d2bd66eb46e0"
+    },
+    {
+      "id": "seanlab-hero-hit-v1",
+      "role": "hero-entry",
+      "file": "assets/audio/seanlab-hero-hit-v1.wav",
+      "durationSeconds": 0.42,
+      "sampleRate": 48000,
+      "channels": 2,
+      "gainDb": -18,
+      "meanVolumeDb": -8,
+      "peakDbfs": -3,
+      "provenance": "Original deterministic synthesis for SeanLab",
+      "license": "SeanLab owned original",
+      "sha256": "99b5fc0e67621c6a786a3db045651d041fd52f1085b027fccf3fca98692ca57a"
+    },
+    {
+      "id": "seanlab-item-tick-v1",
+      "role": "item-step",
+      "file": "assets/audio/seanlab-item-tick-v1.wav",
+      "durationSeconds": 0.16,
+      "sampleRate": 48000,
+      "channels": 2,
+      "gainDb": -22,
+      "meanVolumeDb": -9.8,
+      "peakDbfs": -3,
+      "provenance": "Original deterministic synthesis for SeanLab",
+      "license": "SeanLab owned original",
+      "sha256": "5f316de85721da6c60c1c0cc38000c5a6eb9c7cb4e3a09fbf7fa9b4d9305488f"
+    },
+    {
+      "id": "seanlab-soft-settle-v1",
+      "role": "settle",
+      "file": "assets/audio/seanlab-soft-settle-v1.wav",
+      "durationSeconds": 0.3,
+      "sampleRate": 48000,
+      "channels": 2,
+      "gainDb": -22,
+      "meanVolumeDb": -7.6,
+      "peakDbfs": -3,
+      "provenance": "Original deterministic synthesis for SeanLab",
+      "license": "SeanLab owned original",
+      "sha256": "6e1f8c7ede24ea668da5095efc11053f3875399f354ac4f005b0550a61065ba6"
+    },
+    {
+      "id": "seanlab-warning-accent-v1",
+      "role": "warning",
+      "file": "assets/audio/seanlab-warning-accent-v1.wav",
+      "durationSeconds": 0.38,
+      "sampleRate": 48000,
+      "channels": 2,
+      "gainDb": -20,
+      "meanVolumeDb": -12.1,
+      "peakDbfs": -3,
+      "provenance": "Original deterministic synthesis for SeanLab",
+      "license": "SeanLab owned original",
+      "sha256": "2ccd6f7857872c997b4412033799abddcbda2402a368b38f4eb0bf1bbcafb8f2"
+    },
+    {
+      "id": "seanlab-component-exit-v1",
+      "role": "component-exit",
+      "file": "assets/audio/seanlab-component-exit-v1.wav",
+      "durationSeconds": 0.26,
+      "sampleRate": 48000,
+      "channels": 2,
+      "gainDb": -22,
+      "meanVolumeDb": -7.9,
+      "peakDbfs": -3,
+      "provenance": "Original deterministic synthesis for SeanLab",
+      "license": "SeanLab owned original",
+      "sha256": "4ce49906a67e30b25ac25286a5b0095d69dfa82eed128fe153911c3236f3e478"
+    }
+  ]
+}

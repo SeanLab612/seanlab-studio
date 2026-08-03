@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seanlab.local/schemas/local-product-policy.schema.json",
+  "title": "SeanLab local product policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "maxConcurrentJobs",
+    "maxQueuedJobs",
+    "minimumFreeBytes",
+    "projectQuotaBytes",
+    "backupRetention"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "maxConcurrentJobs": { "type": "integer", "minimum": 1, "maximum": 4 },
+    "maxQueuedJobs": { "type": "integer", "minimum": 1, "maximum": 100 },
+    "minimumFreeBytes": { "type": "integer", "minimum": 1073741824 },
+    "projectQuotaBytes": { "type": "integer", "minimum": 1073741824 },
+    "backupRetention": { "type": "integer", "minimum": 1, "maximum": 20 }
+  }
+}

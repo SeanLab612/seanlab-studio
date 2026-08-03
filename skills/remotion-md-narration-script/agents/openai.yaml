@@ -1,0 +1,4 @@
+interface:
+  display_name: "Remotion MD Narration Script"
+  short_description: "Draft and lock creator narration with shooting guidance"
+  default_prompt: "Use $remotion-md-narration-script to turn my topic and source material into a final narration and shooting handoff."

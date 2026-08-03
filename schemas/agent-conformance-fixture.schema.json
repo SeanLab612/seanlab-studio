@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remotion-md.local/schemas/agent-conformance-fixture.schema.json",
+  "type": "object",
+  "required": ["schemaVersion", "id", "project", "narration", "recut", "semantic"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+    "project": {
+      "type": "object",
+      "required": ["brief", "sourceContext", "materials"],
+      "additionalProperties": false,
+      "properties": {
+        "brief": {
+          "type": "object",
+          "required": ["topic", "category"],
+          "additionalProperties": false,
+          "properties": {
+            "topic": {"type": "string", "minLength": 1},
+            "category": {
+              "enum": [
+                "github-project",
+                "tutorial",
+                "news-analysis",
+                "tool-review",
+                "model-review",
+                "biopharma-extra",
+                "other"
+              ]
+            }
+          }
+        },
+        "sourceContext": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+        "materials": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+    "narration": {
+      "type": "object",
+      "required": ["requiredTerms", "forbiddenTerms"],
+      "additionalProperties": false,
+      "properties": {
+        "requiredTerms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {"type": "string", "minLength": 1},
+              {
+                "type": "array",
+                "minItems": 1,
+                "items": {"type": "string", "minLength": 1}
+              }
+            ]
+          }
+        },
+        "forbiddenTerms": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "recut": {
+      "type": "object",
+      "required": ["transcript", "acceptableCandidateSets", "protectedWordRanges"],
+      "additionalProperties": false,
+      "properties": {
+        "transcript": {"type": "object", "required": ["words"], "properties": {"words": {"type": "array"}}},
+        "acceptableCandidateSets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["kind", "startWord", "endWord"],
+              "additionalProperties": false,
+              "properties": {
+                "kind": {"enum": ["filler", "false-start", "duplicate-retake"]},
+                "startWord": {"type": "integer", "minimum": 0},
+                "endWord": {"type": "integer", "minimum": 0}
+              }
+            }
+          }
+        },
+        "protectedWordRanges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["startWord", "endWord"],
+            "additionalProperties": false,
+            "properties": {
+              "startWord": {"type": "integer", "minimum": 0},
+              "endWord": {"type": "integer", "minimum": 0}
+            }
+          }
+        }
+      }
+    },
+    "semantic": {
+      "type": "object",
+      "required": [
+        "captions",
+        "terminologyProfile",
+        "imageEvidence",
+        "expectedEvidenceRanges",
+        "forbiddenTerms"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "captions": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+        "terminologyProfile": {"type": ["object", "null"]},
+        "imageEvidence": {"type": "array", "items": {"type": "object"}},
+        "expectedEvidenceRanges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["startCue", "endCue"],
+            "additionalProperties": false,
+            "properties": {
+              "startCue": {"type": "integer", "minimum": 0},
+              "endCue": {"type": "integer", "minimum": 0}
+            }
+          }
+        },
+        "forbiddenTerms": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    }
+  }
+}

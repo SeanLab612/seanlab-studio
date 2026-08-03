@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-remotion.local/schemas/operational-error.schema.json",
+  "title": "Structured Workflow Failure",
+  "type": "object",
+  "required": ["schemaVersion", "code", "category", "message", "retryable", "remediation", "occurredAt"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]+$"},
+    "category": {"type": "string"},
+    "stage": {"type": "string"},
+    "message": {"type": "string"},
+    "retryable": {"type": "boolean"},
+    "remediation": {"type": "string"},
+    "exitCode": {"type": ["integer", "string", "null"]},
+    "logPath": {"type": "string"},
+    "details": {},
+    "occurredAt": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}
