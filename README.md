@@ -36,13 +36,25 @@ The browser-based Studio keeps project stages, the fixed local Agent, review gat
 
 These are real frames rendered from the approved Remotion component compositions on a neutral blank source. They are not schematic Studio thumbnails. Production layouts reserve the right side for the speaker and hard-darken the information stage on the left for legibility.
 
-![Nineteen production component renders](docs/assets/components-overview.jpg)
+![Production component renders, group 1](docs/assets/components-group-01.jpg)
+
+![Production component renders, group 2](docs/assets/components-group-02.jpg)
+
+![Production component renders, group 3](docs/assets/components-group-03.jpg)
+
+![Production component renders, group 4](docs/assets/components-group-04.jpg)
+
+![Production component renders, group 5](docs/assets/components-group-05.jpg)
 
 ### Data visualization recipes
 
 Ten controlled chart recipes cover comparison, time series, dot plots, ratios, waterfall changes, scatter plots, intervals, funnels, before/after comparisons, and risk-return positioning.
 
-![Data visualization recipe renders](docs/assets/data-visualizations-overview.jpg)
+![Data visualization recipe renders, group 1](docs/assets/data-effects-group-01.jpg)
+
+![Data visualization recipe renders, group 2](docs/assets/data-effects-group-02.jpg)
+
+![Data visualization recipe renders, group 3](docs/assets/data-effects-group-03.jpg)
 
 ### Animation templates
 

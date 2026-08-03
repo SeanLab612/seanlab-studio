@@ -35,7 +35,7 @@ const componentCases = [
   ["model-classification-map", "ReviewModelClassificationMap", 180],
   ["capability-surface-grid", "ReviewCapabilitySurfaceGrid", 180],
   ["tradeoff-scale", "ReviewTradeoffScale", 180],
-  ["rough-annotation", "ReviewRoughAnnotationNegation", 90],
+  ["rough-annotation", "ReviewRoughAnnotationSequence", 90],
 ].map(([id, composition, frame]) => ({
   kind: "component",
   id,

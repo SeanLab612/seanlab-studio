@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { copyFile, mkdir } from "node:fs/promises";
+import { copyFile, mkdir, readdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 
@@ -48,8 +48,15 @@ await run("python3", ["scripts/static_component_data_contact_sheet.py", reviewDi
 });
 
 await Promise.all([
-  copyFile(resolve(reviewDir, "components-contact-sheet.jpg"), resolve(docsDir, "components-overview.jpg")),
-  copyFile(resolve(reviewDir, "data-effects-contact-sheet.jpg"), resolve(docsDir, "data-visualizations-overview.jpg")),
+  rm(resolve(docsDir, "components-overview.jpg"), { force: true }),
+  rm(resolve(docsDir, "data-visualizations-overview.jpg"), { force: true }),
+]);
+
+const groupedFiles = (await readdir(reviewDir)).filter((file) =>
+  /^(components|data-effects)-group-\d+\.jpg$/.test(file),
+);
+await Promise.all([
+  ...groupedFiles.map((file) => copyFile(resolve(reviewDir, file), resolve(docsDir, file))),
   copyFile(
     resolve(reviewDir, "animation-templates-contact-sheet.jpg"),
     resolve(docsDir, "animation-templates-overview.jpg"),
