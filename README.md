@@ -1,88 +1,86 @@
-# SeanLab Studio
+<p align="center">
+  <img src="studio/assets/seanlab-logo.png" width="112" alt="SeanLab Studio" />
+</p>
 
-SeanLab Studio is a local, review-gated workflow for turning a talking-head recording into a Remotion video with captions, evidence-bound visual planning, reusable components, animation, static review, and final delivery.
+<h1 align="center">SeanLab Studio</h1>
 
-![SeanLab Studio local workflow](docs/assets/studio-workflow.png)
+<p align="center">
+  面向知识类口播视频的本地制作 Studio。<br />
+  把资料理解、口播稿、粗剪、字幕、视觉规划、人工审核和 Remotion 渲染放进同一条可恢复的工作流。
+</p>
 
-The open-source edition is intentionally creator-neutral:
+![SeanLab Studio 工作流](docs/assets/studio-workflow.png)
 
-- it does not insert a fixed channel greeting, transition phrase, logo bumper, or signature sound;
-- it does not ship a creator's portrait, cover pose library, project footage, or production history;
-- cover production starts with a photo selected by the local user and keeps that photo inside the ignored project directory;
-- brand identity is optional and disabled by default;
-- Codex CLI and Claude Code adapters are optional local integrations, with no silent provider fallback.
+## 从原片到成片
 
-## Status
+SeanLab Studio 将视频制作分成六个清晰阶段：
 
-This repository is an early developer preview for Apple silicon macOS. It is not yet a packaged desktop application. The workflow is designed around local files, FFmpeg, Remotion, and explicit human review gates.
+1. **创建**：确定主题、导入资料，并为项目选择固定的本地 Agent。
+2. **写稿**：Agent 理解资料并生成口播稿，创作者修改、审核并锁稿。
+3. **拍摄**：导入本地拍摄的口播原片和项目素材。
+4. **制作**：完成粗剪、字幕、视觉规划、组件匹配和动画制作。
+5. **审核**：通过静态帧和证据记录检查画面，不满意的部分可以定向修改。
+6. **交付**：按选定规格渲染成片，完成技术检查后由创作者最终确认。
 
-## What is included
+每个项目都保留自己的进度、素材和审核记录。任务中断后可以从安全阶段继续，不必重跑已经完成的步骤。
 
-- six-step local Studio: create, write, shoot, produce, review, deliver;
-- structured narration and source-grounding contracts;
-- conservative talking-head recut and verbatim caption workflow;
-- semantic visual planning with deterministic component materialization;
-- animation templates with local icon and user-supplied image ingredients;
-- resumable execution, evidence hashes, static review, and delivery validation;
-- a local cover workspace that uses the creator's own photo.
+## 核心能力
 
-## Studio and visual library
+- **Agent 参与制作**：理解资料和口播内容，规划粗剪、字幕与视觉表达，而不是只执行固定模板。
+- **可审核的视觉规划**：每个视觉安排都对应具体口播段落，创作者可以在进入渲染前检查和修改。
+- **可复用视觉资源库**：内置信息组件、数据图表、图标和动画模板，也支持积累自己的图片素材。
+- **保守的口播处理**：保留原意和真实口播，不用字幕改写掩盖错读，也不会自动批准人工审核。
+- **可恢复工作流**：保存阶段状态、输入签名和安全恢复点，失败时尽量从最小范围继续。
+- **本地优先**：项目文件、原片、截图、字幕和渲染结果保存在本机，不需要托管到云端。
 
-The browser-based Studio keeps project stages, the fixed local Agent, review gates, and reusable visual resources in one workspace. The screenshots below were captured from a clean local instance with no private creator project loaded.
+## Studio 与视觉资源库
 
-![SeanLab Studio visual resource library](docs/assets/studio-resource-library.png)
+Studio 集中管理项目进度、固定 Agent、审核节点和可复用视觉素材。
 
-### 19 production components
+![SeanLab Studio 视觉资源库](docs/assets/studio-resource-library.png)
 
-These are real frames rendered from the approved Remotion component compositions on a neutral blank source. They are not schematic Studio thumbnails. Production layouts reserve the right side for the speaker and hard-darken the information stage on the left for legibility.
+### 19 个信息组件
 
-![Production component renders, group 1](docs/assets/components-group-01.jpg)
+用于人物与公司证据、关键数字、时间线、流程、因果关系、对比、决策和观点引用等常见表达。组件针对口播视频布局，并为人物画面和字幕保留安全区域。
 
-![Production component renders, group 2](docs/assets/components-group-02.jpg)
+![信息组件，第 1 组](docs/assets/components-group-01.jpg)
 
-![Production component renders, group 3](docs/assets/components-group-03.jpg)
+![信息组件，第 2 组](docs/assets/components-group-02.jpg)
 
-![Production component renders, group 4](docs/assets/components-group-04.jpg)
+![信息组件，第 3 组](docs/assets/components-group-03.jpg)
 
-![Production component renders, group 5](docs/assets/components-group-05.jpg)
+![信息组件，第 4 组](docs/assets/components-group-04.jpg)
 
-### Data visualization recipes
+![信息组件，第 5 组](docs/assets/components-group-05.jpg)
 
-Ten controlled chart recipes cover comparison, time series, dot plots, ratios, waterfall changes, scatter plots, intervals, funnels, before/after comparisons, and risk-return positioning.
+### 10 种数据图表
 
-![Data visualization recipe renders, group 1](docs/assets/data-effects-group-01.jpg)
+覆盖数值对比、时间序列、比例、瀑布变化、散点、区间、漏斗、前后对比和风险收益等场景。
 
-![Data visualization recipe renders, group 2](docs/assets/data-effects-group-02.jpg)
+![数据图表，第 1 组](docs/assets/data-effects-group-01.jpg)
 
-![Data visualization recipe renders, group 3](docs/assets/data-effects-group-03.jpg)
+![数据图表，第 2 组](docs/assets/data-effects-group-02.jpg)
 
-### Animation templates
+![数据图表，第 3 组](docs/assets/data-effects-group-03.jpg)
 
-The repository includes three semantic animation directions. They use local icons and user-approved project images; the existence of an image-generation interface does not trigger image generation.
+### 3 种动画模板
 
-![Paper editorial, research archive, and stop-motion animation templates](docs/assets/animation-templates-overview.jpg)
+动画根据口播语义选择信息结构，可以使用本地图标和经过确认的项目图片素材。
 
-- [Paper editorial preview](public/assets/animation-templates/paper-editorial-preview-v1.mp4)
-- [Research archive preview](public/assets/animation-templates/research-archive-preview-v1.mp4)
-- [Stop-motion machine preview](public/assets/animation-templates/stop-motion-machine-preview-v1.mp4)
+![纸张编辑部、研究档案与定格机器动画模板](docs/assets/animation-templates-overview.jpg)
 
-## What is not included
+- [纸张编辑部动画预览](public/assets/animation-templates/paper-editorial-preview-v1.mp4)
+- [研究档案动画预览](public/assets/animation-templates/research-archive-preview-v1.mp4)
+- [定格机器动画预览](public/assets/animation-templates/stop-motion-machine-preview-v1.mp4)
 
-- private projects, recordings, screenshots, transcripts, renders, logs, or backups;
-- SeanLab channel intro/bumper assets and fixed narration anchors;
-- preloaded creator portraits or a bundled celebrity/person image library;
-- third-party brand artwork; named brands render as local text badges unless the user supplies an authorized asset;
-- any hosted AI, storage, publishing, or image-generation service.
+## 快速开始
 
-## Requirements
+目前版本面向 Apple 芯片 Mac，需要：
 
-- Apple silicon macOS
-- Node.js 22 or newer
-- FFmpeg and ffprobe with H.264/AAC support
+- Node.js 22 或更高版本
+- FFmpeg 与 ffprobe（支持 H.264/AAC）
 - Python 3
-- optional: an authenticated Codex CLI or Claude Code installation
-
-## Quick start
+- 已登录的 Codex CLI 或 Claude Code（二选一）
 
 ```bash
 git clone https://github.com/SeanLab612/seanlab-studio.git
@@ -94,22 +92,26 @@ npm run doctor -- --agent codex-cli
 npm run studio:start
 ```
 
-Open <http://localhost:3080>. Stop the service with `npm run studio:stop`.
+打开 <http://localhost:3080> 开始创建项目。停止服务：
 
-Real creator data is written to `projects/` and is ignored by Git. Never put a real recording or credential into an example, fixture, issue, or pull request.
+```bash
+npm run studio:stop
+```
 
-## Personalized features
+如果使用 Claude Code，将环境检查命令中的 `codex-cli` 改为 `claude-code`。
 
-The public edition treats identity as project configuration rather than product behavior:
+## 本地数据与隐私
 
-- write any natural opening you want; there is no required greeting;
-- no transition sentence is reserved for a bumper;
-- no bumper is inserted into the timeline;
-- upload your own cover portrait and adjust crop position/zoom locally;
-- import project-specific images instead of relying on a bundled people library;
-- add terminology and branding only when the project actually needs them.
+- 真实项目统一保存在 `projects/`，该目录默认不会被 Git 提交。
+- 每个项目固定使用一个 Agent，不会在不同服务之间静默切换。
+- 封面和视觉素材由用户从本地选择；项目不会自动调用图片生成服务。
+- 请勿把真实录音、凭据或私人项目文件加入示例、Issue 或 Pull Request。
 
-## Development
+## 当前状态
+
+SeanLab Studio 目前是面向开发者和早期用户的本地预览版，尚未打包为可直接安装的桌面应用。工作流、审核节点和渲染链路可以运行，但安装和环境配置仍需要使用命令行。
+
+## 开发与贡献
 
 ```bash
 npm run format:check
@@ -120,8 +122,8 @@ npm run test:workflow-core
 npm run docs:assets
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before contributing.
+提交贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)、[SECURITY.md](SECURITY.md) 和 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ## License
 
-Source code is available under the [MIT License](LICENSE). Fonts and other redistributable assets keep their own notices. User-provided media is never relicensed by this repository.
+源代码使用 [MIT License](LICENSE)。字体和其他可再分发素材保留各自的许可说明，用户导入的媒体文件不会因使用本项目而改变授权方式。
