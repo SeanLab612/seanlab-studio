@@ -28,6 +28,7 @@ export const createCreatorProject = async ({
   topic,
   creatorNotes,
   category,
+  workflowMode = "script-first",
   agentId,
   model,
   sources = [],
@@ -36,7 +37,7 @@ export const createCreatorProject = async ({
   const now = new Date().toISOString();
   const value = validateCreatorProject({
     schemaVersion: "1.0",
-    project: { id: assertId(id), title, createdAt: now, updatedAt: now, status: "intake" },
+    project: { id: assertId(id), title, createdAt: now, updatedAt: now, status: "intake", workflowMode },
     agent: {
       id: agentId,
       ...(model ? { model } : {}),
@@ -189,6 +190,40 @@ export const defaultMaterialRequired = (kind) => !["screenshot", "screen-recordi
 
 const imageAssetExtensions = new Set([".avif", ".gif", ".heic", ".jpeg", ".jpg", ".png", ".webp"]);
 const videoAssetExtensions = new Set([".m4v", ".mkv", ".mov", ".mp4", ".webm"]);
+const scriptExtensions = new Set([".md", ".srt", ".txt", ".vtt"]);
+
+export const inferCreatorAssetKind = (sourcePath) => {
+  const extension = extname(String(sourcePath ?? "")).toLowerCase();
+  if (imageAssetExtensions.has(extension)) return "screenshot";
+  if (videoAssetExtensions.has(extension)) return "screen-recording";
+  return "reference";
+};
+
+export const importCreatorInputScript = async ({ projectId, sourcePath }) => {
+  const project = await loadCreatorProject(projectId);
+  if ((project.project.workflowMode ?? "script-first") !== "visual-post-production")
+    throw new Error("只有“已有口播视频”项目可以导入口播稿");
+  const source = normalizeLocalPath(sourcePath);
+  const extension = extname(source).toLowerCase();
+  if (!scriptExtensions.has(extension)) throw new Error("口播稿仅支持 TXT、Markdown、SRT 或 VTT 文件");
+  const info = await stat(source).catch((error) => {
+    if (error?.code === "ENOENT") throw new Error(`找不到口播稿：${source}`);
+    throw error;
+  });
+  if (!info.isFile() || info.size === 0) throw new Error("口播稿必须是非空文件");
+  if (info.size > 2_000_000) throw new Error("口播稿文件不能超过 2 MB");
+  const relativePath = `authoring/input-script${extension}`;
+  const destination = resolve(projectDir(projectId), relativePath);
+  await mkdir(dirname(destination), { recursive: true });
+  await copyFile(source, destination);
+  project.authoring.inputScript = relativePath;
+  const existing = project.sources.find((item) => item.id === "source-input-script");
+  const sourceEntry = { id: "source-input-script", kind: "file", label: "已有口播稿（原文）", value: destination };
+  if (existing) Object.assign(existing, sourceEntry);
+  else project.sources.unshift(sourceEntry);
+  await saveCreatorProject(project);
+  return { path: relativePath, fileName: basename(source), bytes: info.size };
+};
 
 export const validateCreatorAssetKind = (source, kind) => {
   const extension = extname(source).toLowerCase();
@@ -244,7 +279,11 @@ export const importCreatorAsset = async ({
   const destination = resolve(projectDir(projectId), "assets", fileName);
   await mkdir(dirname(destination), { recursive: true });
   await copyFile(source, destination);
-  const materialId = `material-${project.materials.length + 1}`;
+  const materialSequence = project.materials.reduce((highest, item) => {
+    const match = /^material-(\d+)$/.exec(item.id);
+    return match ? Math.max(highest, Number(match[1])) : highest;
+  }, 0);
+  const materialId = `material-${materialSequence + 1}`;
   const normalizedEvidenceRole = new Set(["interface", "result", "source", "comparison", "document", "other"]).has(
     evidenceRole,
   )
@@ -270,6 +309,8 @@ export const importCreatorAsset = async ({
       : {}),
   };
   project.materials.push(material);
+  if (kind === "speaker-video" && (project.project.workflowMode ?? "script-first") === "visual-post-production")
+    project.video.sourceAssetId = assetId;
   try {
     await saveCreatorProject(project);
     return {
@@ -284,6 +325,40 @@ export const importCreatorAsset = async ({
     await rm(destination, { force: true });
     throw error;
   }
+};
+
+export const deleteCreatorMaterial = async ({ projectId, materialId }) => {
+  if (!idPattern.test(materialId ?? "")) throw new Error("素材编号无效");
+  const project = await loadCreatorProject(projectId);
+  if (project.authoring.state !== "not-started")
+    throw new Error("口播稿开始生成后不能直接删除素材，请先在视觉方案中解除引用");
+  const index = project.materials.findIndex((item) => item.id === materialId);
+  if (index < 0) throw new Error(`找不到素材：${materialId}`);
+  const [material] = project.materials.splice(index, 1);
+  let originalPath;
+  let recoveryPath;
+  if (material.assetId) {
+    originalPath = await resolveCreatorAsset(projectId, material.assetId).catch(() => undefined);
+    if (originalPath) {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      recoveryPath = resolve(projectDir(projectId), "assets/.trash", `${timestamp}-${basename(originalPath)}`);
+      await mkdir(dirname(recoveryPath), { recursive: true });
+      await rename(originalPath, recoveryPath);
+    }
+  }
+  if (project.video.sourceAssetId === material.assetId) delete project.video.sourceAssetId;
+  try {
+    await saveCreatorProject(project);
+  } catch (error) {
+    if (originalPath && recoveryPath) await rename(recoveryPath, originalPath).catch(() => {});
+    throw error;
+  }
+  return {
+    deleted: true,
+    material,
+    materialCount: project.materials.length,
+    recoverable: Boolean(recoveryPath),
+  };
 };
 
 export const resolveCreatorAsset = async (projectId, assetId) => {

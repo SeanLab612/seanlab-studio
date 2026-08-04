@@ -16,6 +16,9 @@ test("new projects collect sources and materials before confirmed understanding 
   const server = await readFile(new URL("../scripts/studio-server.mjs", import.meta.url), "utf8");
 
   assert.match(html, /value="github-project">GitHub 项目介绍/);
+  assert.match(html, /value="general">通用/);
+  assert.match(html, /value="script-first">从头创作/);
+  assert.match(html, /value="visual-post-production">已有口播视频/);
   assert.match(html, /value="news-analysis">新闻介绍/);
   assert.match(html, /value="tutorial">教程类介绍/);
   assert.doesNotMatch(html, /value="tool-review">/);
@@ -26,7 +29,14 @@ test("new projects collect sources and materials before confirmed understanding 
   );
   assert.match(app, /先完成素材理解/);
   assert.match(app, /素材已理解/);
-  assert.match(app, /确认并继续写稿/);
+  assert.match(app, /确认素材理解/);
+  assert.match(app, /浏览并加入（可多选）/);
+  assert.match(app, /data-delete-material/);
+  assert.match(app, /原文件会保留在项目回收目录/);
+  assert.match(server, /deleteCreatorMaterial/);
+  assert.match(app, /assets\/pick/);
+  assert.doesNotMatch(app, /图片证据用途/);
+  assert.doesNotMatch(app, /来源标注/);
   assert.doesNotMatch(app, /本期素材整体理解/);
   assert.doesNotMatch(app, /识别边界/);
   assert.doesNotMatch(app, /建议用于/);
@@ -97,9 +107,10 @@ test("Studio exposes intake inventory and evidence-bound recut controls", async 
   assert.match(app, /按意见重新规划/);
   assert.match(app, /保存意见并驳回/);
   assert.match(app, /recut-feedback/);
-  assert.match(app, /图片证据用途/);
-  assert.match(app, /asset-description/);
-  assert.match(app, /asset-source-label/);
+  assert.match(app, /图片适配方式/);
+  assert.match(app, /浏览并加入（可多选）/);
+  assert.doesNotMatch(app, /asset-description/);
+  assert.doesNotMatch(app, /asset-source-label/);
   assert.match(app, /\/assets\/\$\{encodeURIComponent\(item\.assetId\)\}/);
   assert.match(server, /resolveCreatorAsset/);
 });
@@ -564,10 +575,12 @@ test("Studio revision choices match the component ids allowed by the revision co
 
 test("Studio treats uploaded visual assets as candidates and binds them after drafting", async () => {
   const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
-  assert.match(app, /登记为候选素材/);
+  assert.match(app, /Agent 会读取并理解素材内容/);
   assert.match(app, /写稿后补充截图或录屏/);
   assert.match(app, /素材与口播段落/);
   assert.match(app, /data-section-material/);
+  assert.match(app, /继续生成视觉方案/);
+  assert.match(app, /不会重新调用 Agent 写稿/);
   assert.doesNotMatch(app, /asset-anchor-text/);
 });
 
@@ -602,6 +615,7 @@ test("Studio reviews narration and visual choices together without adding human 
   assert.doesNotMatch(server, /creatorOpeningIdentity: CREATOR_OPENING_IDENTITY/);
   assert.match(app, /id:"overview", title:"本期概述"/);
   assert.doesNotMatch(app, /id:"transition-anchor", title:"入场锚点"/);
+  assert.doesNotMatch(app, /index:-2/);
   assert.doesNotMatch(app, /固定入场动画/);
   assert.doesNotMatch(server, /creatorTransitionAnchorVisual: CREATOR_TRANSITION_ANCHOR_VISUAL/);
   assert.match(app, /id:"conclusion", title:"结尾总结"/);

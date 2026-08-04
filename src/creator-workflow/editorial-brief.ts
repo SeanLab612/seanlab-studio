@@ -4,6 +4,11 @@ export const EDITORIAL_BRIEF_VERSION = "1.0" as const;
 
 export const PUBLIC_CREATOR_CATEGORIES = [
   {
+    id: "general",
+    label: "通用",
+    summary: "不限定内容类型，由 Agent 根据主题、资料和素材组织内容。",
+  },
+  {
     id: "github-project",
     label: "GitHub 项目介绍",
     summary: "基于真实使用、项目资料和适用边界介绍一个 GitHub 项目。",
@@ -54,21 +59,21 @@ const universalQuestions: ReadonlyArray<EditorialQuestion> = [
     id: "relationship-detail",
     label: "你和这期内容是什么关系？",
     type: "textarea",
-    required: true,
+    required: false,
     placeholder: "例如使用了多久、做过什么测试，或为什么只能基于公开资料判断。",
   },
   {
     id: "audience",
     label: "这期内容主要讲给谁听？",
     type: "text",
-    required: true,
+    required: false,
     placeholder: "例如：想减少重复剪辑工作的独立创作者。",
   },
   {
     id: "takeaway",
     label: "观众看完后最应该带走什么？",
     type: "textarea",
-    required: true,
+    required: false,
     placeholder: "只写一个核心判断、答案或可执行结果。",
   },
   {
@@ -215,7 +220,7 @@ const expectedQuestions = (category: CreatorCategory) => {
 
 export const createEmptyEditorialBrief = (): CreatorEditorialBrief => ({
   version: EDITORIAL_BRIEF_VERSION,
-  status: "draft",
+  status: "ready",
   answers: {},
 });
 

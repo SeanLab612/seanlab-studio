@@ -34,5 +34,5 @@ test("free-form intake accepts only answers backed by an exact creator quote", (
   assert.equal(result.editorialBrief.answers["project-boundary"], undefined);
   assert.equal(result.editorialBrief.answers["project-focus"], undefined);
   assert.deepEqual(result.ignored, ["project-boundary", "project-focus"]);
-  assert.equal(result.editorialBrief.status, "draft");
+  assert.equal(result.editorialBrief.status, "ready");
 });

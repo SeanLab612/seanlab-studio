@@ -426,6 +426,14 @@ test("source grounding blocks factual qualifiers absent from the frozen evidence
   assert.equal(semantic.passed, false);
 });
 
+test("source grounding does not treat the ordinary word 门槛 as an external fact", () => {
+  const report = evaluateSourceGrounding({
+    outputText: "这个项目的使用门槛不算高。",
+    sourceText: "这个项目可以直接在本地运行。",
+  });
+  assert.doesNotMatch(report.unsupportedSourceTerms.join("、"), /门槛/u);
+});
+
 test("source grounding treats quantified Chinese numerals as equivalent to Arabic numerals", () => {
   const report = evaluateSourceGrounding({
     outputText: "3 个重点，2 种做法，4 个阶段",

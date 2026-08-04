@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
-import { CREATOR_CATEGORIES, type CreatorProject, type NarrationScriptPackage } from "./types.ts";
+import {
+  CREATOR_CATEGORIES,
+  CREATOR_WORKFLOW_MODES,
+  type CreatorProject,
+  type NarrationScriptPackage,
+} from "./types.ts";
 import { normalizeEditorialBrief } from "./editorial-brief.ts";
 import { AGENT_IDS } from "../agents/types.ts";
 import { animationTemplateIds } from "../animation-system/template-registry.ts";
@@ -26,6 +31,7 @@ const materialKinds = ["screenshot", "screen-recording", "reference", "speaker-v
 const evidenceRoles = ["interface", "result", "source", "comparison", "document", "other"] as const;
 const materialFits = ["contain", "cover"] as const;
 const authoringPathFields = [
+  "inputScript",
   "draftScript",
   "sourceContext",
   "finalScript",
@@ -79,6 +85,8 @@ export const validateCreatorProject = (input: unknown): CreatorProject => {
   assertTimestamp(value.project.createdAt, "createdAt");
   assertTimestamp(value.project.updatedAt, "updatedAt");
   if (!creatorProjectStatuses.includes(value.project.status)) throw new Error("Creator project status is invalid");
+  if (value.project.workflowMode !== undefined && !CREATOR_WORKFLOW_MODES.includes(value.project.workflowMode))
+    throw new Error("Creator project workflow mode is invalid");
   if (!isRecord(value.agent) || !AGENT_IDS.includes(value.agent.id))
     throw new Error("Creator project Agent is invalid");
   if (

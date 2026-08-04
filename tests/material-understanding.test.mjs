@@ -96,6 +96,19 @@ test("material understanding binds real inputs and becomes stale after intake ch
     assert.equal(attachedImages.length, 1);
     const confirmed = await understanding.confirmMaterialUnderstanding("material-test", report.inputSha256);
     assert.equal(confirmed.status, "confirmed");
+    await store.updateCreatorEditorialBrief({
+      projectId: "material-test",
+      editorialBrief: {
+        version: "1.0",
+        status: "ready",
+        answers: { audience: "独立创作者", takeaway: "理解这套工作流" },
+      },
+    });
+    assert.equal(
+      (await understanding.loadMaterialUnderstanding("material-test")).status,
+      "confirmed",
+      "writing direction must not invalidate unchanged sources or materials",
+    );
     await store.addCreatorSource({
       projectId: "material-test",
       label: "补充说明",

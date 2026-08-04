@@ -4,6 +4,7 @@ import type { TypographyProjectPolicy } from "../typography-policy/types.ts";
 import type { NarrationVisualForm } from "./visual-authoring.ts";
 
 export const CREATOR_CATEGORIES = [
+  "general",
   "github-project",
   "tutorial",
   "news-analysis",
@@ -14,6 +15,8 @@ export const CREATOR_CATEGORIES = [
 ] as const;
 
 export type CreatorCategory = (typeof CREATOR_CATEGORIES)[number];
+export const CREATOR_WORKFLOW_MODES = ["script-first", "visual-post-production"] as const;
+export type CreatorWorkflowMode = (typeof CREATOR_WORKFLOW_MODES)[number];
 export type CreatorEditorialBrief = {
   version: "1.0";
   status: "draft" | "ready";
@@ -62,6 +65,7 @@ export type CreatorProject = {
     createdAt: string;
     updatedAt: string;
     status: CreatorProjectStatus;
+    workflowMode?: CreatorWorkflowMode;
   };
   agent: GlobalAgentPin;
   /** Read-only compatibility for projects created before per-section animation style review. */
@@ -82,6 +86,7 @@ export type CreatorProject = {
   materials: CreatorMaterial[];
   authoring: {
     state: "not-started" | "drafted" | "locked";
+    inputScript?: string;
     draftScript?: string;
     sourceContext?: string;
     finalScript?: string;

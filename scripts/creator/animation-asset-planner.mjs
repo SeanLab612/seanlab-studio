@@ -115,7 +115,10 @@ export const createAnimationAssetPlan = async ({
   if (!targets.length) return { storyboard, report: null };
   let plan;
   let provider;
-  if (project.agent.id === "fixture") {
+  if (!assets.length) {
+    plan = deterministicFixturePlan(targets, assets);
+    provider = { provider: "local-icon-fallback", reason: "no-promoted-image-assets" };
+  } else if (project.agent.id === "fixture") {
     plan = deterministicFixturePlan(targets, assets);
     provider = { provider: "fixture" };
   } else {
@@ -128,10 +131,11 @@ export const createAnimationAssetPlan = async ({
       },
       schemaPath,
     });
-    plan = await adapter.completeJson({
-      system:
-        "You are SeanLab's visual planning Agent. Select reusable image assets only as ingredients inside already-directed animations.",
-      user: `为每个动画阶段选择图片素材，严格输出 JSON。
+    try {
+      plan = await adapter.completeJson({
+        system:
+          "You are SeanLab's visual planning Agent. Select reusable image assets only as ingredients inside already-directed animations.",
+        user: `为每个动画阶段选择图片素材，严格输出 JSON。
 
 规则：
 - 动画结构和风格已经确定，不得改成独立图片画面、组件或其他视觉类型。
@@ -182,7 +186,10 @@ ${JSON.stringify(
   null,
   2,
 )}`,
-    });
+      });
+    } catch (error) {
+      throw new Error(`动画图片素材规划失败：${error?.message ?? error}`, { cause: error });
+    }
     provider = adapter.getLastRunMetadata();
   }
   const bindings = validatePlan({ plan, targets, assets });

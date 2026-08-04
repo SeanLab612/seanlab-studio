@@ -145,6 +145,12 @@ h1 { font-size:21px; margin:4px 0 0; letter-spacing:-.5px; }
 .intake-inventory li small { flex:none; color:#7a8982; }
 .intake-inventory li > span { display:flex; flex:1; flex-direction:column; gap:2px; }
 .intake-inventory li > span small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.material-delete-button { flex:none; padding:5px 8px; border:1px solid #e3b8ac; border-radius:7px; background:#fff8f5; color:#994d3a; font-size:11px; font-weight:700; }
+.material-delete-button:hover { border-color:#c87964; background:#fff0eb; }
+.visual-planning-recovery { display:flex; align-items:center; justify-content:space-between; gap:20px; border-color:#e7c99b; background:#fffaf0; }
+.visual-planning-recovery strong { color:#78551f; }
+.visual-planning-recovery p { margin:5px 0 0; color:#6f6453; }
+.visual-planning-recovery button { flex:none; }
 .material-thumb { width:58px; height:44px; flex:none; border:1px solid #d5e1da; border-radius:7px; background:#fff; object-fit:cover; }
 .source-evidence { margin-top:16px; padding:13px; border:1px solid #d7e5dd; border-radius:11px; background:#f7faf8; }
 .source-evidence > div { display:flex; align-items:baseline; justify-content:space-between; gap:14px; }
@@ -1466,6 +1472,30 @@ body { min-width:900px; background:#f4f6f5; }
   margin-top:14px;
 }
 .intake-form-actions .secondary { min-width:148px; }
+.asset-browser-row {
+  display:grid;
+  grid-template-columns:minmax(220px,1fr) auto;
+  align-items:end;
+  gap:14px;
+}
+.asset-browser-row button { min-height:44px; }
+.advanced-path-entry {
+  margin-top:14px;
+  padding:12px 14px;
+  border:1px solid #dbe6e0;
+  border-radius:10px;
+  background:#f7faf8;
+}
+.advanced-path-entry summary { cursor:pointer; color:var(--muted); font-weight:700; }
+.advanced-path-entry .intake-form-grid { margin-top:14px; }
+.existing-input-grid {
+  display:grid;
+  grid-template-columns:minmax(190px,auto) 1fr;
+  align-items:center;
+  gap:12px 16px;
+}
+.existing-input-grid span { color:var(--muted); }
+.existing-input-grid span.ready { color:var(--green); font-weight:700; }
 .intake-inventory { margin-top:16px; }
 .intake-inventory ol { list-style:none; margin:0; padding:0 12px 8px; }
 .intake-inventory li { justify-content:flex-start; }

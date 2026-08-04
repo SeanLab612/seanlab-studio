@@ -24,13 +24,23 @@ import {
   confirmMaterialUnderstanding,
   loadMaterialUnderstanding,
 } from "./creator/material-understanding.mjs";
-import { generateNarration, loadNarration, loadSourceContext, rewriteNarration } from "./creator/narration.mjs";
+import {
+  generateNarration,
+  loadNarration,
+  loadSourceContext,
+  prepareExistingNarration,
+  resumeNarrationVisualPlanning,
+  rewriteNarration,
+} from "./creator/narration.mjs";
 import { buildNarrationExport } from "./creator/narration-export.mjs";
 import {
   addCreatorSource,
   createCreatorProject,
+  deleteCreatorMaterial,
   deleteCreatorProject,
   importCreatorAsset,
+  importCreatorInputScript,
+  inferCreatorAssetKind,
   inspectCreatorProjects,
   listCreatorProjects,
   loadCreatorProject,
@@ -133,6 +143,7 @@ import {
   suggestWritingLessons,
 } from "./creator/writing-profile.mjs";
 import { runEnvironmentDoctor } from "./operations/doctor.mjs";
+import { chooseLocalFiles } from "./operations/local-file-picker.mjs";
 import { redactSecrets } from "./operations/errors.mjs";
 import { parseSingleByteRange } from "./operations/http-byte-range.mjs";
 import { studioPageContentSecurityPolicy, studioSecureHeaders } from "./operations/http-security.mjs";
@@ -301,7 +312,8 @@ const body = async (request) => {
 };
 const friendlyJobError = (error) => {
   const message = error?.message ?? String(error);
-  if (message.includes("invalid_json_schema")) return "口播稿结构定义与 Agent 不兼容，请刷新页面后重试。";
+  if (message.includes("动画图片素材规划失败")) return "口播稿已保存，动画图片素材规划未完成，请从视觉方案继续。";
+  if (message.includes("invalid_json_schema")) return "Agent 结构化输出合同无效，刷新页面不会解决。";
   if (message.includes("Codex CLI semantic planning")) return "Codex CLI 写稿失败，请查看任务详情后重试。";
   if (message.includes("Claude Code structured run")) return "Claude Code 写稿失败，请查看任务详情后重试。";
   return message;
@@ -1127,6 +1139,7 @@ const routes = async (request, response, url) => {
         topic: input.topic,
         creatorNotes: input.creatorNotes,
         category: input.category,
+        workflowMode: input.workflowMode,
         agentId: input.agentId,
         model: input.model,
       }),
@@ -1190,6 +1203,41 @@ const routes = async (request, response, url) => {
     const input = await body(request);
     return json(response, 201, await importCreatorAsset({ projectId, ...input }));
   }
+  const materialMatch = action.match(/^materials\/([a-z0-9-]+)$/);
+  if (request.method === "DELETE" && materialMatch) {
+    assertProjectIdle(projectId);
+    return json(response, 200, await deleteCreatorMaterial({ projectId, materialId: materialMatch[1] }));
+  }
+  if (request.method === "POST" && action === "assets/pick") {
+    assertProjectIdle(projectId);
+    const input = await body(request);
+    const paths = await chooseLocalFiles({
+      multiple: input.multiple !== false,
+      prompt: input.kind === "speaker-video" ? "选择已经录制的口播原片" : "选择图片、录屏或参考文件",
+    });
+    if (!paths.length) return json(response, 200, { cancelled: true, materials: [] });
+    const results = [];
+    for (const sourcePath of paths) {
+      results.push(
+        await importCreatorAsset({
+          projectId,
+          sourcePath,
+          kind: input.kind === "speaker-video" ? "speaker-video" : inferCreatorAssetKind(sourcePath),
+          fit: input.fit,
+        }),
+      );
+    }
+    return json(response, 201, { cancelled: false, materials: results.map((item) => item.material), results });
+  }
+  if (request.method === "POST" && action === "input-script/pick") {
+    assertProjectIdle(projectId);
+    const paths = await chooseLocalFiles({ multiple: false, prompt: "选择口播稿或字幕稿" });
+    if (!paths.length) return json(response, 200, { cancelled: true });
+    return json(response, 201, {
+      cancelled: false,
+      ...(await importCreatorInputScript({ projectId, sourcePath: paths[0] })),
+    });
+  }
   if (request.method === "POST" && action === "sources") {
     const input = await body(request);
     return json(response, 201, await addCreatorSource({ projectId, ...input }));
@@ -1221,6 +1269,17 @@ const routes = async (request, response, url) => {
     const input = await body(request);
     const record = job("narration", projectId, (onProgress) => generateNarration(projectId, { ...input, onProgress }));
     return json(response, 202, record);
+  }
+  if (request.method === "POST" && action === "visual-storyboard/seed") {
+    assertProjectIdle(projectId);
+    const record = job("visual-storyboard-seed", projectId, (onProgress) =>
+      resumeNarrationVisualPlanning(projectId, { onProgress }),
+    );
+    return json(response, 202, record);
+  }
+  if (request.method === "POST" && action === "existing-narration/prepare") {
+    assertProjectIdle(projectId);
+    return json(response, 200, await prepareExistingNarration(projectId));
   }
   if (request.method === "POST" && action === "rewrite") {
     assertProjectIdle(projectId);

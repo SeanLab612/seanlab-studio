@@ -14,7 +14,8 @@
         "title": {"type": "string", "minLength": 1, "maxLength": 80},
         "createdAt": {"type": "string"},
         "updatedAt": {"type": "string"},
-        "status": {"enum": ["intake", "drafting", "script-review", "script-locked", "awaiting-media", "video-ready", "video-running", "review", "approved", "delivered"]}
+        "status": {"enum": ["intake", "drafting", "script-review", "script-locked", "awaiting-media", "video-ready", "video-running", "review", "approved", "delivered"]},
+        "workflowMode": {"enum": ["script-first", "visual-post-production"]}
       },
       "additionalProperties": false
     },
@@ -44,7 +45,7 @@
       "required": ["topic", "category"],
       "properties": {
         "topic": {"type": "string", "minLength": 1},
-        "category": {"enum": ["github-project", "tutorial", "news-analysis", "tool-review", "model-review", "biopharma-extra", "other"]},
+        "category": {"enum": ["general", "github-project", "tutorial", "news-analysis", "tool-review", "model-review", "biopharma-extra", "other"]},
         "targetDurationMinutes": {"type": "number", "minimum": 0.5, "maximum": 60},
         "audience": {"type": "string"},
         "creatorNotes": {"type": "string"},
@@ -114,6 +115,7 @@
       "required": ["state"],
       "properties": {
         "state": {"enum": ["not-started", "drafted", "locked"]},
+        "inputScript": {"type": "string"},
         "draftScript": {"type": "string"},
         "sourceContext": {"type": "string"},
         "finalScript": {"type": "string"},

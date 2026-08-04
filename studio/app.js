@@ -182,7 +182,7 @@ const latestNarrationJob = (projectId) =>
     .filter(
       (item) =>
         item.projectId === projectId &&
-        ["editorial-inference", "material-understanding", "narration", "narration-rewrite"].includes(item.kind),
+        ["editorial-inference", "material-understanding", "narration", "narration-rewrite", "visual-storyboard-seed"].includes(item.kind),
     )
     .at(-1);
 const slug = (value) => {
@@ -955,23 +955,23 @@ const jobFeedback = (project) => {
   const percent = Math.max(0, Math.min(100, Number(task.progress?.percent ?? 0)));
   if (["queued", "running"].includes(task.status)) return `
     <div class="job-banner" role="status" aria-live="polite">
-      <div class="job-banner-head"><div><span class="job-spinner"></span><strong>${task.status === "queued" ? "等待前一个任务完成" : task.kind === "editorial-inference" ? "正在理解你的创作需求" : task.kind === "material-understanding" ? "正在读取资料、图片和录屏" : task.kind === "narration-rewrite" ? "正在按意见重写口播稿" : "正在生成口播稿"}</strong></div><b>${percent}%</b></div>
+      <div class="job-banner-head"><div><span class="job-spinner"></span><strong>${task.status === "queued" ? "等待前一个任务完成" : task.kind === "editorial-inference" ? "正在理解你的创作需求" : task.kind === "material-understanding" ? "正在读取资料、图片和录屏" : task.kind === "visual-storyboard-seed" ? "正在继续生成视觉方案" : task.kind === "narration-rewrite" ? "正在按意见重写口播稿" : "正在生成口播稿"}</strong></div><b>${percent}%</b></div>
       <p>${escapeHtml(task.progress?.message ?? "Agent 正在处理")}</p>
       <div class="progress-track" aria-label="口播稿生成进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><span style="width:${percent}%"></span></div>
       <small>可以停留在当前页面，完成后会自动进入稿件审核。</small>
     </div>`;
   if (task.status === "failed") return `
     <div class="job-banner job-banner-error" role="alert">
-      <div class="job-banner-head"><strong>${task.kind === "editorial-inference" ? "创作需求理解失败" : task.kind === "material-understanding" ? "素材理解失败" : task.kind === "narration-rewrite" ? "口播稿重写失败" : "口播稿生成失败"}</strong><span class="badge">可重试</span></div>
+      <div class="job-banner-head"><strong>${task.kind === "editorial-inference" ? "创作需求理解失败" : task.kind === "material-understanding" ? "素材理解失败" : task.kind === "visual-storyboard-seed" ? "视觉方案生成失败" : task.kind === "narration-rewrite" ? "口播稿重写失败" : "口播稿生成失败"}</strong><span class="badge">可重试</span></div>
       <p>${escapeHtml(task.error ?? "任务未完成")}</p>
       <details><summary>查看技术详情</summary><pre>${escapeHtml(task.errorDetail ?? task.error ?? "没有更多信息")}</pre></details>
     </div>`;
   return "";
 };
-const intakeInventory = (items, kindLabels, noun, projectId) => {
+const intakeInventory = (items, kindLabels, noun, projectId, allowMaterialDelete = false) => {
   return `<div class="intake-inventory" aria-live="polite">
     <div class="intake-inventory-summary"><strong>已添加 ${items.length} ${noun}</strong><span>${items.length ? "按添加顺序排列" : "尚未添加"}</span></div>
-    ${items.length ? `<ol>${items.map((item, index) => `<li><span class="intake-index">${index + 1}.</span>${item.kind === "screenshot" && item.assetId && projectId ? `<img class="material-thumb" src="/api/projects/${encodeURIComponent(projectId)}/assets/${encodeURIComponent(item.assetId)}" alt="${escapeHtml(item.label)}"/>` : ""}<span>${escapeHtml(item.label)}${item.description ? `<small>${escapeHtml(item.description)}</small>` : ""}</span><small>${escapeHtml(kindLabels[item.kind] ?? item.kind)}</small></li>`).join("")}</ol>` : ""}
+    ${items.length ? `<ol>${items.map((item, index) => `<li><span class="intake-index">${index + 1}.</span>${item.kind === "screenshot" && item.assetId && projectId ? `<img class="material-thumb" src="/api/projects/${encodeURIComponent(projectId)}/assets/${encodeURIComponent(item.assetId)}" alt="${escapeHtml(item.label)}"/>` : ""}<span>${escapeHtml(item.label)}${item.description ? `<small>${escapeHtml(item.description)}</small>` : ""}</span><small>${escapeHtml(kindLabels[item.kind] ?? item.kind)}</small>${allowMaterialDelete ? `<button type="button" class="material-delete-button" data-delete-material="${escapeHtml(item.id)}" data-material-label="${escapeHtml(item.label)}" aria-label="删除素材 ${escapeHtml(item.label)}">删除</button>` : ""}</li>`).join("")}</ol>` : ""}
   </div>`;
 };
 const authoredMaterialPanel = (project, narration) => {
@@ -1165,7 +1165,6 @@ const structuralStoryboardSection = (narration, index) => {
 const storyboardEntries = (narration) => [
   { index:-3, section:structuralStoryboardSection(narration,-3) },
   { index:-1, section:structuralStoryboardSection(narration,-1) },
-  { index:-2, section:structuralStoryboardSection(narration,-2) },
   ...narration.sections.map((section,index) => ({ index, section })),
   { index:-4, section:structuralStoryboardSection(narration,-4) },
 ];
@@ -1536,10 +1535,9 @@ const postDraftMaterialForm = () => `
   <details class="review-details post-draft-material-form">
     <summary>写稿后补充截图或录屏</summary>
     <div class="post-draft-material-body">
-      <div class="intake-form-grid"><label class="wide">素材绝对路径<input id="asset-path" placeholder="/Users/.../截图.png 或 录屏.mp4"/></label><label>素材类型<select id="asset-kind"><option value="screenshot">截图</option><option value="screen-recording">录屏</option></select></label><label>说明<input id="asset-label" placeholder="这份素材展示什么"/></label></div>
-      <div id="image-evidence-fields" class="image-evidence-form"><label>图片证据用途<select id="asset-evidence-role"><option value="interface">界面说明</option><option value="result">成果展示</option><option value="source">来源证据</option><option value="document">文档证据</option><option value="comparison">对比证据</option><option value="other">其他</option></select></label><label>画面说明<input id="asset-description" placeholder="观众应该从图片中看到什么"/></label><label>来源标注<input id="asset-source-label" placeholder="例如 GitHub / Apple 官网"/></label><label>适配方式<select id="asset-fit"><option value="contain">完整显示</option><option value="cover">填满裁切</option></select></label></div>
-      <div class="intake-form-actions"><button class="secondary" id="add-asset">登记为候选素材</button></div>
-      <p class="hint">先根据口播稿判断需要什么画面，再登记并在下方选择对应段落。录屏时长和内容也可以按最终口播准备。</p>
+      <div class="asset-browser-row"><label>图片适配方式<select id="asset-fit"><option value="contain">完整显示</option><option value="cover">填满裁切</option></select></label><button class="secondary" id="browse-assets" type="button">浏览并加入（可多选）</button></div>
+      <details class="advanced-path-entry"><summary>也可以手动填写路径</summary><div class="intake-form-grid"><label class="wide">素材绝对路径<input id="asset-path" placeholder="/Users/.../截图.png 或 录屏.mp4"/></label><label>素材类型<select id="asset-kind"><option value="screenshot">截图</option><option value="screen-recording">录屏</option></select></label><label>名称（可选）<input id="asset-label" placeholder="默认使用文件名"/></label></div><div class="intake-form-actions"><button class="secondary" id="add-asset" type="button">加入素材库</button></div></details>
+      <p class="hint">Agent 会读取并理解素材内容；这里只需要选择图片的适配方式。</p>
     </div>
   </details>`;
 const editorialQuestionField = (question, answer = "") => {
@@ -1588,7 +1586,7 @@ const editorialBriefView = (project, step = "04") => {
   const inferredAnswers = questions.filter((question) => answers[question.id]?.trim());
   return `<div class="panel intake-panel editorial-brief-panel">
     <div class="intake-section-heading"><span>${step}</span><div><h3>${brief?.status === "ready" ? "修改创作方向" : "确认创作方向"}</h3></div><strong class="editorial-status ${brief?.status === "ready" ? "ready" : ""}">${brief?.status === "ready" ? "已理解" : `还差 ${missing.length} 项`}</strong></div>
-    <div class="editorial-inferred-summary"><strong>${inferredAnswers.length ? "Studio 已理解你的描述" : "Studio 需要三项关键信息"}</strong><span>${missing.length ? "只需补充下面缺少的内容。" : "请确认下面的结论是否准确。"}</span><button type="button" class="secondary compact" id="infer-editorial-brief">重新整理</button></div>
+    <div class="editorial-inferred-summary"><strong>${inferredAnswers.length ? "Studio 已理解你的描述" : "可选：补充三项创作方向"}</strong><span>${missing.length ? "不填写也可以继续；填写后只用于调整受众、角度和结论。" : "这些内容只影响写法，不会改变素材理解状态。"}</span><button type="button" class="secondary compact" id="infer-editorial-brief">重新整理</button></div>
     <div class="editorial-question-group"><div class="editorial-question-grid">${visibleQuestions.map((question) => editorialQuestionField(question, answers[question.id])).join("")}</div></div>
     <div class="intake-form-actions"><button class="primary" id="save-editorial-brief">确认创作方向</button>${brief?.status === "ready" ? '<button class="secondary" id="cancel-editorial-edit">取消</button>' : ""}</div>
   </div>`;
@@ -1607,10 +1605,32 @@ const materialUnderstandingView = (project) => {
   return `<div class="panel intake-panel material-understanding-panel">
     <div class="intake-section-heading"><span>03</span><div><h3>素材理解</h3></div></div>
     <div class="understanding-state ${escapeHtml(presentation.tone)}"><span class="understanding-state-icon" aria-hidden="true">${status === "suggested" || status === "confirmed" ? "✓" : status === "stale" ? "!" : "·"}</span><strong>${escapeHtml(presentation.label)}</strong></div>
-    ${presentation.action || report.status === "suggested" ? `<div class="intake-form-actions">${presentation.action ? `<button class="secondary" id="analyze-materials" ${running ? "disabled" : ""}>${escapeHtml(presentation.action)}</button>` : ""}${report.status === "suggested" && !running ? `<button class="primary" id="confirm-material-understanding" data-input-sha="${escapeHtml(report.inputSha256)}">确认并继续写稿</button>` : ""}</div>` : ""}
+    ${presentation.action || report.status === "suggested" ? `<div class="intake-form-actions">${presentation.action ? `<button class="secondary" id="analyze-materials" ${running ? "disabled" : ""}>${escapeHtml(presentation.action)}</button>` : ""}${report.status === "suggested" && !running ? `<button class="primary" id="confirm-material-understanding" data-input-sha="${escapeHtml(report.inputSha256)}">确认素材理解</button>` : ""}</div>` : ""}
   </div>`;
 };
+const postProductionIntakeView = (project) => {
+  const understandingReady = state.detail?.materialUnderstanding?.status === "confirmed";
+  const hasScript = Boolean(project.authoring.inputScript);
+  const hasSpeakerVideo = Boolean(project.video.sourceAssetId);
+  const canContinue = understandingReady && hasScript && hasSpeakerVideo;
+  return `
+  ${jobFeedback(project)}
+  <div class="intake-stack">
+    <div class="panel intake-panel"><div class="intake-section-heading"><span>01</span><div><h3>选择已有口播内容</h3><p>口播文字不会被 Agent 重写。</p></div></div><div class="existing-input-grid"><button class="secondary" id="pick-input-script" type="button">${hasScript ? "重新选择口播稿" : "选择口播稿或字幕稿"}</button><span class="${hasScript ? "ready" : ""}">${hasScript ? `✓ ${escapeHtml(project.authoring.inputScript)}` : "支持 TXT、Markdown、SRT、VTT"}</span><button class="secondary" id="pick-speaker-video" type="button">${hasSpeakerVideo ? "重新选择口播原片" : "选择已经录制的视频"}</button><span class="${hasSpeakerVideo ? "ready" : ""}">${hasSpeakerVideo ? "✓ 已加入人物口播原片" : "视频将作为后续制作原片"}</span></div></div>
+    <div class="panel intake-panel"><div class="intake-section-heading"><span>02</span><div><h3>补充图片、录屏与素材</h3></div></div><div class="asset-browser-row"><label>图片适配方式<select id="asset-fit"><option value="contain">完整显示</option><option value="cover">填满裁切</option></select></label><button class="secondary" id="browse-assets" type="button">浏览并加入（可多选）</button></div>${intakeInventory(project.materials.filter((item) => item.kind !== "speaker-video"), materialKindLabels, "份辅助素材", project.project.id, project.authoring.state === "not-started")}<p class="hint">Agent 会理解素材内容，并在视觉方案中选择合适的图片、录屏、动画或图标。</p></div>
+    <div class="panel intake-panel"><div class="intake-section-heading"><span>03</span><div><h3>补充网站与参考资料</h3></div></div><div class="intake-form-grid"><label>名称<input id="source-label" placeholder="例如项目官网"/></label><label>网址、文件路径或笔记<input id="source-value" placeholder="https://... 或绝对路径"/></label></div><div class="intake-form-actions"><button class="secondary" id="add-source">加入项目资料</button></div>${intakeInventory(project.sources.filter((item) => item.id !== "source-input-script"), sourceKindLabels, "份参考资料", project.project.id)}<p class="hint">网站会被实际读取；只有读取成功并冻结的正文会交给 Agent。</p></div>
+    ${materialUnderstandingView(project)}
+  </div>
+  <div class="actions"><button class="primary" id="prepare-existing-narration" ${canContinue ? "" : "disabled"}>${!hasScript ? "先选择口播稿" : !hasSpeakerVideo ? "先选择口播原片" : !understandingReady ? "先完成素材理解" : "进入口播审核与视觉方案"}</button></div>`;
+};
+const visualStoryboardMissing = () =>
+  Boolean(state.detail?.narration) && Object.keys(state.detail?.visualStoryboard?.sections ?? {}).length === 0;
+const visualPlanningRecoveryPanel = () =>
+  visualStoryboardMissing()
+    ? `<div class="panel visual-planning-recovery"><div><strong>口播稿已安全保存</strong><p>逐段视觉方案还没有生成完成。可以从这一步继续，不会重新调用 Agent 写稿。</p></div><button type="button" class="primary" id="resume-visual-storyboard">继续生成视觉方案</button></div>`
+    : "";
 const intakeView = (project) => {
+  if ((project.project.workflowMode ?? "script-first") === "visual-post-production") return postProductionIntakeView(project);
   const running = ["queued", "running"].includes(latestNarrationJob(project.project.id)?.status);
   const editorialReady = !project.brief.editorialBrief || project.brief.editorialBrief.status === "ready";
   const understandingReady = state.detail?.materialUnderstanding?.status === "confirmed";
@@ -1623,8 +1643,9 @@ const intakeView = (project) => {
         : `由 ${project.agent.id === "codex-cli" ? "Codex CLI" : "Claude Code"} 生成口播稿与逐段视觉方案`;
   return `
   ${jobFeedback(project)}
+  ${visualPlanningRecoveryPanel()}
   <div class="intake-stack">
-    <div class="panel intake-panel"><div class="intake-section-heading"><span>01</span><div><h3>上传图片、录屏与素材</h3></div></div><div class="intake-form-grid"><label class="wide">素材绝对路径<input id="asset-path" placeholder="/Users/.../录屏.mp4"/></label><label>素材类型<select id="asset-kind"><option value="screen-recording">录屏</option><option value="screenshot">图片或截图</option><option value="reference">参考文件</option><option value="speaker-video">人物口播原片</option></select></label><label>说明<input id="asset-label" placeholder="这段素材展示什么"/></label></div><div id="image-evidence-fields" class="image-evidence-form" hidden><label>图片证据用途<select id="asset-evidence-role"><option value="interface">界面说明</option><option value="result">成果展示</option><option value="source">来源证据</option><option value="document">文档证据</option><option value="comparison">对比证据</option><option value="other">其他</option></select></label><label>画面说明<input id="asset-description" placeholder="观众应该从图片中看到什么"/></label><label>来源标注<input id="asset-source-label" placeholder="例如 GitHub / Apple 官网"/></label><label>适配方式<select id="asset-fit"><option value="contain">完整显示</option><option value="cover">填满裁切</option></select></label></div><div class="intake-form-actions"><button class="secondary" id="add-asset">加入素材库</button></div>${intakeInventory(project.materials, materialKindLabels, "份素材", project.project.id)}<p class="hint">图片读取原图；录屏会先抽取代表画面。这里只登记候选素材，具体用在哪一段由写稿后的视觉方案确认。</p></div>
+    <div class="panel intake-panel"><div class="intake-section-heading"><span>01</span><div><h3>上传图片、录屏与素材</h3></div></div><div class="asset-browser-row"><label>图片适配方式<select id="asset-fit"><option value="contain">完整显示</option><option value="cover">填满裁切</option></select></label><button class="secondary" id="browse-assets" type="button">浏览并加入（可多选）</button></div><details class="advanced-path-entry"><summary>也可以手动填写路径</summary><div class="intake-form-grid"><label class="wide">素材绝对路径<input id="asset-path" placeholder="/Users/.../录屏.mp4"/></label><label>素材类型<select id="asset-kind"><option value="screen-recording">录屏</option><option value="screenshot">图片或截图</option><option value="reference">参考文件</option><option value="speaker-video">人物口播原片</option></select></label><label>名称（可选）<input id="asset-label" placeholder="默认使用文件名"/></label></div><div class="intake-form-actions"><button class="secondary" id="add-asset" type="button">加入素材库</button></div></details>${intakeInventory(project.materials, materialKindLabels, "份素材", project.project.id, project.authoring.state === "not-started")}<p class="hint">Agent 会读取图片原图、录屏代表画面和参考文件，并在视觉规划时决定如何使用。</p></div>
     <div class="panel intake-panel"><div class="intake-section-heading"><span>02</span><div><h3>补充网页、文档与文字资料</h3></div></div><div class="intake-form-grid"><label>名称<input id="source-label" placeholder="例如 GitHub 仓库"/></label><label>网址、文件路径或笔记<input id="source-value" placeholder="https://... 或绝对路径"/></label></div><div class="intake-form-actions"><button class="secondary" id="add-source">加入项目资料</button></div>${intakeInventory(project.sources, sourceKindLabels, "份参考资料", project.project.id)}<p class="hint">资料用来核实项目能力、新闻事实和教程步骤，不替你决定稿件立场。</p></div>
     ${materialUnderstandingView(project)}
     ${editorialBriefView(project,"04")}
@@ -1677,6 +1698,7 @@ const narrationHistory = (project) => {
 };
 const narrationView = (project, narration, sourceContext) => `
   ${jobFeedback(project)}
+  ${visualPlanningRecoveryPanel()}
   <div class="panel review-header"><div><div class="eyebrow">SCRIPT REVIEW</div><h2 style="margin-top:6px">${escapeHtml(narration.title)}</h2></div>${narrationExportControls()}</div>
   <details class="review-details narration-support-details">
     <summary>本期依据与素材</summary>
@@ -2838,14 +2860,79 @@ const bindWorkspaceActions = () => {
   $("#add-asset")?.addEventListener("click", async () => {
     const button = $("#add-asset");
     button.disabled = true;
-    try { const result = await api(`/api/projects/${id}/assets`, { method:"POST", body:{ sourcePath:$("#asset-path").value, kind:$("#asset-kind").value, label:$("#asset-label").value, description:$("#asset-description")?.value, evidenceRole:$("#asset-evidence-role")?.value, sourceLabel:$("#asset-source-label")?.value, fit:$("#asset-fit")?.value } }); const labels = [...state.detail.project.materials, result.material].map((item) => item.label).join(" / "); toast(`已添加 ${result.materialCount} 份素材：${labels}`); await refresh(); } catch(error){ button.disabled = false; toast(error.message); }
+    try { const result = await api(`/api/projects/${id}/assets`, { method:"POST", body:{ sourcePath:$("#asset-path").value, kind:$("#asset-kind").value, label:$("#asset-label").value, fit:$("#asset-fit")?.value } }); const labels = [...state.detail.project.materials, result.material].map((item) => item.label).join(" / "); toast(`已添加 ${result.materialCount} 份素材：${labels}`); await refresh(); } catch(error){ button.disabled = false; toast(error.message); }
   });
-  const syncImageEvidenceFields = () => {
-    const fields = $("#image-evidence-fields");
-    if (fields) fields.hidden = $("#asset-kind")?.value !== "screenshot";
-  };
-  $("#asset-kind")?.addEventListener("change", syncImageEvidenceFields);
-  syncImageEvidenceFields();
+  $("#browse-assets")?.addEventListener("click", async () => {
+    const button = $("#browse-assets");
+    button.disabled = true;
+    try {
+      const result = await api(`/api/projects/${id}/assets/pick`, { method:"POST", body:{ multiple:true, fit:$("#asset-fit")?.value } });
+      if (!result.materials.length) { button.disabled = false; return; }
+      toast(`已加入 ${result.materials.length} 份素材`);
+      await refresh();
+    } catch(error) { button.disabled = false; toast(error.message); }
+  });
+  document.querySelectorAll("[data-delete-material]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const label = button.dataset.materialLabel || "这份素材";
+      if (!window.confirm(`确认从当前项目移除“${label}”？原文件会保留在项目回收目录中。`)) return;
+      button.disabled = true;
+      try {
+        const result = await api(`/api/projects/${id}/materials/${encodeURIComponent(button.dataset.deleteMaterial)}`, {
+          method: "DELETE",
+          body: {},
+        });
+        toast(result.recoverable ? "素材已移除，原文件仍可恢复" : "素材已移除");
+        await refresh();
+      } catch (error) {
+        button.disabled = false;
+        toast(error.message);
+      }
+    });
+  });
+  $("#resume-visual-storyboard")?.addEventListener("click", async () => {
+    const button = $("#resume-visual-storyboard");
+    button.disabled = true;
+    try {
+      const task = await api(`/api/projects/${id}/visual-storyboard/seed`, { method: "POST", body: {} });
+      state.jobs.push(task);
+      toast("已从保存的口播稿继续，不会重新写稿");
+      renderWorkspace();
+      pollUntilDone(id);
+    } catch (error) {
+      button.disabled = false;
+      toast(error.message);
+    }
+  });
+  $("#pick-input-script")?.addEventListener("click", async () => {
+    const button = $("#pick-input-script");
+    button.disabled = true;
+    try {
+      const result = await api(`/api/projects/${id}/input-script/pick`, { method:"POST", body:{} });
+      if (result.cancelled) { button.disabled = false; return; }
+      toast(`已导入口播稿：${result.fileName}`);
+      await refresh();
+    } catch(error) { button.disabled = false; toast(error.message); }
+  });
+  $("#pick-speaker-video")?.addEventListener("click", async () => {
+    const button = $("#pick-speaker-video");
+    button.disabled = true;
+    try {
+      const result = await api(`/api/projects/${id}/assets/pick`, { method:"POST", body:{ multiple:false, kind:"speaker-video" } });
+      if (result.cancelled) { button.disabled = false; return; }
+      toast("已加入人物口播原片");
+      await refresh();
+    } catch(error) { button.disabled = false; toast(error.message); }
+  });
+  $("#prepare-existing-narration")?.addEventListener("click", async () => {
+    const button = $("#prepare-existing-narration");
+    button.disabled = true;
+    try {
+      await api(`/api/projects/${id}/existing-narration/prepare`, { method:"POST", body:{} });
+      toast("已保留原口播文字并生成逐段视觉方案");
+      await selectProject(id);
+    } catch(error) { button.disabled = false; toast(error.message); }
+  });
   $("#analyze-materials")?.addEventListener("click", async () => {
     const button = $("#analyze-materials");
     button.disabled = true;
@@ -2868,7 +2955,7 @@ const bindWorkspaceActions = () => {
         method:"POST",
         body:{ inputSha256:button.dataset.inputSha },
       });
-      toast("素材理解已确认，现在可以生成口播稿");
+      toast((state.detail.project.project.workflowMode ?? "script-first") === "visual-post-production" ? "素材理解已确认，现在可以进入视觉方案" : "素材理解已确认，现在可以生成口播稿");
       await selectProject(id);
     } catch(error) {
       button.disabled = false;
@@ -3801,11 +3888,15 @@ $("#project-form").addEventListener("submit", async (event) => {
   try {
     const creatorNotes = String(data.get("creatorNotes") ?? "").trim();
     const topic = creatorNotes.split(/\r?\n/).find((line) => line.trim())?.trim().slice(0, 240) || data.get("title");
-    project = await api("/api/projects", { method:"POST", body:{ id:slug(data.get("title")), title:data.get("title"), topic, creatorNotes, category:data.get("category"), agentId:data.get("agentId"), model:data.get("model") || undefined } });
+    project = await api("/api/projects", { method:"POST", body:{ id:slug(data.get("title")), title:data.get("title"), topic, creatorNotes, category:data.get("category"), workflowMode:data.get("workflowMode"), agentId:data.get("agentId"), model:data.get("model") || undefined } });
   } catch(error){ setFormError("#project-form-error", error.message); return; }
   $("#project-dialog").close();
   await refresh();
   await selectProject(project.project.id);
+  if ((project.project.workflowMode ?? "script-first") === "visual-post-production") {
+    toast("项目已创建，请选择口播稿、口播原片和辅助素材");
+    return;
+  }
   toast("项目已创建，正在自动理解你的创作需求");
   try {
     const task = await api(`/api/projects/${project.project.id}/editorial-brief/infer`, { method:"POST", body:{} });

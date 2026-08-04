@@ -123,6 +123,29 @@ const materialBeats = (
   const output: Array<Omit<Parameters<typeof makeBeat>[0], "sectionId" | "index">> = [];
   const sentences = sentenceRanges(section.narration);
 
+  const preferredScreenshotIds = (section.materialIds ?? []).filter((materialId) =>
+    materials.some((material) => material.id === materialId && material.kind === "screenshot"),
+  );
+  if (preferredScreenshotIds.length) {
+    const preferredEvidenceRanges = (section.visualOpportunities ?? [])
+      .map((opportunity) => rangeOf(section, opportunity.evidenceText?.trim() ?? ""))
+      .filter((range): range is { start: number; end: number } => Boolean(range));
+    const target =
+      preferredEvidenceRanges
+        .map((evidenceRange) =>
+          sentences.find(
+            (sentence) =>
+              !overlaps(sentence, used) && sentence.start < evidenceRange.end && sentence.end > evidenceRange.start,
+          ),
+        )
+        .find((sentence): sentence is (typeof sentences)[number] => Boolean(sentence)) ??
+      sentences.find((sentence) => !overlaps(sentence, used));
+    if (target) {
+      used.push(target);
+      output.push({ quote: target.text, type: "image", materialIds: preferredScreenshotIds.slice(0, 3) });
+    }
+  }
+
   const namedSources = ["录音机", "机械车", "机器人"]
     .filter((name) => section.narration.includes(name))
     .map((name) =>
@@ -175,7 +198,9 @@ const materialBeats = (
     }
   }
 
-  const preferredRecordingIds = section.materialIds ?? [];
+  const preferredRecordingIds = (section.materialIds ?? []).filter((materialId) =>
+    materials.some((material) => material.id === materialId && material.kind === "screen-recording"),
+  );
   if (section.visualIntent === "screen-recording" || preferredRecordingIds.length) {
     const target =
       sentences.find(

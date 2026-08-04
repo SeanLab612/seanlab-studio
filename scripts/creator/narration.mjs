@@ -5,7 +5,7 @@ import { composeNarrationScript, validateNarrationScriptPackage } from "../../sr
 import { editorialBriefPrompt, missingEditorialAnswers } from "../../src/creator-workflow/editorial-brief.ts";
 import { narrationVisualFormsPrompt } from "../../src/creator-workflow/visual-authoring.ts";
 import { createStructuredAgentJsonAdapter } from "../workflow/agent-json-adapter.mjs";
-import { recordNarrationAttempt } from "./authoring-history.mjs";
+import { listNarrationAttempts, recordNarrationAttempt } from "./authoring-history.mjs";
 import { assertConfirmedMaterialUnderstanding, loadMaterialUnderstanding } from "./material-understanding.mjs";
 import { loadCreatorProject, projectDir, saveCreatorProject, writeJsonAtomic } from "./project-store.mjs";
 import { resolveAuthoringSources } from "./source-context.mjs";
@@ -187,8 +187,8 @@ const persistNarration = async ({ project, projectId, narration, report, kind, i
     resolve(authoringDir, "shooting-guide.md"),
     `# 拍摄指导\n\n${narration.shootingGuide.map((item) => `- ${item}`).join("\n")}\n`,
   );
-  await seedVisualStoryboard(projectId, narration);
   project.authoring = {
+    ...(project.authoring.inputScript ? { inputScript: project.authoring.inputScript } : {}),
     state: "drafted",
     draftScript: "authoring/draft-script.md",
     sourceContext: "authoring/source-context.json",
@@ -199,6 +199,108 @@ const persistNarration = async ({ project, projectId, narration, report, kind, i
   };
   project.project.status = "script-review";
   await saveCreatorProject(project);
+};
+
+export const resumeNarrationVisualPlanning = async (projectId, { onProgress = () => {} } = {}) => {
+  const project = await loadCreatorProject(projectId);
+  const narration = await loadNarration(projectId);
+  if (project.authoring.state === "not-started") {
+    const attempt = (await listNarrationAttempts(projectId)).find(
+      (item) => item.status === "succeeded" && item.outputSha256,
+    );
+    if (!attempt) throw new Error("找不到可恢复的口播稿记录");
+    project.authoring = {
+      state: "drafted",
+      draftScript: "authoring/draft-script.md",
+      sourceContext: "authoring/source-context.json",
+      shootingGuide: "authoring/shooting-guide.md",
+      providerReport: "authoring/provider-report.json",
+      currentAttemptId: attempt.attemptId,
+      currentAttemptSha256: attempt.outputSha256,
+    };
+    project.project.status = "script-review";
+    await saveCreatorProject(project);
+  } else if (project.authoring.state !== "drafted") {
+    throw new Error("只有尚未锁定的审核稿可以继续生成视觉方案");
+  }
+  onProgress({ percent: 15, phase: "narration-ready", message: "已读取现有口播稿，不会重新写稿" });
+  const storyboard = await seedVisualStoryboard(projectId, narration);
+  onProgress({ percent: 100, phase: "completed", message: "逐段视觉方案已生成" });
+  return storyboard;
+};
+
+export const spokenTextFromInputScript = (value) =>
+  value
+    .replace(/^\uFEFF/, "")
+    .replace(/^WEBVTT[^\n]*\n?/iu, "")
+    .split(/\r?\n/)
+    .filter((line) => !/^\s*\d+\s*$/u.test(line))
+    .filter((line) => !/^\s*(?:\d{1,2}:)?\d{2}:\d{2}[,.]\d{3}\s*-->\s*(?:\d{1,2}:)?\d{2}:\d{2}[,.]\d{3}/u.test(line))
+    .map((line) => line.replace(/<[^>]+>/gu, "").trim())
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+
+const narrationChunks = (spokenText) => {
+  const paragraphs = spokenText
+    .split(/\n+/u)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const sentences = paragraphs.flatMap((paragraph) =>
+    [...paragraph.matchAll(/[^。！？!?]+[。！？!?]?/gu)].map((match) => match[0].trim()).filter(Boolean),
+  );
+  if (sentences.length < 5) throw new Error("口播稿内容太短，至少需要五个完整句子，才能生成可审核的逐段视觉方案");
+  const groups = Array.from({ length: 5 }, () => []);
+  sentences.forEach((sentence, index) => {
+    groups[Math.min(4, Math.floor((index * 5) / sentences.length))].push(sentence);
+  });
+  return groups.map((group) => group.join(""));
+};
+
+export const createExistingNarrationPackage = ({ title, inputScript }) => {
+  const spokenText = spokenTextFromInputScript(inputScript);
+  if (!spokenText) throw new Error("口播稿中没有可用的口播文字");
+  const [opening, overview, sectionOne, sectionTwo, conclusion] = narrationChunks(spokenText);
+  return validateNarrationScriptPackage({
+    schemaVersion: "1.0",
+    title,
+    opening,
+    overview,
+    sections: [sectionOne, sectionTwo].map((text, index) => ({
+      id: `section-${index + 1}`,
+      title: `内容段落 ${index + 1}`,
+      narration: text,
+      visualIntent: "semantic-visual",
+      visualOpportunities: [],
+      materialIds: [],
+      recordingInstruction: null,
+    })),
+    conclusion,
+    fullScript: [opening, overview, sectionOne, sectionTwo, conclusion].join("\n\n"),
+    shootingGuide: ["使用已经录制的口播原片，不需要重新拍摄；后续仅设计视觉方案和特效。"],
+  });
+};
+
+export const prepareExistingNarration = async (projectId) => {
+  const project = await loadCreatorProject(projectId);
+  if ((project.project.workflowMode ?? "script-first") !== "visual-post-production")
+    throw new Error("当前项目不是“已有口播视频”模式");
+  await assertConfirmedMaterialUnderstanding(projectId, project);
+  if (!project.authoring.inputScript) throw new Error("请先选择口播稿或字幕稿");
+  if (!project.video.sourceAssetId) throw new Error("请先选择已经录制的口播原片");
+  const inputPath = resolve(projectDir(projectId), project.authoring.inputScript);
+  const narration = createExistingNarrationPackage({
+    title: project.project.title,
+    inputScript: await readFile(inputPath, "utf8"),
+  });
+  await persistNarration({
+    project,
+    projectId,
+    narration,
+    report: { provider: "creator", mode: "existing-script", source: project.authoring.inputScript },
+    kind: "existing-script",
+  });
+  return narration;
 };
 
 const resolveAndValidateSources = async (projectId, project, onProgress) => {
@@ -228,6 +330,7 @@ export const generateNarration = async (projectId, { fixture, onProgress = () =>
   const previousStatus = project.authoring.state === "drafted" ? "script-review" : "intake";
   project.project.status = "drafting";
   await saveCreatorProject(project);
+  let narrationPersisted = false;
   onProgress({ percent: 8, phase: "project", message: "已读取项目和全局 Agent 设置" });
   try {
     const materialUnderstanding = await assertConfirmedMaterialUnderstanding(projectId, project);
@@ -246,19 +349,24 @@ export const generateNarration = async (projectId, { fixture, onProgress = () =>
       onProgress,
     });
     await persistNarration({ project, projectId, narration, report, kind: "initial" });
+    narrationPersisted = true;
+    onProgress({ percent: 92, phase: "visual-planning", message: "口播稿已保存，正在生成逐段视觉方案" });
+    await seedVisualStoryboard(projectId, narration);
     onProgress({ percent: 100, phase: "completed", message: "口播稿和拍摄指导已生成" });
     return narration;
   } catch (error) {
-    await recordNarrationAttempt({
-      project,
-      projectId,
-      kind: "initial",
-      status: "failed",
-      error,
-      report: { provider: project.agent.id },
-    }).catch(() => {});
-    project.project.status = previousStatus;
-    await saveCreatorProject(project);
+    if (!narrationPersisted) {
+      await recordNarrationAttempt({
+        project,
+        projectId,
+        kind: "initial",
+        status: "failed",
+        error,
+        report: { provider: project.agent.id },
+      }).catch(() => {});
+      project.project.status = previousStatus;
+      await saveCreatorProject(project);
+    }
     throw error;
   }
 };
@@ -272,6 +380,7 @@ export const rewriteNarration = async (projectId, { instructions, fixture, onPro
   const currentNarration = await loadNarration(projectId);
   project.project.status = "drafting";
   await saveCreatorProject(project);
+  let narrationPersisted = false;
   onProgress({ percent: 8, phase: "project", message: "已读取当前稿件、项目资料和全局 Agent 设置" });
   try {
     const sourceContext = await resolveAndValidateSources(projectId, project, onProgress);
@@ -293,20 +402,25 @@ export const rewriteNarration = async (projectId, { instructions, fixture, onPro
       kind: "rewrite",
       instructions: normalizedInstructions,
     });
+    narrationPersisted = true;
+    onProgress({ percent: 92, phase: "visual-planning", message: "新口播稿已保存，正在更新逐段视觉方案" });
+    await seedVisualStoryboard(projectId, narration);
     onProgress({ percent: 100, phase: "completed", message: "口播稿已按修改意见重写，等待审核" });
     return narration;
   } catch (error) {
-    await recordNarrationAttempt({
-      project,
-      projectId,
-      kind: "rewrite",
-      status: "failed",
-      instructions: normalizedInstructions,
-      error,
-      report: { provider: project.agent.id },
-    }).catch(() => {});
-    project.project.status = "script-review";
-    await saveCreatorProject(project);
+    if (!narrationPersisted) {
+      await recordNarrationAttempt({
+        project,
+        projectId,
+        kind: "rewrite",
+        status: "failed",
+        instructions: normalizedInstructions,
+        error,
+        report: { provider: project.agent.id },
+      }).catch(() => {});
+      project.project.status = "script-review";
+      await saveCreatorProject(project);
+    }
     throw error;
   }
 };

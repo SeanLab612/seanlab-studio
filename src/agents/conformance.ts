@@ -52,7 +52,6 @@ const sourceConstraintTerms = [
   "受欢迎",
   "关注度",
   "认可度",
-  "门槛",
   "从零开始",
   "快速",
   "高效",

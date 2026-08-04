@@ -82,6 +82,35 @@ test("the pinned project Agent chooses image ingredients for animation stages", 
     );
     assert.equal(report.agent.fallback, "none");
     assert.equal(report.plan.bindings[0].imageAssetId, "recorder-paper");
+
+    await writeFile(
+      resolve(root, ".asset-library/images/registry.json"),
+      JSON.stringify({ schemaVersion: "1.0", assets: [] }),
+    );
+    let emptyInventoryCalledAgent = false;
+    const fallbackStoryboard = structuredClone(storyboard);
+    delete fallbackStoryboard.sections.workflow.animationIntent.stages[0].imageAssetId;
+    const fallback = await planAnimationAssets({
+      project: {
+        project: { id: "agent-plan" },
+        agent: { id: "codex-cli", model: "gpt-test", fallback: "none" },
+      },
+      storyboard: fallbackStoryboard,
+      adapterFactory: () => {
+        emptyInventoryCalledAgent = true;
+        throw new Error("Agent must not run for an empty image inventory");
+      },
+    });
+    assert.equal(emptyInventoryCalledAgent, false);
+    assert.equal(fallback.sections.workflow.animationIntent.stages[0].imageAssetId, undefined);
+    assert.match(fallback.sections.workflow.animationIntent.stages[0].iconId, /^system\./);
+    const fallbackReport = JSON.parse(
+      await readFile(resolve(root, "agent-plan/authoring/animation-asset-provider-report.json"), "utf8"),
+    );
+    assert.equal(fallbackReport.provider.provider, "local-icon-fallback");
+
+    const schema = JSON.parse(await readFile(resolve("schemas/animation-asset-plan.schema.json"), "utf8"));
+    assert.equal(schema.properties.schemaVersion.type, "string");
   } finally {
     if (previousRoot === undefined) delete process.env.REMOTION_MD_CREATOR_ROOT;
     else process.env.REMOTION_MD_CREATOR_ROOT = previousRoot;

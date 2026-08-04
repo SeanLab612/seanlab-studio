@@ -99,3 +99,46 @@ test("one narration section may receive several non-overlapping beats and a thre
   );
   assert.match(storyboard.sections["recording-result"].beats[1].exactSpokenQuote, /浏览器/);
 });
+
+test("an explicitly selected screenshot is preserved before semantic animation and component suggestions", () => {
+  const narration = {
+    title: "介绍 SeanLab Studio",
+    opening: "怎样从一个选题开始制作视频？",
+    overview: "这一期介绍完整工作流。",
+    sections: [
+      {
+        id: "start",
+        title: "从创建项目开始",
+        narration:
+          "这一段先说明总体目的。实际开始时，先创建一个创作项目，写下这期要讲什么。后面再选择制作方式、内容分类和创作助手。",
+        visualIntent: "screenshot",
+        visualOpportunities: [
+          {
+            form: "ordered-progression",
+            evidenceText: "实际开始时，先创建一个创作项目，写下这期要讲什么。",
+          },
+          {
+            form: "category-map",
+            evidenceText: "后面再选择制作方式、内容分类和创作助手。",
+          },
+        ],
+        materialIds: ["create-project-dialog"],
+        recordingInstruction: null,
+      },
+    ],
+    conclusion: "以上就是开始方式。",
+  };
+  const materials = [
+    { id: "create-project-dialog", kind: "screenshot", label: "创建创作项目弹窗" },
+  ];
+
+  const storyboard = suggestedVisualStoryboard(narration, undefined, materials);
+  const beats = storyboard.sections.start.beats;
+
+  assert.equal(beats[0].primaryVisualType, "image");
+  assert.equal(beats[0].materialId, "create-project-dialog");
+  assert.deepEqual(beats[0].materialIds, ["create-project-dialog"]);
+  assert.match(beats[0].exactSpokenQuote, /先创建一个创作项目/);
+  assert.doesNotMatch(beats[0].exactSpokenQuote, /总体目的/);
+  assert.ok(beats.slice(1).some((beat) => ["animation", "component"].includes(beat.primaryVisualType)));
+});

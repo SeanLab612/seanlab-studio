@@ -10,27 +10,24 @@ import {
   normalizeEditorialBrief,
 } from "../src/creator-workflow/editorial-brief.ts";
 
-const completeAnswers = (category: "github-project" | "news-analysis" | "tutorial") =>
+const completeAnswers = (category: "general" | "github-project" | "news-analysis" | "tutorial") =>
   Object.fromEntries(
     [...editorialQuestionnaire(category).universal, ...editorialQuestionnaire(category).categorySpecific].map(
       (question) => [question.id, question.options?.[0]?.value ?? `${question.label}的创作者答案`],
     ),
   );
 
-test("new creator entry exposes only the three approved directions", () => {
+test("new creator entry exposes the general direction and three specialized directions", () => {
   assert.deepEqual(
     PUBLIC_CREATOR_CATEGORIES.map((category) => category.id),
-    ["github-project", "news-analysis", "tutorial"],
+    ["general", "github-project", "news-analysis", "tutorial"],
   );
 });
 
-test("editorial brief asks creators for only three core direction answers", () => {
+test("editorial direction questions are optional and never block creation", () => {
   const empty = createEmptyEditorialBrief();
-  assert.equal(empty.status, "draft");
-  assert.deepEqual(
-    missingEditorialAnswers("github-project", empty).map((item) => item.id),
-    ["relationship-detail", "audience", "takeaway"],
-  );
+  assert.equal(empty.status, "ready");
+  assert.deepEqual(missingEditorialAnswers("github-project", empty), []);
 
   const complete = normalizeEditorialBrief("github-project", {
     version: EDITORIAL_BRIEF_VERSION,
