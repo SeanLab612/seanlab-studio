@@ -1,12 +1,26 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { lstat, mkdtemp, rm, symlink } from "node:fs/promises";
+import { copyFile, cp, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { processTreeSpawnOptions, terminateProcessTree } from "../workflow/process-tree.mjs";
 
 const allowedRepairRoots = ["schemas/", "scripts/", "src/", "studio/", "tests/"];
 const deniedRepairPaths = new Set(["package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock", ".gitignore"]);
+const repairWorkspaceEntries = [
+  ...allowedRepairRoots.map((path) => path.slice(0, -1)),
+  "package.json",
+  "package-lock.json",
+  "tsconfig.json",
+  "biome.json",
+  "remotion.config.ts",
+  "requirements.txt",
+  "skills",
+  "docs",
+  "config",
+  "public",
+  "regression-fixtures",
+];
 const humanDecisionCategories = new Set(["approval", "creator-input", "input", "review-revision"]);
 const humanDecisionCodes = new Set([
   "APPROVAL_REQUIRED",
@@ -29,6 +43,73 @@ const repairableTechnicalCategories = new Set([
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const normalizedRepoPath = (value) => value.replaceAll("\\", "/").replace(/^\.\/+/, "");
+
+const fileSha256 = async (path) => sha256(await readFile(path));
+
+const collectRepairFiles = async (root, relative = "") => {
+  const files = [];
+  const absolute = resolve(root, relative);
+  let entries;
+  try {
+    entries = await readdir(absolute, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === "ENOENT") return files;
+    throw error;
+  }
+  for (const entry of entries) {
+    const path = normalizedRepoPath(relative ? `${relative}/${entry.name}` : entry.name);
+    if (entry.isDirectory()) files.push(...(await collectRepairFiles(root, path)));
+    else if (entry.isFile()) files.push(path);
+  }
+  return files;
+};
+
+const repairSourceSnapshot = async (root) => {
+  const snapshot = new Map();
+  for (const allowedRoot of allowedRepairRoots) {
+    for (const path of await collectRepairFiles(root, allowedRoot.slice(0, -1)))
+      snapshot.set(path, await fileSha256(resolve(root, path)));
+  }
+  return snapshot;
+};
+
+const changedRepairPaths = (before, after) =>
+  [...new Set([...before.keys(), ...after.keys()])].filter((path) => before.get(path) !== after.get(path));
+
+const createRepairWorkspace = async ({ root, worktree }) => {
+  await mkdir(worktree, { recursive: true });
+  for (const entry of repairWorkspaceEntries) {
+    try {
+      await cp(resolve(root, entry), resolve(worktree, entry), { recursive: true, preserveTimestamps: true });
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+  }
+  try {
+    const nodeModules = resolve(root, "node_modules");
+    if ((await lstat(nodeModules)).isDirectory()) await symlink(nodeModules, resolve(worktree, "node_modules"), "dir");
+  } catch {}
+};
+
+const applyValidatedRepair = async ({ root, worktree, before, after, changedPaths, stagingRoot }) => {
+  const current = await repairSourceSnapshot(root);
+  if (changedPaths.some((path) => current.get(path) !== before.get(path)))
+    return { success: false, reason: "source-changed-during-repair" };
+  if (changedPaths.some((path) => before.has(path) && !after.has(path)))
+    return { success: false, reason: "agent-deleted-source-file" };
+
+  for (const path of changedPaths) {
+    const staged = resolve(stagingRoot, path);
+    await mkdir(dirname(staged), { recursive: true });
+    await copyFile(resolve(worktree, path), staged);
+  }
+  for (const path of changedPaths) {
+    const target = resolve(root, path);
+    await mkdir(dirname(target), { recursive: true });
+    await rename(resolve(stagingRoot, path), target);
+  }
+  return { success: true };
+};
 
 export const isAutonomousTechnicalRepairEligible = (failure = {}) => {
   if (!failure.code || humanDecisionCodes.has(failure.code)) return false;
@@ -87,7 +168,7 @@ const run = ({ command, args, cwd, input, signal, timeoutMs = 15 * 60_000, env =
 const repairPrompt = ({ projectId, recovery }) =>
   [
     "You are the fixed production Agent repairing a technical defect in SeanLab Studio.",
-    "Work only inside this isolated Git worktree. Make the smallest source-code repair that resolves the supplied failure.",
+    "Work only inside this isolated source snapshot. Make the smallest source-code repair that resolves the supplied failure.",
     "You may edit only schemas/, scripts/, src/, studio/, and tests/.",
     "Never modify projects/, creator media, narration, visual choices, approvals, package manifests, lockfiles, Git history, credentials, or external systems.",
     "Do not commit, push, install dependencies, restart Studio, call image generation, or bypass any human review gate.",
@@ -115,6 +196,7 @@ const agentCommand = ({ agentId, model, worktree, prompt }) => {
       args: [
         "exec",
         "--ephemeral",
+        "--skip-git-repo-check",
         "--sandbox",
         "workspace-write",
         "--color",
@@ -144,12 +226,6 @@ const agentCommand = ({ agentId, model, worktree, prompt }) => {
   throw new Error(`Unsupported production Agent for technical repair: ${agentId}`);
 };
 
-const statusPaths = (status) =>
-  status
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .map((line) => normalizedRepoPath(line.slice(3).split(" -> ").at(-1)));
-
 export const runProductionAgentTechnicalRepair = async ({
   projectId,
   recovery,
@@ -162,26 +238,12 @@ export const runProductionAgentTechnicalRepair = async ({
   if (!isAutonomousTechnicalRepairEligible(recovery.failure))
     return { kind: "validated-source-repair", success: false, reason: "failure-requires-human-judgment" };
   const root = resolve(repoRoot);
-  const tracked = await execute({
-    command: "git",
-    args: ["status", "--porcelain", "--untracked-files=no"],
-    cwd: root,
-    signal,
-  });
-  if (tracked.stdout.trim())
-    return { kind: "validated-source-repair", success: false, reason: "source-worktree-not-clean" };
-
   const temporaryRoot = await mkdtemp(resolve(tmpdir(), "seanlab-agent-repair-"));
   const worktree = resolve(temporaryRoot, "worktree");
-  let worktreeAdded = false;
+  const stagingRoot = resolve(temporaryRoot, "validated");
   try {
-    await execute({ command: "git", args: ["worktree", "add", "--detach", worktree, "HEAD"], cwd: root, signal });
-    worktreeAdded = true;
-    try {
-      const nodeModules = resolve(root, "node_modules");
-      if ((await lstat(nodeModules)).isDirectory())
-        await symlink(nodeModules, resolve(worktree, "node_modules"), "dir");
-    } catch {}
+    await createRepairWorkspace({ root, worktree });
+    const before = await repairSourceSnapshot(worktree);
     const prompt = repairPrompt({ projectId, recovery });
     const command = agentCommand({ agentId, model, worktree, prompt });
     await execute({
@@ -190,21 +252,10 @@ export const runProductionAgentTechnicalRepair = async ({
       input: agentId === "codex-cli" ? prompt : undefined,
       signal,
     });
-    const status = await execute({
-      command: "git",
-      args: ["status", "--porcelain", "--untracked-files=all"],
-      cwd: worktree,
-      signal,
-    });
-    const changedPaths = validateAutonomousRepairPaths(statusPaths(status.stdout));
+    const after = await repairSourceSnapshot(worktree);
+    const changedPaths = validateAutonomousRepairPaths(changedRepairPaths(before, after));
     if (!changedPaths.length)
       return { kind: "validated-source-repair", success: false, reason: "agent-produced-no-safe-change" };
-    const untracked = status.stdout
-      .split(/\r?\n/)
-      .filter((line) => line.startsWith("?? "))
-      .map((line) => line.slice(3));
-    if (untracked.length)
-      await execute({ command: "git", args: ["add", "-N", "--", ...untracked], cwd: worktree, signal });
     for (const script of ["format:check", "lint", "typecheck", "test:unit", "test:workflow-core"])
       await execute({
         command: "npm",
@@ -213,30 +264,17 @@ export const runProductionAgentTechnicalRepair = async ({
         signal,
         timeoutMs: 20 * 60_000,
       });
-    const diff = await execute({
-      command: "git",
-      args: ["diff", "--binary", "--no-ext-diff", "HEAD", "--", ...changedPaths],
-      cwd: worktree,
-      signal,
-    });
-    if (!diff.stdout.trim())
-      return { kind: "validated-source-repair", success: false, reason: "agent-produced-empty-patch" };
-    await execute({ command: "git", args: ["apply", "--check", "-"], cwd: root, input: diff.stdout, signal });
-    await execute({ command: "git", args: ["apply", "-"], cwd: root, input: diff.stdout, signal });
+    const applied = await applyValidatedRepair({ root, worktree, before, after, changedPaths, stagingRoot });
+    if (!applied.success) return { kind: "validated-source-repair", ...applied };
+    const patchManifest = changedPaths.map((path) => ({ path, before: before.get(path), after: after.get(path) }));
     return {
       kind: "validated-source-repair",
       success: true,
       changedPaths,
-      patchSha256: sha256(diff.stdout),
+      patchSha256: sha256(JSON.stringify(patchManifest)),
       validation: ["format:check", "lint", "typecheck", "test:unit", "test:workflow-core"],
     };
   } finally {
-    if (worktreeAdded)
-      await execute({
-        command: "git",
-        args: ["worktree", "remove", "--force", worktree],
-        cwd: root,
-      }).catch(() => {});
     await rm(temporaryRoot, { recursive: true, force: true });
   }
 };

@@ -18,6 +18,7 @@ import { visualContractTargetId } from "../scripts/creator/production-agent-visu
 import { automaticProductionRecoveryAttempts } from "../scripts/creator/production-agent.mjs";
 import {
   isAutonomousTechnicalRepairEligible,
+  runProductionAgentTechnicalRepair,
   validateAutonomousRepairPaths,
 } from "../scripts/creator/production-agent-technical-repair.mjs";
 import {
@@ -341,6 +342,46 @@ test("production Agent source repair accepts technical defects but rejects human
   ]);
   assert.throws(() => validateAutonomousRepairPaths(["projects/real-project/project.json"]), /cannot modify/);
   assert.throws(() => validateAutonomousRepairPaths(["package-lock.json"]), /cannot modify/);
+});
+
+test("production Agent source repair works from a modified source snapshot without Git metadata", async () => {
+  const root = await mkdtemp(resolve(tmpdir(), "seanlab-source-snapshot-repair-"));
+  try {
+    await mkdir(resolve(root, "src"), { recursive: true });
+    await mkdir(resolve(root, "tests"), { recursive: true });
+    await writeFile(resolve(root, "src", "fixture.ts"), "export const value = 'user-modified';\n");
+    await writeFile(resolve(root, "tests", "fixture.test.ts"), "export const fixture = true;\n");
+    await writeFile(resolve(root, "package.json"), '{"scripts":{}}\n');
+
+    const commands = [];
+    const result = await runProductionAgentTechnicalRepair({
+      projectId: "snapshot-repair",
+      recovery: {
+        failure: { code: "VISUAL_PROPS_INVALID", category: "visual-contract", stage: "component-props" },
+      },
+      agentId: "codex-cli",
+      model: "fixture",
+      repoRoot: root,
+      execute: async ({ command, args, cwd }) => {
+        commands.push({ command, args });
+        if (command === "codex") {
+          assert.equal(args.includes("--skip-git-repo-check"), true);
+          await writeFile(resolve(cwd, "src", "fixture.ts"), "export const value = 'agent-repaired';\n");
+          await writeFile(resolve(cwd, "tests", "new-repair.test.ts"), "export const repaired = true;\n");
+        }
+        return { stdout: "", stderr: "" };
+      },
+    });
+
+    assert.equal(result.success, true);
+    assert.deepEqual(result.changedPaths, ["src/fixture.ts", "tests/new-repair.test.ts"]);
+    assert.equal(await readFile(resolve(root, "src", "fixture.ts"), "utf8"), "export const value = 'agent-repaired';\n");
+    assert.equal(await readFile(resolve(root, "tests", "new-repair.test.ts"), "utf8"), "export const repaired = true;\n");
+    assert.equal(commands.some(({ command }) => command === "git"), false);
+    assert.equal(commands.filter(({ command }) => command === "npm").length, 5);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("automatic production recovery accepts only a successful allowlisted provider environment repair", () => {
