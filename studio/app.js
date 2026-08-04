@@ -1802,9 +1802,7 @@ const workflowFeedback = (project) => {
 };
 const stageTimeline = (workflow) => `<div class="workflow-stage-grid">${workflow.stages.map((stage) => `<div class="workflow-stage ${escapeHtml(stage.status)}"><span></span><div><b>${escapeHtml(workflowStageLabels[stage.name] ?? "处理视频")}</b><small>${escapeHtml(workflowStatusLabels[stage.status] ?? stage.status)}${stage.elapsedMs ? ` · ${(stage.elapsedMs / 1000).toFixed(1)} 秒` : ""}</small></div></div>`).join("")}</div>`;
 const workflowWarningCount = (project, workflow) => {
-  const task = latestJob(project.project.id, "video-workflow");
-  return (workflow?.recut?.unresolvedProtectedAnchors.length ?? 0) +
-    (workflow?.currentFailure || ["failed", "interrupted", "cancelled"].includes(task?.status) ? 1 : 0);
+  return workflow?.recut?.unresolvedProtectedAnchors.length ?? 0;
 };
 const workflowProgressContent = (project, workflow) => `
   ${workflowFeedback(project)}
@@ -1816,11 +1814,11 @@ const recutCandidatesView = (recut) => `
 const workflowWarningContent = (project, workflow) => {
   const recut = workflow?.recut;
   const task = latestJob(project.project.id, "video-workflow");
-  const failure = friendlyWorkflowFailure(workflow?.currentFailure) || (["failed", "interrupted", "cancelled"].includes(task?.status) ? task.error : "");
-  if (!recut && !failure)
+  const stopped = Boolean(workflow?.currentFailure || ["failed", "interrupted", "cancelled"].includes(task?.status));
+  if (!recut && !stopped)
     return '<div class="workflow-info-empty"><h3>目前没有需要留意的内容</h3></div>';
   return `
-    ${failure ? `<div class="job-banner job-banner-error"><div class="job-banner-head"><strong>视频制作暂停</strong><span class="badge">已保留进度</span></div><p>${escapeHtml(failure)}</p></div>` : ""}
+    ${stopped ? '<div class="job-banner"><div class="job-banner-head"><strong>制作 Agent 正在处理</strong><span class="badge">已保留进度</span></div><p>技术诊断和恢复会在后台进行，不需要你处理错误信息。</p></div>' : ""}
     ${recut ? `<div class="workflow-warning-grid"><div class="panel"><h3>系统保证不会误删</h3><p>${recut.protectedRanges.length ? `已锁定 ${recut.protectedRanges.length} 段需要保留的原始内容。` : "没有需要额外锁定的片段。"}</p>${recut.protectedRanges.length ? `<ul class="compact-list">${recut.protectedRanges.map((item) => `<li><b>${escapeHtml(protectedRangeLabel(item))}</b><span>${Number(item.start).toFixed(1)}–${Number(item.end).toFixed(1)} 秒</span></li>`).join("")}</ul>` : ""}</div><div class="panel"><h3>需要你留意</h3>${recut.unresolvedProtectedAnchors.length ? `<p>原片中有 ${recut.unresolvedProtectedAnchors.length} 处没有匹配到口播稿的定位句。这不会造成误删，但后续的片头或录屏对齐可能会改用备用位置。</p><ul class="compact-list">${[...new Set(recut.unresolvedProtectedAnchors.map(unresolvedAnchorLabel))].map((label) => `<li><b>${escapeHtml(label)}</b></li>`).join("")}</ul>` : "<p>口播稿中的所有定位句都已在原片中找到。</p>"}</div></div>${recutCandidatesView(recut)}` : ""}
   `;
 };
@@ -1901,17 +1899,25 @@ const workflowReadinessCard = (project, workflow) => {
     ? Math.max(workflowProgress.percent, taskPercent)
     : workflowProgress.percent;
   const failed = workflow?.currentFailure || ["failed", "interrupted", "cancelled"].includes(task?.status);
+  const recoveryTask = state.jobs
+    .filter((item) => item.projectId === project.project.id && ["production-agent-recovery", "production-baseline"].includes(item.kind))
+    .at(-1);
+  const recovering = failed && ["queued", "running"].includes(recoveryTask?.status);
   const readiness = next ? latestWorkflowReadiness(project.project.id, next.targetGate) : undefined;
   const blocked = readiness?.readinessStatus === "blocked";
   const status = failed || blocked
-    ? "需要你处理"
+    ? recovering
+      ? "制作中"
+      : "未生成结果"
     : workflow?.reviewReady
       ? "可以审核"
       : ["queued", "running"].includes(task?.status)
         ? "制作中"
         : "准备中";
   const message = failed
-    ? friendlyWorkflowFailure(workflow?.currentFailure) || task?.error || "制作已暂停，已完成的内容仍然保留。"
+    ? recovering
+      ? "制作 Agent 正在后台诊断、修改并重新检查。"
+      : "本次暂未生成可审核版本，所有有效进度已保留。"
     : blocked
       ? "开始前还有一项需要处理，打开故障恢复查看解决办法。"
       : workflow?.reviewReady
@@ -1922,7 +1928,7 @@ const workflowReadinessCard = (project, workflow) => {
           ? "正在制作本期视频，完成后会停在下一个人工审核点。"
           : "先做一次快速检查，确认可以安全开始或继续。";
   const action = failed
-    ? '<p class="guide-note">制作 Agent 会读取保留产物并从安全断点处理；只有需要你决定时才会提示。</p>'
+    ? '<p class="guide-note">无需处理技术错误；详细诊断仅保留在高级详情中。</p>'
     : workflow?.reviewReady
       ? `<button type="button" class="primary" id="open-static-review">${workflow.productionBaseline ? "进入基础版本审核" : "进入静态审核"}</button>`
       : workflow?.semanticReplanRequired
@@ -2309,7 +2315,7 @@ const deliveryView = (project, delivery) => {
   return `<section class="delivery-workspace">
     <div class="panel review-header"><div><div class="eyebrow">FINAL DELIVERY</div><h2>成片与交付</h2></div><span class="status-pill">${escapeHtml(deliveryStatusLabels[delivery.status] ?? delivery.status)}</span></div>
     ${delivery.status === "rendering" || delivery.status === "validating" ? deliveryProgressView(project, delivery) : ""}
-    ${delivery.status === "failed" ? `<div class="panel job-banner-error creator-failure"><h3>成片制作暂停</h3><p>${escapeHtml(delivery.failure?.message ?? "已完成的内容仍然保留。")} 制作 Agent 会保留有效产物；需要你决定时才会提示。</p></div>` : ""}
+    ${delivery.status === "failed" ? '<div class="panel creator-failure"><h3>成片尚未完成</h3><p>制作 Agent 已保留通过审核的版本和有效渲染分段，将从最近断点继续。</p></div>' : ""}
     ${delivery.status === "conflict" ? `<div class="panel job-banner-error creator-failure"><h3>成片状态需要确认</h3><p>本地文件与工作流记录不一致，Studio 不会覆盖现有文件，等待制作 Agent 校验。</p></div>` : ""}
     ${canStart ? deliveryStartView(delivery) : ""}
     ${delivery.video ? `<div class="panel delivery-player"><h3>最终成片</h3><video id="delivery-video" controls preload="metadata" src="${escapeHtml(delivery.video.url)}"></video><div class="actions"><button type="button" class="secondary" id="reveal-delivery">在 Finder 中显示成片</button><button type="button" class="secondary" id="reveal-delivery-workspace">打开产物目录</button></div></div>` : ""}

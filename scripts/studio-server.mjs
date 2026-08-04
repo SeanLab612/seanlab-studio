@@ -445,12 +445,6 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
           }),
         );
         record.action = action;
-        let productionAgentExited = false;
-        const confirmDeliveryStarted = (metadata) => {
-          if (productionAgentExited) return;
-          productionAgentExited = true;
-          exitProductionAgentForDelivery(projectId, { jobId: record.id, ...metadata }).catch(() => {});
-        };
         const appendLogs = (chunk) => {
           const lines = chunk.toString().split(/\r?\n/).filter(Boolean);
           record?.logs.push(...lines);
@@ -465,7 +459,6 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
                 percent: total > 0 ? Math.round(8 + (Math.min(index, total) / total) * 76) : 8,
                 message: `正在渲染第 ${Math.min(index + 1, total)}/${total} 段`,
               });
-              confirmDeliveryStarted({ renderedSegments: index, totalSegments: total });
             }
             const deliveryFrame = action === "delivery" ? /^Rendered (\d+)\/(\d+)/.exec(line.trim()) : null;
             if (deliveryFrame) {
@@ -476,7 +469,6 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
                 percent: total > 0 ? Math.round(8 + (Math.min(rendered, total) / total) * 76) : 8,
                 message: `正在合成最终画面 ${Math.min(rendered, total)}/${total} 帧`,
               });
-              if (rendered > 0) confirmDeliveryStarted({ renderedFrames: rendered, totalFrames: total });
             }
             const deliveryEncode = action === "delivery" ? /^Encoded (\d+)\/(\d+)/.exec(line.trim()) : null;
             if (deliveryEncode) {
@@ -553,6 +545,8 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
             return done({ exitCode: code, readiness: record.readiness });
           }
           if (code === 0 && action === "approve-recut") await enterProductionAgent(projectId).catch(() => {});
+          if (code === 0 && action === "delivery")
+            await exitProductionAgentForDelivery(projectId, { jobId: record.id, validated: true }).catch(() => {});
           if (code === 0 && !["readiness", "delivery", "approve-recut"].includes(action)) {
             const productionAgent = await loadProductionAgentState(projectId).catch(() => undefined);
             if (productionAgent?.state === "recovering")
@@ -563,7 +557,7 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
                 metadata: { action, jobId: record.id },
               }).catch(() => {});
           }
-          if (code !== 0 && !["readiness", "delivery"].includes(action)) {
+          if (code !== 0 && action !== "readiness") {
             const productionAgent = await loadProductionAgentState(projectId).catch(() => undefined);
             const automaticDiagnosisEligible = ["active", "diagnosing", "recovering"].includes(productionAgent?.state);
             await transitionProductionAgent({
@@ -603,11 +597,20 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
   );
 
 const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failedRecord, environment = {} }) => {
-  if (["readiness", "delivery"].includes(failedRecord.action)) return;
+  if (failedRecord.action === "readiness") return;
   const productionAgent = await loadProductionAgentState(projectId);
   if (productionAgent.state !== "diagnosing") return;
   const attempts = automaticProductionRecoveryAttempts(productionAgent);
   if (attempts >= MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS) {
+    if (failedRecord.action === "delivery") {
+      await transitionProductionAgent({
+        projectId,
+        state: "waiting-human",
+        reason: "delivery-recovery-exhausted",
+        metadata: { failedJobId: failedRecord.id, attempts },
+      });
+      return;
+    }
     job(
       "production-baseline",
       projectId,
@@ -773,7 +776,7 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
         !readiness &&
         (recovery.status === "recoverable" || repair?.success) &&
         recovery.resume?.stage &&
-        ["recut", "continue"].includes(recovery.resume.action)
+        ["recut", "continue", "delivery"].includes(recovery.resume.action)
       ) {
         const snapshot = await loadStudioWorkflow(projectId);
         readiness = await inspectStudioReadiness({
@@ -789,7 +792,7 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
         repair,
       });
       let baseline;
-      if (decision.action !== "resume") {
+      if (decision.action !== "resume" && recovery.resume?.action !== "delivery") {
         reportProgress({ phase: "baseline", percent: 72, message: "正在准备不依赖增强视觉的基础审核版本" });
         baseline = await createProductionBaseline({ projectId, failure: recovery.failure }).catch((error) => ({
           kind: "production-baseline",

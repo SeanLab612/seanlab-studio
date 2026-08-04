@@ -334,7 +334,7 @@ test("production Agent source repair accepts technical defects but rejects human
       category: "visual-contract",
       stage: "delivery-validate",
     }),
-    false,
+    true,
   );
   assert.deepEqual(validateAutonomousRepairPaths(["src/fix.ts", "tests/fix.test.ts"]), [
     "src/fix.ts",
@@ -415,6 +415,25 @@ test("automatic production recovery accepts only a successful allowlisted provid
     }).action,
     "wait-human",
   );
+});
+
+test("production Agent resumes a validated delivery checkpoint and exits only after validation", () => {
+  const decision = decideAutomaticProductionRecovery({
+    recovery: {
+      status: "recoverable",
+      resume: { enabled: true, action: "delivery", stage: "delivery-validate" },
+    },
+    diagnosis: {
+      safeToResume: true,
+      recommendedAction: "recheck",
+      userMessage: "recheck delivery",
+    },
+    attempts: 0,
+    readiness: { readinessStatus: "ready" },
+  });
+  assert.equal(decision.action, "resume");
+  assert.equal(decision.workflowAction, "delivery");
+  assert.equal(decision.stage, "delivery-validate");
 });
 
 test("generated project assets remain pending until explicitly promoted", async () => {

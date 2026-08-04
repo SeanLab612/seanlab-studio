@@ -114,7 +114,7 @@ const applyValidatedRepair = async ({ root, worktree, before, after, changedPath
 export const isAutonomousTechnicalRepairEligible = (failure = {}) => {
   if (!failure.code || humanDecisionCodes.has(failure.code)) return false;
   if (humanDecisionCategories.has(failure.category)) return false;
-  if (["delivery-render", "delivery-validate", "human-approval"].includes(failure.stage)) return false;
+  if (failure.stage === "human-approval") return false;
   return repairableTechnicalCategories.has(failure.category);
 };
 

@@ -115,8 +115,13 @@ export const buildStudioRecovery = ({ projectId, workflow, jobs = [], artifacts 
   const resumeStage =
     workflow.stages.find((stage) => incompleteStageStatuses.has(stage.status))?.name ??
     resumeStageForStudio(workflow.stages);
-  const resumeAction =
-    workflow.reviewReady || workflow.reviewApproved ? undefined : workflow.recutApproved ? "continue" : "recut";
+  const resumeAction = workflow.reviewApproved
+    ? "delivery"
+    : workflow.reviewReady
+      ? undefined
+      : workflow.recutApproved
+        ? "continue"
+        : "recut";
   const repairRequired = Boolean(failure && (failure.retryable === false || productRepairCodes.has(failure.code)));
   const status = activeJob
     ? "busy"

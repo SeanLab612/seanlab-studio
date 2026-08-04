@@ -107,6 +107,6 @@ export const exitProductionAgentForDelivery = (projectId, metadata = {}) =>
   transitionProductionAgent({
     projectId,
     state: "exited",
-    reason: "delivery-render-confirmed-running",
+    reason: "delivery-validated",
     metadata,
   });

@@ -1,6 +1,6 @@
 export const MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS = 6;
 
-const automaticallyResumableActions = new Set(["recut", "continue"]);
+const automaticallyResumableActions = new Set(["recut", "continue", "delivery"]);
 const automaticallyResumableRecommendations = new Set(["resume", "recheck"]);
 
 export const decideAutomaticProductionRecovery = ({

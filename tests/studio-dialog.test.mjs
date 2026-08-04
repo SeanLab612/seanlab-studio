@@ -158,7 +158,9 @@ test("Studio readiness checks stop at the next human gate without starting produ
 test("Studio keeps production and delivery creator-facing while preserving advanced evidence", async () => {
   const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
 
-  assert.match(app, /制作 Agent 会读取保留产物并从安全断点处理/);
+  assert.match(app, /制作 Agent 正在后台诊断、修改并重新检查/);
+  assert.match(app, /无需处理技术错误；详细诊断仅保留在高级详情中/);
+  assert.doesNotMatch(app, /\$\{escapeHtml\(delivery\.failure\?\.message/);
   assert.doesNotMatch(app, /id="open-workflow-recovery"/);
   assert.doesNotMatch(app, /id="open-delivery-recovery"/);
   assert.match(app, /发布所需的关键信息已经确认/);

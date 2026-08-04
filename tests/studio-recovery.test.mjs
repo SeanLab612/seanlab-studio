@@ -103,6 +103,45 @@ test("recovery prefers the real failed stage over an earlier optional pending st
   assert.equal(recovery.resume.stage, "semantic-plan");
 });
 
+test("an approved review keeps the Agent responsible for delivery render and validation failures", () => {
+  const workflow = baseWorkflow();
+  workflow.reviewReady = true;
+  workflow.reviewApproved = true;
+  workflow.currentFailure = {
+    code: "RENDER_STALLED",
+    category: "workflow",
+    stage: "delivery-render",
+    message: "delivery stalled",
+    remediation: "resume the validated delivery checkpoint",
+    retryable: true,
+  };
+  workflow.stages = [
+    { name: "review-evidence", status: "succeeded" },
+    { name: "human-approval", status: "approved" },
+    { name: "delivery-render", status: "failed" },
+    { name: "delivery-validate", status: "pending" },
+  ];
+  const recovery = buildStudioRecovery({
+    projectId: "delivery-recovery",
+    workflow,
+    jobs: [
+      {
+        id: "delivery-failed",
+        projectId: "delivery-recovery",
+        kind: "video-workflow",
+        action: "delivery",
+        status: "failed",
+        currentFailure: workflow.currentFailure,
+      },
+    ],
+    artifacts: [],
+    agent: {},
+  });
+  assert.equal(recovery.status, "recoverable");
+  assert.equal(recovery.resume.action, "delivery");
+  assert.equal(recovery.resume.stage, "delivery-render");
+});
+
 test("recovery blocks product contract defects and duplicate starts", () => {
   const contractFailure = baseWorkflow();
   contractFailure.currentFailure = {
