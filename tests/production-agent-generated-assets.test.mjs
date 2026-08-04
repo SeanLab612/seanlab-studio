@@ -13,6 +13,8 @@ import {
   decideAutomaticProductionRecovery,
   MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS,
 } from "../scripts/creator/production-agent-recovery.mjs";
+import { buildBindingCandidates } from "../scripts/creator/production-agent-binding-repair.mjs";
+import { visualContractTargetId } from "../scripts/creator/production-agent-visual-contract-repair.mjs";
 import { automaticProductionRecoveryAttempts } from "../scripts/creator/production-agent.mjs";
 import {
   isAutonomousTechnicalRepairEligible,
@@ -93,6 +95,33 @@ test("Agent translation preserves source cues and rejects reordered or mixed-lan
   assert.equal(stripDisplayPunctuation("Three.js，版本 1,000。"), "Three.js版本 1,000");
 });
 
+test("Agent translation repairs one invalid punctuation-only batch before failing the workflow", async () => {
+  const captions = [
+    { start: 0, end: 1, zh: "SeanLab Studio 是我开源" },
+    { start: 1, end: 2, zh: "的项目。" },
+  ];
+  let calls = 0;
+  const adapter = {
+    completeJson: async () => {
+      calls += 1;
+      return calls === 1
+        ? { schemaVersion: "1.0", items: [{ index: 0, en: "I open-sourced SeanLab Studio" }, { index: 1, en: "." }] }
+        : {
+            schemaVersion: "1.0",
+            items: [
+              { index: 0, en: "I open-sourced SeanLab Studio" },
+              { index: 1, en: "as a project." },
+            ],
+          };
+    },
+  };
+  assert.deepEqual(await translateCaptionBatch({ captions, adapter }), [
+    "I open-sourced SeanLab Studio",
+    "as a project.",
+  ]);
+  assert.equal(calls, 2);
+});
+
 test("Agent caption translation schema is accepted by strict structured-output providers", async () => {
   const schema = JSON.parse(
     await readFile(resolve("schemas/agent-caption-translation.schema.json"), "utf8"),
@@ -171,10 +200,81 @@ test("automatic production recovery stops for unvalidated code repair, blocked r
         { reason: "automatic-recovery-succeeded" },
         { reason: "automatic-provider-env-refresh" },
         { reason: "automatic-source-repair" },
+        { reason: "automatic-binding-repair" },
+        { reason: "automatic-visual-contract-repair" },
       ],
     }),
-    3,
+    5,
   );
+});
+
+test("production Agent can safely rebind a long visual quote across minor ASR differences", () => {
+  const quote = "这是一个即装即用的开源项目，你可以到 GitHub 查看。";
+  const plan = {
+    beats: [
+      {
+        id: "conclusion-beat-1",
+        sectionId: "conclusion",
+        exactSpokenQuote: quote,
+        status: "confirmed",
+        primaryVisualType: "component",
+        takeover: "partial",
+        speakerPresence: "full",
+        exactSpokenQuoteSha256: "before",
+      },
+    ],
+  };
+  const captions = [
+    { start: 10, end: 11, zh: "这是一个集装即用的开源项目，" },
+    { start: 11, end: 12, zh: "你可以到GitHub查看。" },
+  ];
+  const candidates = buildBindingCandidates({ plan, captions, targetId: "conclusion-beat-1" });
+  assert.equal(candidates[0].candidateId, "caption-0-1");
+  assert.equal(candidates[0].quote, captions.map((caption) => caption.zh).join(""));
+  assert.ok(candidates[0].similarity > 0.8);
+});
+
+test("automatic production recovery resumes after a validated Agent binding repair", () => {
+  const decision = decideAutomaticProductionRecovery({
+    recovery: {
+      status: "blocked",
+      resume: { enabled: false, action: "continue", stage: "visual-input-preflight" },
+    },
+    diagnosis: {
+      safeToResume: false,
+      recommendedAction: "repair-binding",
+      userMessage: "重绑定后继续",
+    },
+    attempts: 0,
+    readiness: { readinessStatus: "ready", readinessSha256: "readiness-1" },
+    repair: { kind: "validated-binding-repair", success: true, targetId: "conclusion-beat-1" },
+  });
+  assert.equal(decision.action, "resume");
+  assert.equal(decision.reason, "automatic-binding-repair");
+  assert.equal(decision.stage, "visual-input-preflight");
+});
+
+test("production Agent recognizes one invalid confirmed component beat for speaker fallback", () => {
+  assert.equal(
+    visualContractTargetId({
+      message:
+        "component-props exited with code 1: Confirmed component beat overview:overview-beat-1 could not be materialized: Key statistics require 1-3 explicit numbers.",
+    }),
+    "overview-beat-1",
+  );
+  assert.equal(
+    visualContractTargetId({ message: "Confirmed component beat start-beat-2 has no overlapping semantic evidence" }),
+    "start-beat-2",
+  );
+  const decision = decideAutomaticProductionRecovery({
+    recovery: { status: "blocked", resume: { enabled: false, action: "continue", stage: "component-props" } },
+    diagnosis: { safeToResume: false, recommendedAction: "repair-visual", userMessage: "回退后继续" },
+    attempts: 0,
+    readiness: { readinessStatus: "ready" },
+    repair: { kind: "validated-visual-contract-repair", success: true, targetId: "overview-beat-1" },
+  });
+  assert.equal(decision.reason, "automatic-visual-contract-repair");
+  assert.equal(decision.action, "resume");
 });
 
 test("production Agent resumes after an isolated source repair passes the complete validation gate", () => {

@@ -109,5 +109,11 @@ test("viewer copy rejects production language and enforces role lengths", () => 
   assert.equal(validateViewerCopy("Review and revise each component", "display-copy"), true);
   assert.throws(() => validateViewerCopy("Open the review frame", "display-copy"), /production terminology/);
   assert.throws(() => validateViewerCopy("组件审核画面", "display-copy"), /production terminology/);
+  assert.equal(
+    validateViewerCopy("包含 19 个信息组件", "display-copy", {
+      sourceText: "资源库包含十九个信息组件。",
+    }),
+    true,
+  );
   assert.throws(() => validateViewerCopy("ABCDEFGHIJKLMNOPQRSTUVWXYZ123", "design-label"), /28 characters/);
 });

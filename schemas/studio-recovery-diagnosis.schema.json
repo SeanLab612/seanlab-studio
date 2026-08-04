@@ -21,7 +21,15 @@
     },
     "recommendedAction": {
       "type": "string",
-      "enum": ["recheck", "resume", "repair-config", "repair-code", "request-user"]
+      "enum": [
+        "recheck",
+        "resume",
+        "repair-config",
+        "repair-code",
+        "repair-binding",
+        "repair-visual",
+        "request-user"
+      ]
     },
     "safeToResume": { "type": "boolean" },
     "userMessage": { "type": "string", "minLength": 1, "maxLength": 1000 },

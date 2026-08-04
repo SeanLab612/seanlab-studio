@@ -539,6 +539,7 @@ test("Studio exposes a confirmation-bound recovery center and read-only Ask Agen
   assert.match(server, /workflow\/recovery\/resume/);
   assert.match(server, /createStructuredAgentJsonAdapter/);
   assert.match(server, /runProductionAgentTechnicalRepair/);
+  assert.match(server, /creator-authorized-production/);
   assert.match(app, /data-beat-animation-style/);
   assert.match(app, /data-beat-component-choice/);
   assert.match(recovery, /recoverySha256/);
@@ -548,6 +549,8 @@ test("Studio exposes a confirmation-bound recovery center and read-only Ask Agen
     "resume",
     "repair-config",
     "repair-code",
+    "repair-binding",
+    "repair-visual",
     "request-user",
   ]);
 });
@@ -658,6 +661,11 @@ test("Studio persists jobs serially and only recovers interrupted work after own
   assert.match(server, /server\.listen\(port, "127\.0\.0\.1", async \(\) =>/);
   assert.match(server, /for \(const id of storedRunningJobIds\)/);
   assert.match(server, /server\.once\("error"/);
+});
+
+test("production Remotion root registers the workflow composition used by every render stage", async () => {
+  const root = await readFile(new URL("../src/Root.tsx", import.meta.url), "utf8");
+  assert.match(root, /id: "GeneratedWorkflowReview"/);
 });
 
 test("workflow retries clear stale terminal fields before marking a stage running", async () => {

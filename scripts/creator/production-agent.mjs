@@ -18,6 +18,8 @@ const automaticResumeReasons = new Set([
   "automatic-recheck-resume",
   "automatic-provider-env-refresh",
   "automatic-source-repair",
+  "automatic-binding-repair",
+  "automatic-visual-contract-repair",
 ]);
 
 export const productionAgentStateFile = (projectId) =>

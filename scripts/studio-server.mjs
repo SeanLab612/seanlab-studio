@@ -78,6 +78,8 @@ import {
   decideAutomaticProductionRecovery,
   MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS,
 } from "./creator/production-agent-recovery.mjs";
+import { repairProductionBinding } from "./creator/production-agent-binding-repair.mjs";
+import { repairProductionVisualContract } from "./creator/production-agent-visual-contract-repair.mjs";
 import {
   isAutonomousTechnicalRepairEligible,
   runProductionAgentTechnicalRepair,
@@ -709,6 +711,32 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
             signal: controller.signal,
           });
         }
+      }
+      if (
+        !repair &&
+        recovery.failure?.code === "BINDING_ANCHOR_NOT_FOUND" &&
+        diagnosis.recommendedAction === "repair-binding"
+      ) {
+        reportProgress({ phase: "repair", percent: 38, message: "制作 Agent 正在重新绑定失效的口播位置" });
+        const bindingAdapter = createStructuredAgentJsonAdapter({
+          config: {
+            provider: project.agent.id,
+            model: project.agent.model,
+            maxRetries: 0,
+            timeoutSeconds: 180,
+          },
+          schemaPath: resolve("schemas/studio-binding-repair.schema.json"),
+          cwd: process.cwd(),
+        });
+        repair = await repairProductionBinding({
+          projectId,
+          recovery,
+          adapter: bindingAdapter,
+        });
+      }
+      if (!repair && diagnosis.recommendedAction === "repair-visual") {
+        reportProgress({ phase: "repair", percent: 42, message: "制作 Agent 正在将无效视觉节拍安全回退为人物画面" });
+        repair = await repairProductionVisualContract({ projectId, recovery });
       }
       reportProgress({ phase: "readiness", percent: 55, message: "正在验证断点和可复用产物" });
       let readiness = acceptanceFixture?.readiness;
@@ -1667,6 +1695,8 @@ const routes = async (request, response, url) => {
         readiness,
       });
     }
+    if (["review", "continue"].includes(input.action))
+      await enterProductionAgent(projectId, "creator-authorized-production").catch(() => {});
     const record = workflowJob(projectId, project.video.manifest, input.action, workflowArgs, {
       rollbackAttempt,
       environment,

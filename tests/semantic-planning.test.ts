@@ -680,6 +680,18 @@ test("required image evidence coverage includes direct and grouped authored imag
   assert.deepEqual(report.missingRequiredAssetIds, []);
 });
 
+test("required image evidence coverage treats ids for the same local file as one shown asset", () => {
+  const assets = [
+    { id: "image-a", path: "/project/assets/a.png", required: true },
+    { id: "image-a-beat-1", path: "/project/assets/a.png", required: true },
+  ];
+  const direct = [{ assetId: "image-a-beat-1" }];
+  const report = assertRequiredImageEvidenceCoverage(assets, [], direct);
+  assert.equal(report.status, "passed");
+  assert.deepEqual(report.missingRequiredAssetIds, []);
+  assert.equal(report.selectedRequiredCount, 2);
+});
+
 test("required image evidence coverage includes a shared image frozen inside an animation stage", () => {
   const assets = [
     {

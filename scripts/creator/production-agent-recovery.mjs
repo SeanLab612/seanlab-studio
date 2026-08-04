@@ -1,4 +1,4 @@
-export const MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS = 2;
+export const MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS = 6;
 
 const automaticallyResumableActions = new Set(["recut", "continue"]);
 const automaticallyResumableRecommendations = new Set(["resume", "recheck"]);
@@ -23,7 +23,18 @@ export const decideAutomaticProductionRecovery = ({
     repair.success;
   const repairedSource =
     diagnosis.recommendedAction === "repair-code" && repair?.kind === "validated-source-repair" && repair.success;
-  if ((recovery.status !== "recoverable" || !recovery.resume?.enabled) && !repairedSource)
+  const repairedBinding =
+    diagnosis.recommendedAction === "repair-binding" && repair?.kind === "validated-binding-repair" && repair.success;
+  const repairedVisual =
+    diagnosis.recommendedAction === "repair-visual" &&
+    repair?.kind === "validated-visual-contract-repair" &&
+    repair.success;
+  if (
+    (recovery.status !== "recoverable" || !recovery.resume?.enabled) &&
+    !repairedSource &&
+    !repairedBinding &&
+    !repairedVisual
+  )
     return {
       action: "wait-human",
       reason: "recovery-not-allowlisted",
@@ -32,7 +43,9 @@ export const decideAutomaticProductionRecovery = ({
   if (
     (!diagnosis.safeToResume || !automaticallyResumableRecommendations.has(diagnosis.recommendedAction)) &&
     !repairedProviderEnvironment &&
-    !repairedSource
+    !repairedSource &&
+    !repairedBinding &&
+    !repairedVisual
   )
     return {
       action: "wait-human",
@@ -59,13 +72,17 @@ export const decideAutomaticProductionRecovery = ({
     };
   return {
     action: "resume",
-    reason: repairedSource
-      ? "automatic-source-repair"
-      : repairedProviderEnvironment
-        ? "automatic-provider-env-refresh"
-        : diagnosis.recommendedAction === "recheck"
-          ? "automatic-recheck-resume"
-          : "automatic-resume",
+    reason: repairedVisual
+      ? "automatic-visual-contract-repair"
+      : repairedBinding
+        ? "automatic-binding-repair"
+        : repairedSource
+          ? "automatic-source-repair"
+          : repairedProviderEnvironment
+            ? "automatic-provider-env-refresh"
+            : diagnosis.recommendedAction === "recheck"
+              ? "automatic-recheck-resume"
+              : "automatic-resume",
     message: `从 ${recovery.resume.stage} 安全恢复`,
     workflowAction: recovery.resume.action,
     stage: recovery.resume.stage,

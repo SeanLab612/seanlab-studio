@@ -260,13 +260,16 @@ export const studioRecoveryDiagnosisPrompt = (recovery) => ({
     "Recommend the smallest safe next action.",
     "An exact checkpoint retry may be automated only when evidence proves it is retryable and approved artifacts remain unchanged.",
     "A narrowly scoped technical source defect may be repaired automatically in an isolated worktree only when the repair changes allowlisted source paths and passes the full validation suite.",
-    "Configuration choices, missing creator media, narration or transcript meaning, visual and aesthetic decisions, review decisions, and delivery always require a human.",
+    "A BINDING_ANCHOR_NOT_FOUND failure may use repair-binding when the fixed Agent can select a semantically equivalent exact candidate from current captions, or safely fall back to the speaker while preserving review gates.",
+    "A visual copy contract that rejects a product term literally grounded in the supplied narration may be a repair-code source defect; distinguish it from invented internal production language.",
+    "A confirmed component beat that cannot satisfy its deterministic evidence contract may use repair-visual to remove only that invalid beat and fall back to the speaker; the later visual review remains human-controlled.",
+    "Configuration choices, missing creator media, narration or transcript meaning, broader visual and aesthetic decisions, review decisions, and delivery always require a human.",
     "Return concise Simplified Chinese that matches the JSON Schema.",
   ].join("\n"),
   user: [
     "请诊断以下本地视频工作流故障。",
     "重点回答：根因是什么、已保留什么、是否适合从断点继续、用户下一步应做什么。",
-    "如果证据明确指向 Studio 源码或契约缺陷，可选择 repair-code；如果证据不足，必须选择 request-user，不能猜测。",
+    "如果是 BINDING_ANCHOR_NOT_FOUND 且可在当前字幕中受约束地重绑定或回退人物画面，选择 repair-binding；如果是某个已确认 component beat 不符合自身证据契约，可选择 repair-visual 仅回退该节拍；如果证据明确指向 Studio 源码或契约缺陷，可选择 repair-code；其他证据不足的情况必须选择 request-user，不能猜测。",
     JSON.stringify(recovery.agentContext, null, 2),
   ].join("\n\n"),
 });
