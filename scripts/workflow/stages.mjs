@@ -511,9 +511,29 @@ export const createStages = ({ manifest, paths }) => {
       command: ["node", "--experimental-strip-types", "scripts/fixtures/check-project.mjs"],
     },
     {
-      name: "human-approval",
+      name: "agent-review",
       dependsOn: ["review-evidence", "visual-qa", "regression-fixtures"],
-      inputs: [paths.reviewEvidence, resolve(paths.workspace, "visual-qa/qa-report.json"), paths.regressionReport],
+      inputs: [
+        paths.authoredVisualPlan,
+        paths.visualDirectionPlan,
+        paths.reviewEvidence,
+        resolve(paths.workspace, "visual-qa/qa-report.json"),
+        resolve(paths.workspace, "visual-qa/contact-sheet.png"),
+        paths.regressionReport,
+        resolve("schemas/production-agent-review.schema.json"),
+      ],
+      outputs: [paths.productionAgentReview],
+      command: ["node", "scripts/review-production-agent.mjs"],
+    },
+    {
+      name: "human-approval",
+      dependsOn: ["review-evidence", "visual-qa", "regression-fixtures", "agent-review"],
+      inputs: [
+        paths.reviewEvidence,
+        resolve(paths.workspace, "visual-qa/qa-report.json"),
+        paths.regressionReport,
+        paths.productionAgentReview,
+      ],
       outputs: [],
       approval: true,
     },
@@ -559,7 +579,7 @@ export const createStages = ({ manifest, paths }) => {
 export const TARGET_STAGE = {
   recut: "recut-review",
   plan: "validate",
-  review: "regression-fixtures",
+  review: "agent-review",
   delivery: "delivery-validate",
 };
 
@@ -778,6 +798,11 @@ export const signatureConfigForStage = (manifest, stageName) => {
         : { implementationVersion: "1.4", reviewMode: reviewModeFor(manifest) };
   if (stageName === "regression-fixtures")
     return manifest.regression ?? { profileId: "foundation-0.1.13", enabled: false };
+  if (stageName === "agent-review")
+    return {
+      implementationVersion: "1.0",
+      provider: manifest.providers.semanticPlanning,
+    };
   if (stageName === "delivery-render")
     return {
       implementationVersion: "1.2",

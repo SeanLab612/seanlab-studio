@@ -20,7 +20,7 @@ const readinessHash = (value) =>
 export const nextHumanGateForTarget = (targetStage) => {
   if (targetStage === "recut-review") return "recut-approval";
   if (targetStage === "validate") return "visual-confirmation";
-  if (targetStage === "regression-fixtures") return "human-approval";
+  if (targetStage === "agent-review") return "human-approval";
   if (targetStage === "delivery-validate") return "delivery-acceptance";
   return "workflow-review";
 };

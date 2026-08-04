@@ -78,6 +78,14 @@ import {
   decideAutomaticProductionRecovery,
   MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS,
 } from "./creator/production-agent-recovery.mjs";
+import { repairProductionBinding } from "./creator/production-agent-binding-repair.mjs";
+import { repairProductionVisualContract } from "./creator/production-agent-visual-contract-repair.mjs";
+import {
+  approveProductionBaseline,
+  createProductionBaseline,
+  deliverProductionBaseline,
+  loadProductionBaseline,
+} from "./creator/production-agent-baseline.mjs";
 import {
   isAutonomousTechnicalRepairEligible,
   runProductionAgentTechnicalRepair,
@@ -438,12 +446,6 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
           }),
         );
         record.action = action;
-        let productionAgentExited = false;
-        const confirmDeliveryStarted = (metadata) => {
-          if (productionAgentExited) return;
-          productionAgentExited = true;
-          exitProductionAgentForDelivery(projectId, { jobId: record.id, ...metadata }).catch(() => {});
-        };
         const appendLogs = (chunk) => {
           const lines = chunk.toString().split(/\r?\n/).filter(Boolean);
           record?.logs.push(...lines);
@@ -458,7 +460,6 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
                 percent: total > 0 ? Math.round(8 + (Math.min(index, total) / total) * 76) : 8,
                 message: `正在渲染第 ${Math.min(index + 1, total)}/${total} 段`,
               });
-              confirmDeliveryStarted({ renderedSegments: index, totalSegments: total });
             }
             const deliveryFrame = action === "delivery" ? /^Rendered (\d+)\/(\d+)/.exec(line.trim()) : null;
             if (deliveryFrame) {
@@ -469,7 +470,6 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
                 percent: total > 0 ? Math.round(8 + (Math.min(rendered, total) / total) * 76) : 8,
                 message: `正在合成最终画面 ${Math.min(rendered, total)}/${total} 帧`,
               });
-              if (rendered > 0) confirmDeliveryStarted({ renderedFrames: rendered, totalFrames: total });
             }
             const deliveryEncode = action === "delivery" ? /^Encoded (\d+)\/(\d+)/.exec(line.trim()) : null;
             if (deliveryEncode) {
@@ -546,6 +546,8 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
             return done({ exitCode: code, readiness: record.readiness });
           }
           if (code === 0 && action === "approve-recut") await enterProductionAgent(projectId).catch(() => {});
+          if (code === 0 && action === "delivery")
+            await exitProductionAgentForDelivery(projectId, { jobId: record.id, validated: true }).catch(() => {});
           if (code === 0 && !["readiness", "delivery", "approve-recut"].includes(action)) {
             const productionAgent = await loadProductionAgentState(projectId).catch(() => undefined);
             if (productionAgent?.state === "recovering")
@@ -556,7 +558,7 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
                 metadata: { action, jobId: record.id },
               }).catch(() => {});
           }
-          if (code !== 0 && !["readiness", "delivery"].includes(action)) {
+          if (code !== 0 && action !== "readiness") {
             const productionAgent = await loadProductionAgentState(projectId).catch(() => undefined);
             const automaticDiagnosisEligible = ["active", "diagnosing", "recovering"].includes(productionAgent?.state);
             await transitionProductionAgent({
@@ -596,17 +598,41 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
   );
 
 const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failedRecord, environment = {} }) => {
-  if (["readiness", "delivery"].includes(failedRecord.action)) return;
+  if (failedRecord.action === "readiness") return;
   const productionAgent = await loadProductionAgentState(projectId);
   if (productionAgent.state !== "diagnosing") return;
   const attempts = automaticProductionRecoveryAttempts(productionAgent);
   if (attempts >= MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS) {
-    await transitionProductionAgent({
+    job(
+      "production-baseline",
       projectId,
-      state: "waiting-human",
-      reason: "automatic-attempt-limit-reached",
-      metadata: { failedJobId: failedRecord.id, attempts },
-    });
+      async (reportProgress) => {
+        reportProgress({ phase: "baseline", percent: 15, message: "增强制作未能继续，正在生成基础审核版本" });
+        const baseline = await createProductionBaseline({
+          projectId,
+          failure: failedRecord.currentFailure,
+        });
+        if (!baseline.success) throw new Error(baseline.reason);
+        await transitionProductionAgent({
+          projectId,
+          state: "active",
+          reason: "automatic-baseline-ready",
+          metadata: { failedJobId: failedRecord.id, attempts },
+        });
+        reportProgress({ phase: "review-ready", percent: 100, message: "基础审核版本已经准备好" });
+        return baseline;
+      },
+      {
+        onFailure: () =>
+          transitionProductionAgent({
+            projectId,
+            state: "waiting-human",
+            reason: "automatic-attempt-limit-reached",
+            metadata: { failedJobId: failedRecord.id, attempts },
+          }),
+      },
+    );
+    await persistJobs();
     return;
   }
   const diagnosisJob = job(
@@ -710,13 +736,39 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
           });
         }
       }
+      if (
+        !repair &&
+        recovery.failure?.code === "BINDING_ANCHOR_NOT_FOUND" &&
+        diagnosis.recommendedAction === "repair-binding"
+      ) {
+        reportProgress({ phase: "repair", percent: 38, message: "制作 Agent 正在重新绑定失效的口播位置" });
+        const bindingAdapter = createStructuredAgentJsonAdapter({
+          config: {
+            provider: project.agent.id,
+            model: project.agent.model,
+            maxRetries: 0,
+            timeoutSeconds: 180,
+          },
+          schemaPath: resolve("schemas/studio-binding-repair.schema.json"),
+          cwd: process.cwd(),
+        });
+        repair = await repairProductionBinding({
+          projectId,
+          recovery,
+          adapter: bindingAdapter,
+        });
+      }
+      if (!repair && (recovery.failure?.stage === "agent-review" || diagnosis.recommendedAction === "repair-visual")) {
+        reportProgress({ phase: "repair", percent: 42, message: "制作 Agent 正在将无效视觉节拍安全回退为人物画面" });
+        repair = await repairProductionVisualContract({ projectId, recovery });
+      }
       reportProgress({ phase: "readiness", percent: 55, message: "正在验证断点和可复用产物" });
       let readiness = acceptanceFixture?.readiness;
       if (
         !readiness &&
         (recovery.status === "recoverable" || repair?.success) &&
         recovery.resume?.stage &&
-        ["recut", "continue"].includes(recovery.resume.action)
+        ["recut", "continue", "delivery"].includes(recovery.resume.action)
       ) {
         const snapshot = await loadStudioWorkflow(projectId);
         readiness = await inspectStudioReadiness({
@@ -724,13 +776,28 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
           workflowArgs: workflowArgsForStudioReadiness(snapshot),
         });
       }
-      const decision = decideAutomaticProductionRecovery({
+      let decision = decideAutomaticProductionRecovery({
         recovery,
         diagnosis,
         attempts,
         readiness,
         repair,
       });
+      let baseline;
+      if (decision.action !== "resume") {
+        reportProgress({ phase: "baseline", percent: 72, message: "正在准备不依赖增强视觉的基础审核版本" });
+        baseline = await createProductionBaseline({ projectId, failure: recovery.failure }).catch((error) => ({
+          kind: "production-baseline",
+          success: false,
+          reason: error?.message ?? String(error),
+        }));
+        if (baseline.success)
+          decision = {
+            action: "baseline",
+            reason: "automatic-baseline-ready",
+            message: "增强制作已安全降级，基础审核版本已经准备好",
+          };
+      }
       const evidence = await recordProductionAgentDiagnosis({
         projectId,
         recovery,
@@ -752,6 +819,17 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
             readinessSha256: readiness?.readinessSha256,
           },
         });
+      else if (decision.action === "baseline")
+        await transitionProductionAgent({
+          projectId,
+          state: "active",
+          reason: decision.reason,
+          metadata: {
+            failedJobId: failedRecord.id,
+            diagnosisPath: evidence.path,
+            baselineSha256: baseline.record.review.sha256,
+          },
+        });
       else
         await transitionProductionAgent({
           projectId,
@@ -764,11 +842,15 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
           },
         });
       reportProgress({
-        phase: decision.action === "resume" ? "recovery" : "waiting-human",
+        phase:
+          decision.action === "resume" ? "recovery" : decision.action === "baseline" ? "review-ready" : "waiting-human",
         percent: 100,
-        message: decision.action === "resume" ? decision.message : `已保留产物：${decision.message}`,
+        message:
+          decision.action === "resume" || decision.action === "baseline"
+            ? decision.message
+            : `已保留产物：${decision.message}`,
       });
-      return { decision, evidence, readiness };
+      return { decision, evidence, readiness, baseline };
     },
     {
       onCompleted: async (record) => {
@@ -937,6 +1019,23 @@ const streamVideo = async (request, response, projectId) => {
     mediaType: "video/mp4",
     cacheControl: "no-store",
     allowRanges: true,
+  });
+};
+
+const streamProductionBaseline = async (request, response, projectId, kind = "review") => {
+  const baseline = await loadProductionBaseline(projectId);
+  if (!baseline) throw new Error("基础审核版本当前不可用");
+  const asset = baseline[kind];
+  if (!asset?.path) throw new Error("基础版本成片当前不可用");
+  const info = await stat(asset.path);
+  streamFile({
+    request,
+    response,
+    asset: { path: asset.path, size: info.size },
+    mediaType: "video/mp4",
+    cacheControl: "private, no-store",
+    allowRanges: true,
+    nosniff: true,
   });
 };
 
@@ -1396,6 +1495,18 @@ const routes = async (request, response, url) => {
     return json(response, 200, await reconcileStudioWorkflow(projectId));
   }
   if (request.method === "GET" && action === "workflow/recut-preview") return streamVideo(request, response, projectId);
+  if (request.method === "GET" && action === "workflow/production-baseline/video")
+    return streamProductionBaseline(request, response, projectId);
+  if (request.method === "GET" && action === "workflow/production-baseline/delivery-video")
+    return streamProductionBaseline(request, response, projectId, "delivery");
+  if (request.method === "POST" && action === "workflow/production-baseline/approve") {
+    assertProjectIdle(projectId);
+    return json(response, 200, await approveProductionBaseline({ projectId, ...(await body(request)) }));
+  }
+  if (request.method === "POST" && action === "workflow/production-baseline/deliver") {
+    assertProjectIdle(projectId);
+    return json(response, 200, await deliverProductionBaseline({ projectId, ...(await body(request)) }));
+  }
   if (request.method === "GET" && action === "workflow/static-review")
     return json(response, 200, await loadStaticReview(projectId));
   if (request.method === "GET" && action === "workflow/delivery")
@@ -1489,7 +1600,7 @@ const routes = async (request, response, url) => {
       manifest: project.video.manifest,
       workflowArgs: readinessArgs,
     });
-    const expectedTargetStage = recovery.resume.action === "recut" ? "recut-review" : "regression-fixtures";
+    const expectedTargetStage = recovery.resume.action === "recut" ? "recut-review" : "agent-review";
     assertStudioReadinessConfirmation({
       readiness,
       expectedSha256: input.readinessSha256,
@@ -1655,7 +1766,7 @@ const routes = async (request, response, url) => {
         manifest: project.video.manifest,
         workflowArgs: readinessArgs,
       });
-      const expectedTargetStage = input.action === "recut" ? "recut-review" : "regression-fixtures";
+      const expectedTargetStage = input.action === "recut" ? "recut-review" : "agent-review";
       assertStudioReadinessConfirmation({
         readiness,
         expectedSha256: input.readinessSha256,
@@ -1667,6 +1778,8 @@ const routes = async (request, response, url) => {
         readiness,
       });
     }
+    if (["review", "continue"].includes(input.action))
+      await enterProductionAgent(projectId, "creator-authorized-production").catch(() => {});
     const record = workflowJob(projectId, project.video.manifest, input.action, workflowArgs, {
       rollbackAttempt,
       environment,

@@ -64,6 +64,15 @@ Build evidence modules before writing prose: each module should make one claim, 
 registered material, explain why it matters, and state a limitation when the evidence requires one. Treat component
 forms as silent organization aids only. Do not mention them or contort the narration to cover the registry.
 
+After the first structurally valid draft, run the same project-pinned Agent a second time as an evidence editor. It must
+compare every external claim semantically against the frozen sources, creator direction, and confirmed material cards,
+preserve supported translations and paraphrases, and remove or narrow unsupported claims itself. Save the pre-review
+draft as an immutable superseded attempt before exposing the reviewed result. Local code may hard-block only
+deterministic defects such as invalid structure, unknown material ids, or exact numeric claims absent from the frozen
+evidence. Qualifier words and cross-language phrasing remain audit signals; they must not become lexical hard gates.
+Speaker footage added for the shooting handoff is production input, not writing evidence, and must not invalidate an
+already confirmed material-understanding card.
+
 ## Review and lock
 
 Present the script and shooting guide for creator editing. Ask the creator to edit the generated draft directly; the

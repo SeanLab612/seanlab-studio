@@ -62,6 +62,8 @@ export type TextAnnotation = {
   exactSpokenQuote: string;
   quoteOccurrence?: number;
   status: "suggested" | "confirmed";
+  origin?: "user" | "agent";
+  executionPolicy?: "reference" | "locked";
   effect: TextAnnotationEffect;
 };
 
@@ -80,6 +82,7 @@ export type VisualBeat = {
   exactSpokenQuote: string;
   quoteOccurrence?: number;
   status: "suggested" | "confirmed";
+  executionPolicy?: "reference" | "locked";
   primaryVisualType: PrimaryVisualType;
   semanticForm?: NarrationVisualForm;
   componentId?: ApprovedVisualComponentId;

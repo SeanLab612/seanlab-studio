@@ -342,6 +342,63 @@ test("text annotations resolve independently and do not reserve the primary visu
   assert.deepEqual(component[0].materializationStatus, "planned");
 });
 
+test("version 4 visual plans and Agent annotations never reserve or fail the downstream timeline", () => {
+  const plan = {
+    visualPlanContractVersion: "4.0",
+    finalScriptSha256: "new-script",
+    beats: [
+      {
+        id: "upstream-reference",
+        sectionId: "overview",
+        exactSpokenQuote: "已经不在字幕里的参考文字",
+        status: "confirmed" as const,
+        executionPolicy: "locked" as const,
+        primaryVisualType: "component" as const,
+        takeover: "partial" as const,
+        speakerPresence: "full" as const,
+        finalScriptSha256: "old-script",
+      },
+    ],
+    annotations: [
+      {
+        id: "agent-reference-note",
+        sectionId: "overview",
+        exactSpokenQuote: "同样已经过时",
+        status: "confirmed" as const,
+        origin: "agent" as const,
+        executionPolicy: "locked" as const,
+        effect: "underline" as const,
+        finalScriptSha256: "old-script",
+      },
+    ],
+  };
+  const captions = [{ start: 0, end: 1, zh: "下游按现在的内容重新规划。" }];
+  assert.deepEqual(resolveLockedVisualBeatTimeline({ plan, captions }), []);
+  assert.deepEqual(resolveLockedTextAnnotationTimeline({ plan, captions }), []);
+});
+
+test("version 4 user annotations remain the only default execution lock", () => {
+  const annotations = resolveLockedTextAnnotationTimeline({
+    plan: {
+      visualPlanContractVersion: "4.0",
+      annotations: [
+        {
+          id: "user-note",
+          sectionId: "overview",
+          exactSpokenQuote: "用户亲手标注",
+          status: "confirmed",
+          origin: "user",
+          executionPolicy: "locked",
+          effect: "circle",
+        },
+      ],
+    },
+    captions: [{ start: 1, end: 2, zh: "这里是用户亲手标注的内容。" }],
+  });
+  assert.equal(annotations.length, 1);
+  assert.equal(annotations[0].origin, "user");
+});
+
 test("locked text annotations reject stale final-script bindings", () => {
   assert.throws(
     () =>

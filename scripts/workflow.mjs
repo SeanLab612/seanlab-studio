@@ -127,12 +127,16 @@ if (flag("--approve")) {
     throw new Error("A completed visual QA report is required before approval");
   if (state.stages["regression-fixtures"].status !== "succeeded")
     throw new Error("A completed regression fixture report is required before approval");
+  if (state.stages["agent-review"].status !== "succeeded")
+    throw new Error("A passed production Agent self-review is required before approval");
   const reviewStage = stages.find(({ name }) => name === "review-evidence");
   const qaStage = stages.find(({ name }) => name === "visual-qa");
   const regressionStage = stages.find(({ name }) => name === "regression-fixtures");
+  const agentReviewStage = stages.find(({ name }) => name === "agent-review");
   const currentReviewSignature = await signatureFor(reviewStage.outputs);
   const currentQaSignature = await signatureFor(qaStage.outputs);
   const currentRegressionSignature = await signatureFor(regressionStage.outputs);
+  const currentAgentReviewSignature = await signatureFor(agentReviewStage.outputs);
   if (currentReviewSignature !== state.stages["review-evidence"].outputSignature)
     throw new Error("Review evidence changed after capture; rerun review before approval");
   const reviewEvidence = await verifyReviewEvidence({ evidencePath: paths.reviewEvidence, workspace: paths.workspace });
@@ -145,6 +149,8 @@ if (flag("--approve")) {
     throw new Error("Visual QA output changed after analysis; rerun QA before approval");
   if (currentRegressionSignature !== state.stages["regression-fixtures"].outputSignature)
     throw new Error("Regression fixture output changed after analysis; rerun review before approval");
+  if (currentAgentReviewSignature !== state.stages["agent-review"].outputSignature)
+    throw new Error("Production Agent review changed after analysis; rerun review before approval");
   const qaReport = JSON.parse(
     await import("node:fs/promises").then(({ readFile }) => readFile(qaStage.outputs[0], "utf8")),
   );
@@ -162,6 +168,7 @@ if (flag("--approve")) {
   approval.reviewMode = reviewEvidence.reviewMode;
   approval.qaSha256 = currentQaSignature;
   approval.regressionSha256 = currentRegressionSignature;
+  approval.agentReviewSha256 = currentAgentReviewSignature;
   approval.qaReportSha256 = qaReport.reportSha256;
   approval.snapshot = await createApprovalSnapshot({ paths, reviewEvidence });
   if (qaWaiverReason) approval.qaWaiver = { reason: qaWaiverReason, recordedAt: new Date().toISOString() };
@@ -309,9 +316,11 @@ const runCommand = async (stage, runtimeConfigPath = paths.runtimeConfig, onProg
     const reviewStage = stages.find(({ name }) => name === "review-evidence");
     const qaStage = stages.find(({ name }) => name === "visual-qa");
     const regressionStage = stages.find(({ name }) => name === "regression-fixtures");
+    const agentReviewStage = stages.find(({ name }) => name === "agent-review");
     const currentReviewSignature = await signatureFor(reviewStage.outputs);
     const currentQaSignature = await signatureFor(qaStage.outputs);
     const currentRegressionSignature = await signatureFor(regressionStage.outputs);
+    const currentAgentReviewSignature = await signatureFor(agentReviewStage.outputs);
     const reviewEvidence = await verifyReviewEvidence({
       evidencePath: paths.reviewEvidence,
       workspace: paths.workspace,
@@ -324,6 +333,8 @@ const runCommand = async (stage, runtimeConfigPath = paths.runtimeConfig, onProg
       throw new Error("Delivery is blocked because the approved visual QA report has changed");
     if (state.stages["human-approval"].regressionSha256 !== currentRegressionSignature)
       throw new Error("Delivery is blocked because the approved regression fixture report has changed");
+    if (state.stages["human-approval"].agentReviewSha256 !== currentAgentReviewSignature)
+      throw new Error("Delivery is blocked because the approved production Agent review has changed");
   }
   const [command, ...args] = stage.command;
   const commandArgs =

@@ -323,6 +323,10 @@ test("delivery validation probes and fully decodes a rendered file", async () =>
 });
 
 test("new review and delivery schemas remain valid JSON documents", async () => {
-  for (const path of ["schemas/review-evidence.schema.json", "schemas/delivery-validation.schema.json"])
+  for (const path of [
+    "schemas/review-evidence.schema.json",
+    "schemas/production-agent-review.schema.json",
+    "schemas/delivery-validation.schema.json",
+  ])
     JSON.parse(await readFile(path, "utf8"));
 });

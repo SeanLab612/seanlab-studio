@@ -51,21 +51,43 @@ export const validateAgentTranslation = ({ response, source }) => {
 
 export const translateCaptionBatch = async ({ captions, terminologyProfile, adapter }) => {
   const sourceSnapshot = JSON.stringify(captions);
-  const response = await adapter.completeJson({
+  const request = {
     system: [
       "Translate actual Chinese talking-head captions into concise faithful English.",
       "Never rewrite, summarize, merge, split, omit, or add meaning.",
-      "Each input item is independent. Preserve technical names using the glossary.",
+      "Caption items are ordered fragments of continuous speech. Use adjacent items as context, but return the faithful translation fragment at the same index.",
       "Return one item for every input index. English must contain no Chinese characters.",
+      "Every en value must contain lexical English or a digit; never return punctuation alone.",
     ].join(" "),
     user: JSON.stringify({
       glossary: terminologyPairs(terminologyProfile),
       items: captions.map((cue, index) => ({ index, zh: cue.zh })),
     }),
-  });
+  };
+  let response = await adapter.completeJson(request);
   if (JSON.stringify(captions) !== sourceSnapshot)
     throw new Error("Agent translation modified Chinese source captions");
-  return validateAgentTranslation({ response, source: captions });
+  try {
+    return validateAgentTranslation({ response, source: captions });
+  } catch (error) {
+    response = await adapter.completeJson({
+      system: [
+        request.system,
+        "Your previous batch failed deterministic validation.",
+        "Repair the complete batch. Pay special attention to sentence fragments such as 的项目。: translate them as a lexical fragment such as project., not punctuation.",
+        "Do not repeat the invalid output and do not explain the correction.",
+      ].join(" "),
+      user: JSON.stringify({
+        validationError: error.message,
+        glossary: terminologyPairs(terminologyProfile),
+        items: captions.map((cue, index) => ({ index, zh: cue.zh })),
+        previousResponse: response,
+      }),
+    });
+    if (JSON.stringify(captions) !== sourceSnapshot)
+      throw new Error("Agent translation modified Chinese source captions");
+    return validateAgentTranslation({ response, source: captions });
+  }
 };
 
 const main = async (configPath) => {

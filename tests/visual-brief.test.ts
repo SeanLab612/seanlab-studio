@@ -77,6 +77,17 @@ test("blocks workflow metadata from viewer-facing copy", () => {
       subtitleEn: "Choose a product template before rendering",
     }),
   );
+  assert.doesNotThrow(() =>
+    validateViewerFacingNarrative(
+      {
+        eyebrow: "RESOURCE LIBRARY",
+        title: "19 个信息组件",
+        subtitleZh: "可复用的信息组件",
+        subtitleEn: "19 reusable information components",
+      },
+      "项目登记的视觉资源库包含十九个信息组件。",
+    ),
+  );
   assert.throws(
     () =>
       validateViewerFacingNarrative({

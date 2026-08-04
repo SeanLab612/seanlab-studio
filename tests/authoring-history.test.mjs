@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test from "node:test";
@@ -48,7 +48,7 @@ test("narration saves and restores immutable attempts without overwriting histor
       title: "历史测试",
       topic: "测试口播版本",
       category: "other",
-      agentId: "fixture",
+      agentId: "codex-cli",
     });
     project.authoring.state = "drafted";
     await store.saveCreatorProject(project);
@@ -84,6 +84,37 @@ test("narration saves and restores immutable attempts without overwriting histor
       await readFile(resolve(root, "history-test/authoring/visual-storyboard.json"), "utf8"),
     );
     assert.ok(Object.values(storyboard.sections).every((section) => section.status === "confirmed"));
+
+    storyboard.sections.workflow = {
+      mode: "auto",
+      status: "confirmed",
+      beats: [
+        {
+          id: "workflow-beat-1",
+          exactSpokenQuote: "它把写稿、拍摄和审核接成一个流程",
+          status: "confirmed",
+          primaryVisualType: "component",
+          semanticForm: "ordered-progression",
+          takeover: "partial",
+          speakerPresence: "full",
+        },
+      ],
+    };
+    const visual = await import(`../scripts/creator/visual-storyboard.mjs?root=${Date.now()}`);
+    await visual.saveVisualStoryboard("history-test", storyboard, await authoring.loadNarration("history-test"));
+    const speakerSource = resolve(root, "speaker.mp4");
+    await writeFile(speakerSource, "speaker fixture");
+    const speaker = await store.importCreatorAsset({
+      projectId: "history-test",
+      sourcePath: speakerSource,
+      kind: "speaker-video",
+      label: "speaker",
+    });
+    await handoff.createVideoHandoff("history-test", { speakerAssetId: speaker.assetId });
+    const refreshedPlan = JSON.parse(
+      await readFile(resolve(root, "history-test/authoring/authored-visual-plan.json"), "utf8"),
+    );
+    assert.deepEqual(refreshedPlan.beats.map((beat) => beat.id), ["workflow-beat-1"]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

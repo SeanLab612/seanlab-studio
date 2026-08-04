@@ -99,6 +99,10 @@ export const validateTextAnnotations = (input: unknown, narration: string): Text
       throw new Error(`Text annotation ${annotation.id} must quote a single-line 2-24 character phrase`);
     if (!["suggested", "confirmed"].includes(annotation.status))
       throw new Error(`Text annotation ${annotation.id} status is unsupported`);
+    if (annotation.origin !== undefined && !["user", "agent"].includes(annotation.origin))
+      throw new Error(`Text annotation ${annotation.id} origin is unsupported`);
+    if (annotation.executionPolicy !== undefined && !["reference", "locked"].includes(annotation.executionPolicy))
+      throw new Error(`Text annotation ${annotation.id} execution policy is unsupported`);
     if (!TEXT_ANNOTATION_EFFECTS.includes(annotation.effect))
       throw new Error(`Text annotation ${annotation.id} effect is unsupported`);
     const occurrence = annotation.quoteOccurrence ?? 1;
@@ -114,6 +118,8 @@ export const validateTextAnnotations = (input: unknown, narration: string): Text
       exactSpokenQuote: target,
       ...(annotation.quoteOccurrence ? { quoteOccurrence: annotation.quoteOccurrence } : {}),
       status: annotation.status,
+      ...(annotation.origin ? { origin: annotation.origin } : {}),
+      ...(annotation.executionPolicy ? { executionPolicy: annotation.executionPolicy } : {}),
       effect: annotation.effect,
     } satisfies TextAnnotation;
   });
@@ -191,6 +197,8 @@ export const validateVisualBeats = (input: unknown, narration: string): VisualBe
       throw new Error(`Visual beat ${beat.id} primary visual type is unsupported`);
     if (!["suggested", "confirmed"].includes(beat.status))
       throw new Error(`Visual beat ${beat.id} status is unsupported`);
+    if (beat.executionPolicy !== undefined && !["reference", "locked"].includes(beat.executionPolicy))
+      throw new Error(`Visual beat ${beat.id} execution policy is unsupported`);
     if (!TAKEOVER_MODES.includes(beat.takeover) || !SPEAKER_PRESENCE_MODES.includes(beat.speakerPresence))
       throw new Error(`Visual beat ${beat.id} presentation mode is unsupported`);
     if (beat.materialDisplay && !["full", "crop", "annotate"].includes(beat.materialDisplay))
@@ -215,6 +223,7 @@ export const validateVisualBeats = (input: unknown, narration: string): VisualBe
       exactSpokenQuote: beat.exactSpokenQuote,
       ...(beat.quoteOccurrence ? { quoteOccurrence: beat.quoteOccurrence } : {}),
       status: beat.status,
+      ...(beat.executionPolicy ? { executionPolicy: beat.executionPolicy } : {}),
       primaryVisualType: beat.primaryVisualType,
       ...(beat.semanticForm ? { semanticForm: beat.semanticForm } : {}),
       ...(beat.componentId ? { componentId: beat.componentId } : {}),

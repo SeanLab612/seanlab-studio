@@ -4,7 +4,7 @@ import { summarizeWorkflowPreview } from "../scripts/workflow/preview-summary.mj
 
 test("workflow preview separates planned, reused, blocked, and avoided expensive work", () => {
   const summary = summarizeWorkflowPreview({
-    targetStage: "regression-fixtures",
+  targetStage: "agent-review",
     preview: [
       { stage: "captions", action: "reuse", executionClass: "local" },
       { stage: "translate", action: "reuse", executionClass: "translation-provider" },
@@ -53,7 +53,7 @@ test("workflow readiness blocks before a long job when project preflight fails",
 
 test("workflow readiness preserves non-blocking warnings and binds the exact input plan", () => {
   const input = {
-    targetStage: "regression-fixtures",
+    targetStage: "agent-review",
     scopeSignature: "scope-a",
     preview: [{ stage: "captions", action: "run", executionClass: "local", inputSignature: "input-a" }],
     preflight: {

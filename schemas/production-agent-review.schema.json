@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seanlab.local/schemas/production-agent-review.schema.json",
+  "title": "Production Agent visual self-review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "targetBeatId", "action", "reason"],
+  "properties": {
+    "status": {"type": "string", "enum": ["passed", "revise"]},
+    "targetBeatId": {"type": ["string", "null"]},
+    "action": {"type": "string", "enum": ["none", "speaker-fallback"]},
+    "reason": {"type": "string", "minLength": 1, "maxLength": 500}
+  }
+}

@@ -15,7 +15,9 @@ import {
 import {
   animationPrototypeRegistry,
   applyAnimationStyleProfile,
+  authoredVisualEntryIsLocked,
   bindFrozenAnimationImageAssets,
+  dedupeAgentRoughAnnotations,
   resolvedAnimationCues,
   resolveLockedSectionAnimationTimeline,
   resolveLockedTextAnnotationTimeline,
@@ -42,11 +44,13 @@ const authoredVisualPlan = config.authoredVisualPlanFile
   ? JSON.parse(await readFile(resolve(config.authoredVisualPlanFile), "utf8"))
   : { sections: [], annotations: [] };
 for (const annotation of authoredVisualPlan.annotations ?? []) {
+  if (!authoredVisualEntryIsLocked(authoredVisualPlan, annotation, "annotation")) continue;
   const quoteSha256 = createHash("sha256").update(annotation.exactSpokenQuote).digest("hex");
   if (annotation.exactSpokenQuoteSha256 && annotation.exactSpokenQuoteSha256 !== quoteSha256)
     throw new Error(`Text annotation ${annotation.id} exact-spoken-quote hash binding is stale`);
 }
 for (const beat of authoredVisualPlan.beats ?? []) {
+  if (!authoredVisualEntryIsLocked(authoredVisualPlan, beat)) continue;
   const quoteSha256 = createHash("sha256").update(beat.exactSpokenQuote).digest("hex");
   if (beat.exactSpokenQuoteSha256 && beat.exactSpokenQuoteSha256 !== quoteSha256)
     throw new Error(`Visual beat ${beat.id} exact-spoken-quote hash binding is stale`);
@@ -148,7 +152,7 @@ const selected = new Map(
     .filter((decision) => decision.action === "show")
     .map((decision) => [decision.candidateId, decision]),
 );
-const overlayCues = bundle.candidates.flatMap((candidate) => {
+const selectedOverlayCues = bundle.candidates.flatMap((candidate) => {
   const decision = selected.get(candidate.id);
   if (!decision || !candidate.overlayCue || decision.displayStart === null || decision.displayEnd === null) return [];
   return [
@@ -169,6 +173,16 @@ const overlayCues = bundle.candidates.flatMap((candidate) => {
     },
   ];
 });
+const annotationDedupe = dedupeAgentRoughAnnotations({
+  overlayCues: selectedOverlayCues,
+  userAnnotations: annotationCues,
+});
+const overlayCues = annotationDedupe.overlayCues;
+directionReport.annotationDedupe = {
+  userAnnotationCount: annotationCues.length,
+  removedAgentItemCount: annotationDedupe.removedItemCount,
+  removedAgentCueCount: annotationDedupe.removedCueCount,
+};
 directionReport.requiredImageEvidence = evaluateRequiredImageEvidenceCoverage(
   imageEvidenceAssets,
   overlayCues,
@@ -195,6 +209,17 @@ for (const cue of overlayCues) {
     start: cue.start,
     end: cue.end,
     primaryVisualType: cue.generatedVisual.component.id === "image-evidence-inset" ? "image" : "component",
+    takeover: "partial",
+    speakerPresence: "full",
+  });
+}
+for (const cue of annotationCues) {
+  if (overlapsCoverage(cue.start, cue.end)) continue;
+  coverageIntervals.push({
+    id: `annotation-${cue.id}`,
+    start: cue.start,
+    end: cue.end,
+    primaryVisualType: "component",
     takeover: "partial",
     speakerPresence: "full",
   });
@@ -310,6 +335,7 @@ const markdown = [
   `- Authored recording scenes: ${screenScenes.length}`,
   `- Automatic or manually selected animation sections: ${animationCues.length}`,
   `- Creator text annotations: ${annotationCues.length}`,
+  `- Duplicate Agent annotations removed: ${annotationDedupe.removedItemCount} items / ${annotationDedupe.removedCueCount} cues`,
   `- Animation renderer gate: ${directionReport.animationRenderer.status}`,
   `- Required screenshots: ${directionReport.requiredImageEvidence.selectedRequiredCount}/${directionReport.requiredImageEvidence.requiredCount} shown`,
   `- Whole-video title continuity cues: ${titleCues.length}`,

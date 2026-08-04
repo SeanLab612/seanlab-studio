@@ -11,7 +11,7 @@ import { workflowContextForCreator } from "./studio-workflow.mjs";
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
 const canonicalHash = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const recordsPath = (projectId) => resolve(creatorRoot, projectId, "review", "static-review.json");
-const stageNames = ["review-evidence", "visual-qa", "visual-pacing-review", "regression-fixtures"];
+const stageNames = ["review-evidence", "visual-qa", "visual-pacing-review", "regression-fixtures", "agent-review"];
 const phaseLabels = {
   entry: "进入画面",
   transition: "内容切换",

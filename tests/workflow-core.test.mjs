@@ -277,7 +277,7 @@ test("review target includes resumable QA before human approval", () => {
   assert.ok(names.indexOf("visual-input-preflight") < names.indexOf("translate"));
   assert.ok(names.indexOf("translate") < names.indexOf("scene-align"));
   assert.ok(names.indexOf("scene-align") < names.indexOf("visual-direction"));
-  assert.equal(TARGET_STAGE.review, "regression-fixtures");
+  assert.equal(TARGET_STAGE.review, "agent-review");
   assert.equal(TARGET_STAGE.delivery, "delivery-validate");
   assert.equal(names.includes("review-render"), false);
   assert.equal(motionReviewModeFor(manifest), "conditional-excerpts");
@@ -299,6 +299,8 @@ test("review target includes resumable QA before human approval", () => {
   );
   assert.ok(names.indexOf("visual-qa") < names.indexOf("human-approval"));
   assert.ok(names.indexOf("review-evidence") < names.indexOf("regression-fixtures"));
+  assert.ok(names.indexOf("regression-fixtures") < names.indexOf("agent-review"));
+  assert.ok(names.indexOf("agent-review") < names.indexOf("human-approval"));
   assert.ok(names.indexOf("regression-fixtures") < names.indexOf("human-approval"));
   assert.ok(names.indexOf("human-approval") < names.indexOf("delivery-render"));
   assert.ok(names.indexOf("delivery-render") < names.indexOf("delivery-validate"));

@@ -43,6 +43,7 @@ export const recordNarrationAttempt = async ({
   project,
   projectId,
   narration,
+  rejectedOutput,
   report = {},
   kind,
   status = "succeeded",
@@ -77,6 +78,7 @@ export const recordNarrationAttempt = async ({
     materialInventorySha256: stableHash(project.materials),
     providerReportSha256: stableHash(report),
     outputSha256: narration ? stableHash(narration) : null,
+    rejectedOutputSha256: rejectedOutput ? stableHash(rejectedOutput) : null,
     fullScriptSha256: narration ? sha256Text(narration.fullScript) : null,
     changeSummary: compareNarration(parentNarration, narration),
     instructions: instructions?.trim() || null,
@@ -87,6 +89,7 @@ export const recordNarrationAttempt = async ({
     await writeJsonAtomic(resolve(directory, "narration-package.json"), narration);
     await writeReadableArtifacts(directory, narration);
   }
+  if (rejectedOutput) await writeJsonAtomic(resolve(directory, "rejected-output.json"), rejectedOutput);
   await writeJsonAtomic(resolve(directory, "metadata.json"), metadata);
   return metadata;
 };

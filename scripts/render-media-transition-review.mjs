@@ -58,7 +58,7 @@ const run = (command, args, captureOutput = false) =>
     child.on("error", reject);
     child.on("exit", (code, signal) => {
       if (code === 0) done({ stdout, stderr });
-      else reject(new Error(`${command} exited with ${code ?? signal}: ${stderr.slice(-2000)}`));
+      else reject(new Error(`${command} exited with ${code ?? signal}: ${(stderr || stdout).slice(-2000)}`));
     });
   });
 

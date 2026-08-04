@@ -102,15 +102,43 @@ const narrationSourceText = (project, sourceContext, materialUnderstanding) =>
     .filter((value) => typeof value === "string" && value.trim())
     .join("\n");
 
-export const assertNarrationSourceGrounding = ({ narration, project, sourceContext, materialUnderstanding }) => {
+export const assertNarrationDeterministicGrounding = ({ narration, project, sourceContext, materialUnderstanding }) => {
   const grounding = evaluateSourceGrounding({
     outputText: narrationClaimText(narration),
     sourceText: narrationSourceText(project, sourceContext, materialUnderstanding),
   });
-  if (grounding.unsupportedSourceTerms.length)
-    throw new Error(`Agent 口播稿包含来源外事实：${grounding.unsupportedSourceTerms.join("、")}`);
+  const registeredMaterialIds = new Set(project.materials.map((material) => material.id));
+  const unknownMaterialIds = [
+    ...new Set(
+      narration.sections.flatMap((section) => section.materialIds).filter((id) => !registeredMaterialIds.has(id)),
+    ),
+  ];
+  if (unknownMaterialIds.length)
+    throw Object.assign(new Error(`Agent 口播稿引用了不存在的素材：${unknownMaterialIds.join("、")}`), {
+      unknownMaterialIds,
+    });
+  if (grounding.unsupportedNumberClaims.length)
+    throw Object.assign(
+      new Error(`Agent 口播稿包含来源中无法核对的明确数字：${grounding.unsupportedNumberClaims.join("、")}`),
+      { unsupportedNumberClaims: grounding.unsupportedNumberClaims },
+    );
   return grounding;
 };
+
+// Backward-compatible export for callers that still use the old name. Qualifier words are audit signals only;
+// deterministic narration blocking is limited to exact numeric claims and registered material references.
+export const assertNarrationSourceGrounding = assertNarrationDeterministicGrounding;
+
+export const buildNarrationValidationRepairPrompt = ({ originalPrompt, rejectedOutput, validationError }) =>
+  `${originalPrompt}\n\n上一版草稿未通过本地校验，请在不改变创作者方向的前提下自动修复。\n` +
+  `校验结果：${String(validationError?.message ?? validationError)}\n` +
+  `修复规则：\n- 只修改导致校验失败的句子或字段，其他有效内容尽量保留。\n- 对无法直接证明的事实，删除或缩小结论，不得换成另一个新事实。\n- 继续严格输出符合原 JSON Schema 的完整对象，不要输出解释。\n\n` +
+  `被拒绝的草稿：\n${JSON.stringify(rejectedOutput, null, 2)}`;
+
+export const buildNarrationEvidenceReviewPrompt = ({ originalPrompt, draft }) =>
+  `${originalPrompt}\n\n这是写稿 Agent 的独立第二遍事实审核。请对照上面的冻结资料、创作者方向和已确认素材理解，逐句复核下面草稿中的项目事实。\n` +
+  `审核规则：\n- 这是事实审核，不是风格重写；保留已有结构、角度和有证据的表达。\n- 对每个外部事实进行语义对照，允许中英文翻译、同义改写和不改变含义的口语化表达。\n- 无法在资料中直接支持的能力、评价、因果、范围或推荐，由你自行删除或缩小，不要交给用户解决。\n- 不得改动创作者明确提供的第一人称经历和写作方向；不得新增资料外事实。\n- 如果草稿已经有依据，原样返回。严格输出符合原 JSON Schema 的完整对象，不输出审核说明。\n\n` +
+  `待审核草稿：\n${JSON.stringify(draft, null, 2)}`;
 
 export const loadSourceContext = async (projectId) => {
   try {
@@ -120,17 +148,21 @@ export const loadSourceContext = async (projectId) => {
   }
 };
 
-const completeNarration = async ({
+export const completeNarration = async ({
   project,
   sourceContext,
   fixture,
   currentNarration,
   rewriteInstructions,
   materialUnderstanding,
-  onProgress,
+  onProgress = () => {},
+  adapterFactory = createStructuredAgentJsonAdapter,
+  validationRepairRounds = 2,
+  creatorWritingGuidance: suppliedCreatorWritingGuidance,
 }) => {
   let output;
   let report;
+  let auditInput;
   if (project.agent.id === "fixture") {
     if (!fixture) throw new Error("Fixture Agent requires an explicit narration fixture");
     output = JSON.parse(await readFile(resolve(fixture), "utf8"));
@@ -141,32 +173,145 @@ const completeNarration = async ({
       phase: "agent",
       message: `正在由 ${project.agent.id} ${currentNarration ? "重写" : "生成"}结构化口播稿`,
     });
-    const adapter = createStructuredAgentJsonAdapter({
+    const adapter = adapterFactory({
       config: { provider: project.agent.id, model: project.agent.model, timeoutSeconds: 600, maxRetries: 1 },
       schemaPath,
     });
-    const creatorWritingGuidance = await writingGuidanceFor(project.brief.category);
-    output = await adapter.completeJson({
-      system: "You write natural, evidence-grounded Chinese creator narration and production guidance.",
-      user: buildNarrationPrompt(project, sourceContext, {
-        currentNarration,
-        rewriteInstructions,
-        creatorWritingGuidance,
-        materialUnderstanding,
-      }),
+    const creatorWritingGuidance = suppliedCreatorWritingGuidance ?? (await writingGuidanceFor(project.brief.category));
+    const originalPrompt = buildNarrationPrompt(project, sourceContext, {
+      currentNarration,
+      rewriteInstructions,
+      creatorWritingGuidance,
+      materialUnderstanding,
     });
-    report = adapter.getLastRunMetadata();
+    const repairHistory = [];
+    const completeValidatedCandidate = async ({ prompt: requestedPrompt, stage, validationPercent }) => {
+      let prompt = requestedPrompt;
+      for (let repairRound = 0; repairRound <= validationRepairRounds; repairRound += 1) {
+        try {
+          output = await adapter.completeJson({
+            system: "You write natural, evidence-grounded Chinese creator narration and production guidance.",
+            user: prompt,
+          });
+        } catch (error) {
+          throw Object.assign(error, {
+            repairHistory,
+            auditInput,
+            providerReport: adapter.getLastRunMetadata(),
+          });
+        }
+        report = adapter.getLastRunMetadata();
+        onProgress({
+          percent: validationPercent,
+          phase: "validation",
+          message: stage.startsWith("evidence-review")
+            ? "Agent 已完成事实审稿，正在校验确定性规则"
+            : "Agent 已返回，正在校验稿件结构和素材引用",
+        });
+        try {
+          if (!output || typeof output !== "object" || Array.isArray(output))
+            throw new Error("Agent 返回的口播稿不是结构化对象");
+          if (!Array.isArray(output.sections)) throw new Error("Agent 返回的口播稿缺少 sections 段落数组");
+          const narration = validateNarrationScriptPackage({ ...output, fullScript: composeNarrationScript(output) });
+          assertNarrationDeterministicGrounding({ narration, project, sourceContext, materialUnderstanding });
+          return narration;
+        } catch (error) {
+          repairHistory.push({
+            stage,
+            round: repairRound + 1,
+            output,
+            error: String(error?.message ?? error),
+            report,
+          });
+          if (repairRound >= validationRepairRounds) {
+            throw Object.assign(
+              new Error(`Agent 口播稿经 ${validationRepairRounds} 次自动修复后仍未通过确定性校验`, { cause: error }),
+              { repairHistory, auditInput, providerReport: report },
+            );
+          }
+          onProgress({
+            percent: Math.min(90, validationPercent + 2),
+            phase: "automatic-repair",
+            message: `发现可自动修复的结构、数字或素材引用问题，正在进行第 ${repairRound + 1} 次定点修改`,
+          });
+          prompt = buildNarrationValidationRepairPrompt({
+            originalPrompt: requestedPrompt,
+            rejectedOutput: output,
+            validationError: error,
+          });
+        }
+      }
+    };
+
+    const initialNarration = await completeValidatedCandidate({
+      prompt: originalPrompt,
+      stage: "draft-validation",
+      validationPercent: 70,
+    });
+    auditInput = { narration: initialNarration, report };
+    onProgress({
+      percent: 76,
+      phase: "evidence-review",
+      message: `正在由 ${project.agent.id} 独立复核每句项目事实，有问题将自动收窄`,
+    });
+    const narration = await completeValidatedCandidate({
+      prompt: buildNarrationEvidenceReviewPrompt({ originalPrompt, draft: initialNarration }),
+      stage: "evidence-review-validation",
+      validationPercent: 88,
+    });
+    return {
+      narration,
+      report: {
+        ...report,
+        mode: currentNarration ? "rewrite" : "initial",
+        evidenceReviewCount: 1,
+        evidenceReviewChangedDraft: JSON.stringify(narration) !== JSON.stringify(initialNarration),
+        validationRepairCount: repairHistory.length,
+      },
+      auditInput,
+      repairHistory,
+    };
   }
   onProgress({ percent: 84, phase: "validation", message: "Agent 已返回，正在校验稿件结构和录屏规划" });
   if (!output || typeof output !== "object" || Array.isArray(output))
     throw new Error("Agent 返回的口播稿不是结构化对象");
   if (!Array.isArray(output.sections)) throw new Error("Agent 返回的口播稿缺少 sections 段落数组");
   const narration = validateNarrationScriptPackage({ ...output, fullScript: composeNarrationScript(output) });
-  assertNarrationSourceGrounding({ narration, project, sourceContext, materialUnderstanding });
+  assertNarrationDeterministicGrounding({ narration, project, sourceContext, materialUnderstanding });
   return {
     narration,
     report: { ...report, mode: currentNarration ? "rewrite" : "initial" },
+    repairHistory: [],
+    auditInput: null,
   };
+};
+
+const recordNarrationEvidenceAuditInput = async ({ project, projectId, auditInput, instructions }) => {
+  if (!auditInput) return null;
+  return recordNarrationAttempt({
+    project,
+    projectId,
+    narration: auditInput.narration,
+    report: { ...auditInput.report, evidenceReviewInput: true },
+    kind: "evidence-review-input",
+    status: "superseded",
+    instructions,
+  });
+};
+
+const recordAutomaticNarrationRepairs = async ({ project, projectId, repairHistory = [], instructions }) => {
+  for (const repair of repairHistory) {
+    await recordNarrationAttempt({
+      project,
+      projectId,
+      rejectedOutput: repair.output,
+      report: { ...repair.report, validationRepairRound: repair.round, validationRepairStage: repair.stage },
+      kind: "automatic-repair",
+      status: "failed",
+      instructions,
+      error: new Error(repair.error),
+    });
+  }
 };
 
 const persistNarration = async ({ project, projectId, narration, report, kind, instructions }) => {
@@ -331,6 +476,8 @@ export const generateNarration = async (projectId, { fixture, onProgress = () =>
   project.project.status = "drafting";
   await saveCreatorProject(project);
   let narrationPersisted = false;
+  let recordedRepairCount = 0;
+  let auditInputRecorded = false;
   onProgress({ percent: 8, phase: "project", message: "已读取项目和全局 Agent 设置" });
   try {
     const materialUnderstanding = await assertConfirmedMaterialUnderstanding(projectId, project);
@@ -341,14 +488,24 @@ export const generateNarration = async (projectId, { fixture, onProgress = () =>
       phase: "inputs-ready",
       message: "已载入人工确认的素材理解卡和冻结资料",
     });
-    const { narration, report } = await completeNarration({
+    const { narration, report, repairHistory, auditInput } = await completeNarration({
       project,
       sourceContext,
       fixture,
       materialUnderstanding,
       onProgress,
     });
-    await persistNarration({ project, projectId, narration, report, kind: "initial" });
+    const evidenceReviewInputAttempt = await recordNarrationEvidenceAuditInput({ project, projectId, auditInput });
+    auditInputRecorded = Boolean(auditInput);
+    await recordAutomaticNarrationRepairs({ project, projectId, repairHistory });
+    recordedRepairCount = repairHistory.length;
+    await persistNarration({
+      project,
+      projectId,
+      narration,
+      report: { ...report, evidenceReviewInputAttemptId: evidenceReviewInputAttempt?.attemptId ?? null },
+      kind: "initial",
+    });
     narrationPersisted = true;
     onProgress({ percent: 92, phase: "visual-planning", message: "口播稿已保存，正在生成逐段视觉方案" });
     await seedVisualStoryboard(projectId, narration);
@@ -356,13 +513,17 @@ export const generateNarration = async (projectId, { fixture, onProgress = () =>
     return narration;
   } catch (error) {
     if (!narrationPersisted) {
+      if (!auditInputRecorded)
+        await recordNarrationEvidenceAuditInput({ project, projectId, auditInput: error?.auditInput }).catch(() => {});
+      const unrecordedRepairs = (error?.repairHistory ?? []).slice(recordedRepairCount);
+      await recordAutomaticNarrationRepairs({ project, projectId, repairHistory: unrecordedRepairs }).catch(() => {});
       await recordNarrationAttempt({
         project,
         projectId,
         kind: "initial",
         status: "failed",
         error,
-        report: { provider: project.agent.id },
+        report: error?.providerReport ?? { provider: project.agent.id },
       }).catch(() => {});
       project.project.status = previousStatus;
       await saveCreatorProject(project);
@@ -381,11 +542,13 @@ export const rewriteNarration = async (projectId, { instructions, fixture, onPro
   project.project.status = "drafting";
   await saveCreatorProject(project);
   let narrationPersisted = false;
+  let recordedRepairCount = 0;
+  let auditInputRecorded = false;
   onProgress({ percent: 8, phase: "project", message: "已读取当前稿件、项目资料和全局 Agent 设置" });
   try {
     const sourceContext = await resolveAndValidateSources(projectId, project, onProgress);
     const materialUnderstanding = await loadMaterialUnderstanding(projectId, project);
-    const { narration, report } = await completeNarration({
+    const { narration, report, repairHistory, auditInput } = await completeNarration({
       project,
       sourceContext,
       fixture,
@@ -394,11 +557,29 @@ export const rewriteNarration = async (projectId, { instructions, fixture, onPro
       materialUnderstanding: materialUnderstanding.status === "confirmed" ? materialUnderstanding : undefined,
       onProgress,
     });
+    const evidenceReviewInputAttempt = await recordNarrationEvidenceAuditInput({
+      project,
+      projectId,
+      auditInput,
+      instructions: normalizedInstructions,
+    });
+    auditInputRecorded = Boolean(auditInput);
+    await recordAutomaticNarrationRepairs({
+      project,
+      projectId,
+      repairHistory,
+      instructions: normalizedInstructions,
+    });
+    recordedRepairCount = repairHistory.length;
     await persistNarration({
       project,
       projectId,
       narration,
-      report: { ...report, rewriteInstructions: normalizedInstructions },
+      report: {
+        ...report,
+        rewriteInstructions: normalizedInstructions,
+        evidenceReviewInputAttemptId: evidenceReviewInputAttempt?.attemptId ?? null,
+      },
       kind: "rewrite",
       instructions: normalizedInstructions,
     });
@@ -409,6 +590,20 @@ export const rewriteNarration = async (projectId, { instructions, fixture, onPro
     return narration;
   } catch (error) {
     if (!narrationPersisted) {
+      if (!auditInputRecorded)
+        await recordNarrationEvidenceAuditInput({
+          project,
+          projectId,
+          auditInput: error?.auditInput,
+          instructions: normalizedInstructions,
+        }).catch(() => {});
+      const unrecordedRepairs = (error?.repairHistory ?? []).slice(recordedRepairCount);
+      await recordAutomaticNarrationRepairs({
+        project,
+        projectId,
+        repairHistory: unrecordedRepairs,
+        instructions: normalizedInstructions,
+      }).catch(() => {});
       await recordNarrationAttempt({
         project,
         projectId,
@@ -416,7 +611,7 @@ export const rewriteNarration = async (projectId, { instructions, fixture, onPro
         status: "failed",
         instructions: normalizedInstructions,
         error,
-        report: { provider: project.agent.id },
+        report: error?.providerReport ?? { provider: project.agent.id },
       }).catch(() => {});
       project.project.status = "script-review";
       await saveCreatorProject(project);

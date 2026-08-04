@@ -7,6 +7,7 @@ import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 import { productionAgentAcceptanceScenario } from "../scripts/creator/production-agent-acceptance.mjs";
+import { MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS } from "../scripts/creator/production-agent-recovery.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -185,7 +186,7 @@ const runScenario = async ({
       assert.equal(evidence.failure.stage, scenario === "repair-code" ? "component-props" : "visual-qa");
       assert.deepEqual(evidence.preserved.approvedStages, ["recut-approval"]);
       assert.equal(evidence.decision.readiness.nextHumanGate, "human-approval");
-      assert.equal(evidence.decision.readiness.targetStage, "regression-fixtures");
+      assert.equal(evidence.decision.readiness.targetStage, "agent-review");
       assert.equal(evidence.decision.workflowAction === "delivery", false);
     }
 
@@ -226,17 +227,18 @@ test("isolated Studio exercises production Agent recovery without crossing human
     assert.equal(result.diagnoses[0].decision.action, "resume");
   });
 
-  await t.test("the third failure stops after exactly two automatic recovery attempts", async () => {
+  await t.test("the next failure stops after the bounded automatic recovery attempts", async () => {
+    const automaticAttemptLimit = MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS;
     const result = await runScenario({
       scenario: "exhaust-attempts",
       expectedState: "waiting-human",
       expectedReason: "automatic-attempt-limit-reached",
-      expectedWorkflowJobs: 3,
-      expectedDiagnoses: 2,
-      expectedAutomaticAttempts: 2,
+      expectedWorkflowJobs: automaticAttemptLimit + 1,
+      expectedDiagnoses: automaticAttemptLimit,
+      expectedAutomaticAttempts: automaticAttemptLimit,
     });
-    assert.equal(result.agent.history.at(-1).attempts, 2);
-    assert.equal(result.agent.history.filter(({ state }) => state === "recovering").length, 2);
+    assert.equal(result.agent.history.at(-1).attempts, automaticAttemptLimit);
+    assert.equal(result.agent.history.filter(({ state }) => state === "recovering").length, automaticAttemptLimit);
   });
 
   await t.test("a validated isolated source repair resumes the exact failed technical stage", async () => {

@@ -14,7 +14,7 @@ export const targetStageFromWorkflowArgs = (workflowArgs) => {
     {
       recut: "recut-review",
       plan: "validate",
-      review: "regression-fixtures",
+      review: "agent-review",
       delivery: "delivery-validate",
     }[target] ??
     target ??

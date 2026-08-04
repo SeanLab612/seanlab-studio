@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { validateVisualStoryboard } from "../scripts/creator/visual-storyboard.mjs";
 import {
+  inferStructuralVisualForm,
   narrationStoryboardSections,
   STRUCTURAL_STORYBOARD_SECTION_IDS,
 } from "../src/creator-workflow/storyboard-sections.ts";
@@ -34,6 +35,7 @@ test("visual storyboard stores human review outside the Agent narration contract
   assert.deepEqual(value.sections["section-1"], {
     mode: "information",
     status: "confirmed",
+    executionPolicy: "reference",
     form: "two-way-contrast",
     componentId: "binary-versus",
   });
@@ -164,10 +166,16 @@ test("every spoken structural block participates in the visual storyboard", () =
   assert.deepEqual(value.sections.opening, {
     mode: "information",
     status: "confirmed",
+    executionPolicy: "reference",
     form: "text-emphasis",
     componentId: "rough-annotation",
   });
   assert.equal(value.sections["section-1"].mode, "auto");
+});
+
+test("generic Chinese classifiers do not become unsupported key statistics", () => {
+  assert.equal(inferStructuralVisualForm("一位创作者怎样从一个选题开始制作。"), "text-emphasis");
+  assert.equal(inferStructuralVisualForm("完成三步后交付。"), "number-focus");
 });
 
 test("visual storyboard accepts an automatic animation plan plus non-overlapping text annotations", () => {

@@ -226,7 +226,7 @@ const forbiddenViewerTerms = [
   "motion component",
 ];
 
-export const validateViewerFacingNarrative = (narrative: VisualBriefNarrative) => {
+export const validateViewerFacingNarrative = (narrative: VisualBriefNarrative, sourceText = "") => {
   const text = [
     narrative.eyebrow,
     narrative.title,
@@ -236,7 +236,10 @@ export const validateViewerFacingNarrative = (narrative: VisualBriefNarrative) =
   ]
     .join(" ")
     .toLowerCase();
-  const forbidden = forbiddenViewerTerms.find((term) => text.includes(term));
+  const normalizedSource = sourceText.toLowerCase();
+  const forbidden = forbiddenViewerTerms.find(
+    (term) => text.includes(term) && !(term === "组件" && normalizedSource.includes(term)),
+  );
   if (forbidden) throw new Error(`Viewer-facing narrative contains production terminology: ${forbidden}`);
 };
 
@@ -523,13 +526,13 @@ export const generateVisualBriefFromDraft = (
     correctTerminology(draft.narrative.subtitleZh, terminologyProfile),
     "display-copy",
   );
-  validateViewerFacingNarrative({ ...draft.narrative, title: normalizedTitle });
-  validateViewerCopy(normalizedTitle, "display-copy");
+  validateViewerFacingNarrative({ ...draft.narrative, title: normalizedTitle }, segment.text);
+  validateViewerCopy(normalizedTitle, "display-copy", { sourceText: segment.text });
   draft.narrative.title = compressViewerTitle(normalizedTitle);
-  validateViewerFacingNarrative(draft.narrative);
-  validateViewerCopy(draft.narrative.title, "display-copy");
-  validateViewerCopy(draft.narrative.subtitleZh, "display-copy");
-  validateViewerCopy(draft.narrative.eyebrow, "design-label");
+  validateViewerFacingNarrative(draft.narrative, segment.text);
+  validateViewerCopy(draft.narrative.title, "display-copy", { sourceText: segment.text });
+  validateViewerCopy(draft.narrative.subtitleZh, "display-copy", { sourceText: segment.text });
+  validateViewerCopy(draft.narrative.eyebrow, "design-label", { sourceText: segment.text });
   const decision = selectVisualComponent(draft.analysis, mode);
   draft.props = compactComponentProps(decision.id, draft.props);
   validateComponentProps(decision.id, draft.props);

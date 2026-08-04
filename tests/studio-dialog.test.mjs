@@ -158,7 +158,9 @@ test("Studio readiness checks stop at the next human gate without starting produ
 test("Studio keeps production and delivery creator-facing while preserving advanced evidence", async () => {
   const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
 
-  assert.match(app, /制作 Agent 会读取保留产物并从安全断点处理/);
+  assert.match(app, /制作 Agent 正在后台诊断、修改并重新检查/);
+  assert.match(app, /无需处理技术错误；详细诊断仅保留在高级详情中/);
+  assert.doesNotMatch(app, /\$\{escapeHtml\(delivery\.failure\?\.message/);
   assert.doesNotMatch(app, /id="open-workflow-recovery"/);
   assert.doesNotMatch(app, /id="open-delivery-recovery"/);
   assert.match(app, /发布所需的关键信息已经确认/);
@@ -275,7 +277,7 @@ test("Studio product shell keeps health, translation, storage, and project evide
   assert.match(app, /class="panel workflow-candidates"/);
   assert.doesNotMatch(app, /#agent-pin"\)\.innerHTML/);
   assert.match(app, /id="workflow-progress-open"/);
-  assert.match(app, /name === "regression-fixtures"/);
+  assert.match(app, /name === "agent-review"/);
   assert.match(app, /completed \/ productionStages\.length/);
   assert.match(app, /workflow-progress-badge/);
   assert.match(styles, /\.workflow-refresh-icon\.refresh-help:hover \.workflow-hover-tip/);
@@ -539,6 +541,7 @@ test("Studio exposes a confirmation-bound recovery center and read-only Ask Agen
   assert.match(server, /workflow\/recovery\/resume/);
   assert.match(server, /createStructuredAgentJsonAdapter/);
   assert.match(server, /runProductionAgentTechnicalRepair/);
+  assert.match(server, /creator-authorized-production/);
   assert.match(app, /data-beat-animation-style/);
   assert.match(app, /data-beat-component-choice/);
   assert.match(recovery, /recoverySha256/);
@@ -548,6 +551,8 @@ test("Studio exposes a confirmation-bound recovery center and read-only Ask Agen
     "resume",
     "repair-config",
     "repair-code",
+    "repair-binding",
+    "repair-visual",
     "request-user",
   ]);
 });
@@ -595,7 +600,8 @@ test("Studio reviews narration and visual choices together without adding human 
   assert.match(app, /data-visual-mode/);
   assert.doesNotMatch(app, /confirm-all-visuals/);
   assert.doesNotMatch(app, /确认全部自动方案/);
-  assert.match(app, /锁定最终稿时一次性确认当前完整方案/);
+  assert.match(app, /下游可以按全文重新规划/);
+  assert.match(app, /只有你亲手添加的文字标注会作为必须保留项/);
   assert.match(app, /信息关系/);
   assert.match(app, /文字标注/);
   assert.match(app, /选中 2–24 个字符/);
@@ -658,6 +664,21 @@ test("Studio persists jobs serially and only recovers interrupted work after own
   assert.match(server, /server\.listen\(port, "127\.0\.0\.1", async \(\) =>/);
   assert.match(server, /for \(const id of storedRunningJobIds\)/);
   assert.match(server, /server\.once\("error"/);
+});
+
+test("Studio exposes a source-bound baseline review instead of sending enhanced-production failures to the user", async () => {
+  const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
+  const server = await readFile(new URL("../scripts/studio-server.mjs", import.meta.url), "utf8");
+  assert.match(app, /productionBaselineReviewView/);
+  assert.match(app, /human-production-baseline-approved/);
+  assert.match(server, /createProductionBaseline/);
+  assert.match(server, /workflow\/production-baseline\/video/);
+  assert.match(server, /automatic-baseline-ready/);
+});
+
+test("production Remotion root registers the workflow composition used by every render stage", async () => {
+  const root = await readFile(new URL("../src/Root.tsx", import.meta.url), "utf8");
+  assert.match(root, /id: "GeneratedWorkflowReview"/);
 });
 
 test("workflow retries clear stale terminal fields before marking a stage running", async () => {

@@ -29,6 +29,18 @@ const productionCompositions = [
       keywords: [],
     },
   },
+  {
+    id: "GeneratedWorkflowReview",
+    defaultProps: {
+      headline: "Creator video",
+      chapter: "LOCAL WORKFLOW",
+      speaker: "Creator",
+      subtitle: "",
+      timelineLabel: "",
+      cards: [],
+      keywords: [],
+    },
+  },
 ];
 
 const coverReviewCompositions = [

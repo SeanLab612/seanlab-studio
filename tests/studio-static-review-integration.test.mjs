@@ -152,7 +152,7 @@ test("Studio loads, annotates, rejects, and tamper-checks a current static revie
   await write(context.paths.reviewEvidenceSummary, "review summary\n");
 
   const definitions = new Map(createStages(context).map((stage) => [stage.name, stage]));
-  for (const name of ["visual-qa", "visual-pacing-review", "review-evidence", "regression-fixtures"])
+  for (const name of ["visual-qa", "visual-pacing-review", "review-evidence", "regression-fixtures", "agent-review"])
     for (const output of definitions.get(name).outputs)
       if (!(await readFile(output).catch(() => undefined))) await write(output, output.endsWith(".json") ? {} : "fixture\n");
   const state = {
@@ -163,7 +163,7 @@ test("Studio loads, annotates, rejects, and tamper-checks a current static revie
     events: [],
     stages: { "human-approval": { status: "pending" } },
   };
-  for (const name of ["visual-qa", "visual-pacing-review", "review-evidence", "regression-fixtures"])
+  for (const name of ["visual-qa", "visual-pacing-review", "review-evidence", "regression-fixtures", "agent-review"])
     state.stages[name] = {
       status: "succeeded",
       outputs: definitions.get(name).outputs,

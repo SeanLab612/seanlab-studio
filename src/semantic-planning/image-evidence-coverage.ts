@@ -2,6 +2,8 @@ export type RequiredImageEvidenceAsset = {
   id: string;
   required?: boolean;
   sourceLabel?: string;
+  path?: string;
+  sha256?: string;
 };
 
 export type ImageEvidenceOverlayCue = {
@@ -36,7 +38,17 @@ export const evaluateRequiredImageEvidenceCoverage = (
     ...directImageCues.flatMap((cue) => [cue.assetId, ...(cue.sources ?? []).map((source) => source.assetId)]),
     ...animationAssetIds,
   ]);
-  const missingRequiredAssetIds = requiredAssetIds.filter((id) => !selectedAssetIds.has(id));
+  const evidenceIdentity = (asset: RequiredImageEvidenceAsset) => asset.sha256 ?? asset.path ?? asset.id;
+  const selectedEvidenceIdentities = new Set(
+    [...selectedAssetIds].flatMap((id) => {
+      const asset = assets.find((candidate) => candidate.id === id);
+      return asset ? [evidenceIdentity(asset)] : [];
+    }),
+  );
+  const missingRequiredAssetIds = assets
+    .filter((asset) => asset.required)
+    .filter((asset) => !selectedEvidenceIdentities.has(evidenceIdentity(asset)))
+    .map((asset) => asset.id);
   return {
     status: missingRequiredAssetIds.length ? ("blocked" as const) : ("passed" as const),
     registeredCount: assets.length,
