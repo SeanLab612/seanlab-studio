@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { brandIconGraphics } from "../src/icons/brand-graphics.ts";
 import { resolveFunctionalIconId } from "../src/icons/resolve-functional-icon.ts";
-import { isIconId, systemIconRegistry } from "../src/icons/registry.ts";
+import { iconRegistry, isIconId, systemIconRegistry } from "../src/icons/registry.ts";
+
+test("brand artwork is admitted explicitly and missing marks retain a registered fallback", () => {
+  assert.equal(brandIconGraphics["brand.github"]?.upstream, "simple-icons");
+  assert.equal(brandIconGraphics["brand.anthropic"]?.upstream, "simple-icons");
+  assert.equal(brandIconGraphics["brand.openai"], undefined);
+  assert.equal(iconRegistry["brand.openai"].shortLabel, "OA");
+});
 
 test("functional icon fallback uses semantic matches before deterministic random selection", () => {
   assert.equal(resolveFunctionalIconId(undefined, "录屏素材"), "system.video");

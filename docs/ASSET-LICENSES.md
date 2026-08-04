@@ -7,6 +7,7 @@ here before a release.
 | --- | --- | --- | --- |
 | `studio/assets/seanlab-logo.png`, `studio/assets/seanlab-logo-white.svg` | SeanLab-authored identity | MIT | May be used, modified, and redistributed under the root MIT License. |
 | `public/icons/system/sprite.svg` | SeanLab-authored functional icon set | MIT | No third-party brand artwork is embedded. |
+| Runtime brand paths from `simple-icons` 16.28.0 | Simple Icons contributors | CC0-1.0 package; third-party trademarks remain reserved | Only explicitly admitted paths are rendered; unavailable marks use local text badges. |
 | `studio/assets/icons/*.svg` | SeanLab-authored Studio controls | MIT | The settings icon was redrawn as a sliders control in 2026-08. |
 | `studio/assets/agent-icons/codex.svg` | Official OpenAI logo package: unmodified black Blossom | OpenAI brand usage terms | Identifies Codex CLI compatibility only; excluded from MIT; no endorsement. |
 | `studio/assets/agent-icons/claude.svg` | Official Anthropic press kit: unmodified `ClaudeIcon-Rounded.svg` | Anthropic trademark/media terms | Identifies Claude Code compatibility only; excluded from MIT; no endorsement. |

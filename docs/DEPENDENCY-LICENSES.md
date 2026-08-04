@@ -13,10 +13,15 @@ installed from the pinned npm lockfile rather than copied into this repository.
 | `@remotion/rough-notation` | 4.0.490 | MIT |
 | `react` | 19.1.0 | MIT |
 | `react-dom` | 19.1.0 | MIT |
+| `simple-icons` | 16.28.0 | CC0-1.0 |
 
 The Remotion License is a source-available dependency license with eligibility and commercial-use conditions. It is
 not replaced by SeanLab Studio's MIT License. See `LICENSES/Remotion-License.md` and
 <https://www.remotion.dev/license> before commercial deployment.
+
+`simple-icons` supplies the vector geometry for the explicitly admitted company/platform icons. Its CC0 license
+applies to the package project, but it does not grant trademark rights in the represented brands. Brand names and
+marks remain subject to their owners' policies and are used only to identify the product or platform.
 
 ## Development dependencies
 

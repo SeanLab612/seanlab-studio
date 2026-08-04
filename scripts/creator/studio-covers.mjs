@@ -4,6 +4,7 @@ import { createReadStream } from "node:fs";
 import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { basename, extname, isAbsolute, resolve } from "node:path";
 import { promisify } from "node:util";
+import { brandIconGraphics } from "../../src/icons/brand-graphics.ts";
 import { iconRegistry } from "../../src/icons/registry.ts";
 import { studioSecureHeaders } from "../operations/http-security.mjs";
 import { loadCreatorProject, projectDir, writeJsonAtomic } from "./project-store.mjs";
@@ -50,10 +51,28 @@ const assertLine = (value, label) => {
 
 const coverIconCatalog = async () => {
   const systemSprite = await readFile(systemIconSpritePath, "utf8");
-  return Object.values(iconRegistry)
-    .filter((item) => item.category === "system")
-    .filter((item) => systemSprite.includes(`id="${item.id.replace("system.", "")}"`))
-    .map((item) => ({ id: item.id, category: item.category, label: item.label, assetKind: "vector" }));
+  return Object.values(iconRegistry).flatMap((item) => {
+    if (item.category === "brand") {
+      const graphic = brandIconGraphics[item.id];
+      return graphic
+        ? [
+            {
+              id: item.id,
+              category: item.category,
+              label: item.label,
+              assetKind: "brand-vector",
+              svgPath: graphic.path,
+              hex: graphic.hex,
+              tileBackground: item.tileBackground,
+              upstream: graphic.upstream,
+            },
+          ]
+        : [];
+    }
+    return systemSprite.includes(`id="${item.id.replace("system.", "")}"`)
+      ? [{ id: item.id, category: item.category, label: item.label, assetKind: "vector" }]
+      : [];
+  });
 };
 const catalog = async (portraitConfigured) => ({
   templates: [{ id: "creator-editorial-1.0", label: "创作者编辑封面" }],
@@ -167,7 +186,7 @@ export const renderStudioCover = async ({ projectId, selection: input }) => {
     throw new Error("封面最多选择 4 个不重复图标");
   const eligibleIconIds = new Set(registry.icons.map((item) => item.id));
   if (requestedIconIds.some((iconId) => !eligibleIconIds.has(iconId)))
-    throw new Error("封面图标必须来自本地系统图标库");
+    throw new Error("封面图标必须来自已核对的本地图标目录");
   const titleLines = [assertLine(input.titleLines?.[0], "封面第一行"), assertLine(input.titleLines?.[1], "封面第二行")];
   if (input.titleLines?.[2]?.trim()) titleLines.push(assertLine(input.titleLines[2], "封面第三行"));
   const portraitCrop = normalizeCrop(input.portraitCrop ?? saved.portrait.crop);

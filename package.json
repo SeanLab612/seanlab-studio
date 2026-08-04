@@ -50,7 +50,8 @@
     "@remotion/rough-notation": "4.0.490",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "remotion": "4.0.490"
+    "remotion": "4.0.490",
+    "simple-icons": "16.28.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.3",

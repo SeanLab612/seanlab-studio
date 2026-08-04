@@ -395,8 +395,10 @@ test("Studio cover workspace renders registered local layers without invoking an
   assert.match(app, /data-remove-cover-icon/);
   assert.match(app, /coverIconIds/);
   assert.doesNotMatch(app, /cover-icon-search|coverIconQuery|applyCoverIconFilters|搜索已入库图标/);
+  assert.match(app, /公司与平台/);
+  assert.match(covers, /assetKind: "brand-vector"/);
   assert.match(covers, /assetKind: "vector"/);
-  assert.match(covers, /封面图标必须来自本地系统图标库/);
+  assert.match(covers, /封面图标必须来自已核对的本地图标目录/);
   assert.doesNotMatch(app, /\$\{coverStudioView\(project, state\.cover\)\}\s+\$\{canStart/);
   assert.match(server, /cover\/render/);
   assert.match(server, /coverArtifactMatch/);

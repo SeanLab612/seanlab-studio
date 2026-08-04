@@ -2242,13 +2242,16 @@ const deliveryDecisionView = (delivery) => {
 };
 const coverIconPreview = (icon) =>
   icon.category === "brand"
-    ? `<img src="/local-assets/${escapeHtml(icon.assetPath)}" alt="" style="background:${escapeHtml(icon.tileBackground ?? "#f0f4f2")}"/>`
+    ? `<svg viewBox="0 0 24 24" role="img" aria-label="${escapeHtml(icon.label)}" style="background:${escapeHtml(icon.tileBackground ?? "#f0f4f2")}"><path d="${escapeHtml(icon.svgPath)}" fill="#${escapeHtml(icon.hex)}"></path></svg>`
     : `<svg viewBox="0 0 24 24" aria-hidden="true"><use href="/local-assets/icons/system/sprite.svg#${escapeHtml(icon.id.replace("system.", ""))}"></use></svg>`;
 const coverIconPickerView = (cover) => {
   const icons = cover.catalog.icons ?? [];
   const selectedIds = state.coverIconIds;
   const selected = selectedIds.map((iconId) => icons.find((item) => item.id === iconId)).filter(Boolean);
-  const groups = [{ id: "system", label: "功能图标" }];
+  const groups = [
+    { id: "brand", label: "公司与平台" },
+    { id: "system", label: "功能图标" },
+  ];
   return `<section class="cover-icon-picker">
     <div class="cover-icon-picker-head"><h4>封面主题图标</h4><span>已选择 ${selected.length}/4 个</span></div>
     <div class="cover-icon-select">
