@@ -24,6 +24,12 @@ test("Studio supports Simplified Chinese and English", () => {
     translateText("codex-cli 0.144.0 · 已通过 1 · 待审核 0", "en"),
     "codex-cli 0.144.0 · 1 approved · 0 pending review",
   );
+  assert.equal(translateText("上传图片、录屏与素材", "en"), "Upload images, screen recordings, and media");
+  assert.equal(translateText("最终口播稿", "en"), "Final narration script");
+  assert.equal(
+    translateText("已添加 1 份参考资料", "en"),
+    "1 reference added",
+  );
 });
 
 test("every Chinese Studio contract label has an English presentation", () => {
@@ -35,14 +41,19 @@ test("every Chinese Studio contract label has an English presentation", () => {
 });
 
 test("Studio shell exposes the global locale switch", async () => {
-  const [html, app, i18n] = await Promise.all([
+  const [html, app, i18n, styles] = await Promise.all([
     readFile(new URL("../studio/index.html", import.meta.url), "utf8"),
     readFile(new URL("../studio/app.js", import.meta.url), "utf8"),
     readFile(new URL("../studio/i18n.js", import.meta.url), "utf8"),
+    readFile(new URL("../studio/styles.css", import.meta.url), "utf8"),
   ]);
   assert.match(html, /id="language-toggle"/);
   assert.match(app, /startI18n\(\)/);
   assert.match(app, /\$\("#language-toggle"\)\.onclick = switchLocale/);
   assert.match(i18n, /attributes: true/);
   assert.match(i18n, /attributeFilter: translatedAttributes/);
+  assert.match(
+    styles,
+    /html\[lang="en"\] \.global-topbar \{ grid-template-columns:210px minmax\(180px,1fr\) auto auto;/,
+  );
 });
