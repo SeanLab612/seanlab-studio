@@ -6,8 +6,8 @@ export const statusLabels = {
   "awaiting-media": "等待拍摄",
   "video-ready": "视频就绪",
   "video-running": "视频制作",
-  review: "静态审核",
-  approved: "审核通过",
+  review: "Agent 自检",
+  approved: "待审核成片",
   delivered: "已交付",
 };
 
@@ -158,12 +158,12 @@ export const taskPresentations = {
     summary: "Studio 正在执行本地确定性工作流，可以安全离开并稍后继续。",
   },
   review: {
-    stage: "审核 · 静态审核",
-    summary: "逐张检查关键画面、字幕、证据和布局；通过后才允许渲染最终成片。",
+    stage: "制作 · Agent 自检",
+    summary: "Agent 正在检查关键画面、字幕、证据和布局，通过后会自动渲染成片。",
   },
   approved: {
-    stage: "交付 · 成片与交付",
-    summary: "静态审核已经通过，可以生成最终成片并完成技术验收。",
+    stage: "审核 · 最终成片",
+    summary: "Agent 制作、自检和技术验收已完成，等待创作者审核最终成片。",
   },
   delivered: {
     stage: "交付 · 已完成",

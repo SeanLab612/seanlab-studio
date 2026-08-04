@@ -235,6 +235,8 @@ const english = new Map(
     "等待拍摄": "Waiting for media",
     "视频就绪": "Video ready",
     "视频制作": "Production",
+    "Agent 自检": "Agent self-review",
+    "待审核成片": "Final video ready for review",
     "静态审核": "Static review",
     "审核通过": "Approved",
     "已交付": "Delivered",
@@ -336,6 +338,12 @@ const english = new Map(
     "制作 · 任务进行中": "Production · Task running",
     "Studio 正在执行本地确定性工作流，可以安全离开并稍后继续。":
       "Studio is running the local deterministic workflow. You can safely leave and return later.",
+    "制作 · Agent 自检": "Production · Agent self-review",
+    "Agent 正在检查关键画面、字幕、证据和布局，通过后会自动渲染成片。":
+      "The Agent is checking key frames, captions, evidence, and layout, then will render the final video automatically.",
+    "审核 · 最终成片": "Review · Final video",
+    "Agent 制作、自检和技术验收已完成，等待创作者审核最终成片。":
+      "Agent production, self-review, and technical validation are complete. The final video is ready for creator review.",
     "审核 · 静态审核": "Review · Static review",
     "逐张检查关键画面、字幕、证据和布局；通过后才允许渲染最终成片。":
       "Inspect key frames, captions, evidence, and layouts. Delivery rendering remains locked until approval.",

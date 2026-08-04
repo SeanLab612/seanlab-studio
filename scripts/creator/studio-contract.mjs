@@ -8,6 +8,15 @@ const allowedWorkflowActions = {
   "replan-recut": ["--replan-recut", "--until", "recut"],
   "replan-semantic": ["--replan-semantic", "--until", "review"],
   continue: ["--until", "review"],
+  production: [
+    "--until",
+    "delivery",
+    "--production-agent-auto-approve",
+    "--delivery-resolution",
+    "source",
+    "--delivery-frame-rate",
+    "source",
+  ],
   delivery: ["--until", "delivery"],
 };
 
@@ -19,7 +28,7 @@ export const workflowArgsForStudioAction = (action) => {
 
 const readinessRecoveryStatuses = new Set(["failed", "interrupted", "stale"]);
 
-export const workflowArgsForStudioReadiness = ({ recutApproved, reviewApproved, stages = [] }, profile) => {
+export const workflowArgsForStudioReadiness = ({ reviewApproved, semanticReplanRequired, stages = [] }, profile) => {
   if (reviewApproved) {
     const deliveryRecoveryStage = stages.find(
       (stage) =>
@@ -38,12 +47,21 @@ export const workflowArgsForStudioReadiness = ({ recutApproved, reviewApproved, 
       String(normalized.frameRate),
     ];
   }
-  const recoveryStage = stages.find(
-    (stage) => readinessRecoveryStatuses.has(stage.status) && stage.name !== "human-approval",
-  )?.name;
+  const recoveryStage = stages.find((stage) => readinessRecoveryStatuses.has(stage.status))?.name;
   const scope = recoveryStage ? ["--from", recoveryStage] : [];
-  if (!recutApproved) return [...scope, "--until", "recut", "--dry-run"];
-  return [...scope, "--until", "review", "--dry-run"];
+  const normalized = normalizeDeliveryProfile(profile);
+  return [
+    ...scope,
+    ...(semanticReplanRequired ? ["--replan-semantic"] : []),
+    "--until",
+    "delivery",
+    "--production-agent-auto-approve",
+    "--dry-run",
+    "--delivery-resolution",
+    normalized.resolution,
+    "--delivery-frame-rate",
+    String(normalized.frameRate),
+  ];
 };
 
 const resumableStatuses = new Set(["failed", "interrupted", "running", "stale", "pending"]);

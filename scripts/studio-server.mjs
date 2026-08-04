@@ -451,7 +451,8 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
           record?.logs.push(...lines);
           if (record?.logs.length > 200) record.logs.splice(0, record.logs.length - 200);
           for (const line of lines) {
-            const deliverySegment = action === "delivery" ? /^segment (\d+)\/(\d+)$/.exec(line.trim()) : null;
+            const deliveryAction = action === "delivery" || action === "production";
+            const deliverySegment = deliveryAction ? /^segment (\d+)\/(\d+)$/.exec(line.trim()) : null;
             if (deliverySegment) {
               const index = Number(deliverySegment[1]);
               const total = Number(deliverySegment[2]);
@@ -461,7 +462,7 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
                 message: `正在渲染第 ${Math.min(index + 1, total)}/${total} 段`,
               });
             }
-            const deliveryFrame = action === "delivery" ? /^Rendered (\d+)\/(\d+)/.exec(line.trim()) : null;
+            const deliveryFrame = deliveryAction ? /^Rendered (\d+)\/(\d+)/.exec(line.trim()) : null;
             if (deliveryFrame) {
               const rendered = Number(deliveryFrame[1]);
               const total = Number(deliveryFrame[2]);
@@ -471,7 +472,7 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
                 message: `正在合成最终画面 ${Math.min(rendered, total)}/${total} 帧`,
               });
             }
-            const deliveryEncode = action === "delivery" ? /^Encoded (\d+)\/(\d+)/.exec(line.trim()) : null;
+            const deliveryEncode = deliveryAction ? /^Encoded (\d+)\/(\d+)/.exec(line.trim()) : null;
             if (deliveryEncode) {
               const encoded = Number(deliveryEncode[1]);
               const total = Number(deliveryEncode[2]);
@@ -489,24 +490,22 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
               if (event.stage && event.event === "stage.started")
                 reportProgress({
                   phase: event.stage,
-                  percent: action === "delivery" ? (event.stage === "delivery-validate" ? 88 : 8) : undefined,
-                  message:
-                    action === "delivery"
-                      ? event.stage === "delivery-validate"
-                        ? "最终成片已生成，正在进行技术验收"
-                        : "正在渲染最终成片"
-                      : `正在执行 ${event.stage}`,
+                  percent: deliveryAction ? (event.stage === "delivery-validate" ? 88 : 8) : undefined,
+                  message: deliveryAction
+                    ? event.stage === "delivery-validate"
+                      ? "最终成片已生成，正在进行技术验收"
+                      : "正在渲染最终成片"
+                    : `正在执行 ${event.stage}`,
                 });
               if (event.stage && ["stage.succeeded", "stage.candidate.succeeded"].includes(event.event))
                 reportProgress({
                   phase: event.stage,
-                  percent: action === "delivery" ? (event.stage === "delivery-validate" ? 100 : 84) : undefined,
-                  message:
-                    action === "delivery"
-                      ? event.stage === "delivery-validate"
-                        ? "技术验收通过，等待你的最终确认"
-                        : "最终成片渲染完成"
-                      : `${event.stage} 已完成`,
+                  percent: deliveryAction ? (event.stage === "delivery-validate" ? 100 : 84) : undefined,
+                  message: deliveryAction
+                    ? event.stage === "delivery-validate"
+                      ? "技术验收通过，等待你的最终确认"
+                      : "最终成片渲染完成"
+                    : `${event.stage} 已完成`,
                 });
               if (event.event === "workflow.preview") {
                 record.readiness = event;
@@ -546,9 +545,9 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
             return done({ exitCode: code, readiness: record.readiness });
           }
           if (code === 0 && action === "approve-recut") await enterProductionAgent(projectId).catch(() => {});
-          if (code === 0 && action === "delivery")
+          if (code === 0 && ["delivery", "production"].includes(action))
             await exitProductionAgentForDelivery(projectId, { jobId: record.id, validated: true }).catch(() => {});
-          if (code === 0 && !["readiness", "delivery", "approve-recut"].includes(action)) {
+          if (code === 0 && !["readiness", "delivery", "production", "approve-recut"].includes(action)) {
             const productionAgent = await loadProductionAgentState(projectId).catch(() => undefined);
             if (productionAgent?.state === "recovering")
               await transitionProductionAgent({
@@ -1732,6 +1731,10 @@ const routes = async (request, response, url) => {
       const snapshot = await loadStudioWorkflow(projectId);
       workflowArgs = workflowArgsForStudioReadiness(snapshot, input.profile);
     } else workflowArgs = workflowArgsForStudioAction(input.action);
+    if (input.action === "production") {
+      const snapshot = await loadStudioWorkflow(projectId);
+      if (snapshot.semanticReplanRequired) workflowArgs = ["--replan-semantic", ...workflowArgs];
+    }
     if (input.action === "approve-recut") {
       const snapshot = await assertReviewedRecut({ projectId, screenSha256: input.screenSha256 });
       if (snapshot.recut?.decision?.decision === "rejected")
@@ -1759,14 +1762,19 @@ const routes = async (request, response, url) => {
       if (resumeStage) workflowArgs = ["--from", resumeStage, ...workflowArgs];
     }
     let readinessConfirmation;
-    if (["recut", "review", "continue"].includes(input.action)) {
+    if (["recut", "review", "continue", "production"].includes(input.action)) {
       const snapshot = await loadStudioWorkflow(projectId);
       const readinessArgs = workflowArgsForStudioReadiness(snapshot);
       const readiness = await inspectStudioReadiness({
         manifest: project.video.manifest,
         workflowArgs: readinessArgs,
       });
-      const expectedTargetStage = input.action === "recut" ? "recut-review" : "agent-review";
+      const expectedTargetStage =
+        input.action === "recut"
+          ? "recut-review"
+          : input.action === "production"
+            ? "delivery-validate"
+            : "agent-review";
       assertStudioReadinessConfirmation({
         readiness,
         expectedSha256: input.readinessSha256,
@@ -1778,7 +1786,7 @@ const routes = async (request, response, url) => {
         readiness,
       });
     }
-    if (["review", "continue"].includes(input.action))
+    if (["review", "continue", "production"].includes(input.action))
       await enterProductionAgent(projectId, "creator-authorized-production").catch(() => {});
     const record = workflowJob(projectId, project.video.manifest, input.action, workflowArgs, {
       rollbackAttempt,

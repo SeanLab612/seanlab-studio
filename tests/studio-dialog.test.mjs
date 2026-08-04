@@ -95,18 +95,17 @@ test("topbar uses an icon-only settings control and no current-project label", a
   assert.doesNotMatch(html, /id="settings-open"[^>]*>设置<\/button>/);
 });
 
-test("Studio exposes intake inventory and evidence-bound recut controls", async () => {
+test("Studio exposes intake inventory while the production Agent reviews recut internally", async () => {
   const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
   const server = await readFile(new URL("../scripts/studio-server.mjs", import.meta.url), "utf8");
 
   assert.match(app, /已添加 \$\{items\.length\}/);
   assert.match(app, /workflow\/status/);
   assert.match(app, /screenSha256/);
-  assert.match(app, /通过粗剪/);
-  assert.match(app, /通过粗剪/);
-  assert.match(app, /按意见重新规划/);
-  assert.match(app, /保存意见并驳回/);
-  assert.match(app, /recut-feedback/);
+  assert.match(app, /制作 Agent 正在审核粗剪/);
+  assert.match(app, /未通过时会自动重新规划/);
+  assert.doesNotMatch(app, /<button[^>]+id="approve-recut"/);
+  assert.doesNotMatch(app, /<button[^>]+id="reject-recut"/);
   assert.match(app, /图片适配方式/);
   assert.match(app, /浏览并加入（可多选）/);
   assert.doesNotMatch(app, /asset-description/);
@@ -115,12 +114,13 @@ test("Studio exposes intake inventory and evidence-bound recut controls", async 
   assert.match(server, /resolveCreatorAsset/);
 });
 
-test("Studio does not offer a duplicate continue action after static review is ready", async () => {
+test("Studio continues through Agent self-review without exposing an intermediate gate", async () => {
   const source = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
   const contracts = await readFile(new URL("../studio/contracts.js", import.meta.url), "utf8");
-  assert.match(source, /静态审核资料已生成/);
-  assert.match(source, /workflow\.reviewReady[\s\S]*id="open-static-review"/);
-  assert.match(source, /workflow\.semanticReplanRequired[\s\S]*id="replan-semantic-workflow">重新理解内容/);
+  assert.match(source, /制作 Agent 自主复核/);
+  assert.match(source, /action: "production"/);
+  assert.match(source, /targetGate: "delivery-acceptance"/);
+  assert.match(source, /审核最终成片/);
   assert.match(source, /id="workflow-refresh" aria-label="重新校验已有进度"/);
   assert.match(source, /assets\/icons\/refresh\.svg/);
   assert.match(source, /不会启动工作流，也不会重新调用 Agent、翻译或渲染/);
@@ -131,7 +131,7 @@ test("Studio does not offer a duplicate continue action after static review is r
   assert.match(contracts, /先前结果已过期/);
 });
 
-test("Studio readiness checks stop at the next human gate without starting production", async () => {
+test("Studio readiness checks the continuous production path before starting", async () => {
   const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
   const server = await readFile(new URL("../scripts/studio-server.mjs", import.meta.url), "utf8");
 
@@ -270,14 +270,15 @@ test("Studio product shell keeps health, translation, storage, and project evide
   assert.match(html, /id="workflow-warning-dialog"/);
   assert.match(html, /项目证据与高级操作/);
   assert.match(contracts, /创建 · 方向与资料/);
-  assert.match(contracts, /审核 · 静态审核/);
+  assert.match(contracts, /制作 · Agent 自检/);
+  assert.match(contracts, /审核 · 最终成片/);
   assert.match(app, /sidebarWidthStorageKey/);
   assert.match(app, /sidebarCollapsedStorageKey/);
   assert.match(app, /class="intake-index"/);
   assert.match(app, /class="panel workflow-candidates"/);
   assert.doesNotMatch(app, /#agent-pin"\)\.innerHTML/);
   assert.match(app, /id="workflow-progress-open"/);
-  assert.match(app, /name === "agent-review"/);
+  assert.match(app, /"agent-review": "制作 Agent 自主复核"/);
   assert.match(app, /completed \/ productionStages\.length/);
   assert.match(app, /workflow-progress-badge/);
   assert.match(styles, /\.workflow-refresh-icon\.refresh-help:hover \.workflow-hover-tip/);
@@ -312,7 +313,7 @@ test("Studio exposes project typography policy without delegating font choice to
   assert.match(server, /reconcileStudioWorkflow\(projectId\)/);
 });
 
-test("Studio exposes an evidence-bound static review gallery and explicit human decisions", async () => {
+test("Studio keeps the evidence-bound static review gallery as Agent audit evidence", async () => {
   const html = await readFile(new URL("../studio/index.html", import.meta.url), "utf8");
   const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
   const server = await readFile(new URL("../scripts/studio-server.mjs", import.meta.url), "utf8");
@@ -336,9 +337,10 @@ test("Studio exposes an evidence-bound static review gallery and explicit human 
   assert.doesNotMatch(app, /review-stack-current/);
   assert.match(app, /reviewInfoContent/);
   assert.match(app, /review-zoom-in/);
-  assert.match(app, /data-waiver-finding/);
-  assert.match(app, /human-review-approved/);
-  assert.match(app, /保存意见并驳回/);
+  assert.match(app, /AGENT SELF REVIEW/);
+  assert.match(app, /这里仅供查看审计证据/);
+  assert.doesNotMatch(app, /<button[^>]+id="approve-static-review"/);
+  assert.doesNotMatch(app, /<button[^>]+id="reject-static-review"/);
   assert.match(app, /录屏与图片转场/);
   assert.match(app, /mediaTransitionEntry/);
   assert.match(app, /mediaTransitionExit/);
@@ -347,12 +349,14 @@ test("Studio exposes an evidence-bound static review gallery and explicit human 
   assert.doesNotMatch(server, /workflow\/review-artifacts\/\(\.\+\)/);
 });
 
-test("Studio exposes approval-gated source delivery and final acceptance as step six", async () => {
+test("Studio renders at source settings and keeps only final acceptance user-facing", async () => {
   const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
   const server = await readFile(new URL("../scripts/studio-server.mjs", import.meta.url), "utf8");
   const delivery = await readFile(new URL("../scripts/creator/studio-delivery.mjs", import.meta.url), "utf8");
 
-  assert.match(app, /"成片与交付"/);
+  assert.match(app, /成片与交付/);
+  assert.match(app, /审核最终成片/);
+  assert.match(app, /resolution:"source", frameRate:"source"/);
   assert.match(app, /human-delivery-start/);
   assert.match(app, /human-delivery-accepted/);
   assert.match(app, /通过并完成交付/);
@@ -690,4 +694,7 @@ test("workflow retries clear stale terminal fields before marking a stage runnin
   const workflow = await readFile(new URL("../scripts/workflow.mjs", import.meta.url), "utf8");
   assert.match(workflow, /\["failure", "error", "finishedAt", "elapsedMs", "lastProgressAt"\]/);
   assert.match(workflow, /delete entry\[key\]/);
+  assert.match(workflow, /flag\("--production-agent-auto-approve"\)/);
+  assert.match(workflow, /approveRecutStage\("production-agent"\)/);
+  assert.match(workflow, /approveReviewStage\(\{ authority: "production-agent" \}\)/);
 });

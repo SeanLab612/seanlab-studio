@@ -15,21 +15,40 @@ test("Studio exposes only registered workflow actions", () => {
   assert.deepEqual(workflowArgsForStudioAction("replan-recut"), ["--replan-recut", "--until", "recut"]);
   assert.deepEqual(workflowArgsForStudioAction("replan-semantic"), ["--replan-semantic", "--until", "review"]);
   assert.deepEqual(workflowArgsForStudioAction("continue"), ["--until", "review"]);
+  assert.deepEqual(workflowArgsForStudioAction("production"), [
+    "--until",
+    "delivery",
+    "--production-agent-auto-approve",
+    "--delivery-resolution",
+    "source",
+    "--delivery-frame-rate",
+    "source",
+  ]);
   assert.deepEqual(workflowArgsForStudioAction("delivery"), ["--until", "delivery"]);
   assert.throws(() => workflowArgsForStudioAction(["--force"]), /仅允许/);
   assert.throws(() => workflowArgsForStudioAction("arbitrary-command"), /仅允许/);
 });
 
-test("Studio readiness previews only the path to the next human gate", () => {
+test("Studio readiness previews the continuous Agent production path to final acceptance", () => {
   assert.deepEqual(workflowArgsForStudioReadiness({ recutApproved: false, reviewApproved: false }), [
     "--until",
-    "recut",
+    "delivery",
+    "--production-agent-auto-approve",
     "--dry-run",
+    "--delivery-resolution",
+    "source",
+    "--delivery-frame-rate",
+    "source",
   ]);
   assert.deepEqual(workflowArgsForStudioReadiness({ recutApproved: true, reviewApproved: false }), [
     "--until",
-    "review",
+    "delivery",
+    "--production-agent-auto-approve",
     "--dry-run",
+    "--delivery-resolution",
+    "source",
+    "--delivery-frame-rate",
+    "source",
   ]);
   assert.deepEqual(
     workflowArgsForStudioReadiness({
@@ -41,7 +60,18 @@ test("Studio readiness previews only the path to the next human gate", () => {
         { name: "visual-direction", status: "pending" },
       ],
     }),
-    ["--from", "component-props", "--until", "review", "--dry-run"],
+    [
+      "--from",
+      "component-props",
+      "--until",
+      "delivery",
+      "--production-agent-auto-approve",
+      "--dry-run",
+      "--delivery-resolution",
+      "source",
+      "--delivery-frame-rate",
+      "source",
+    ],
   );
   assert.deepEqual(
     workflowArgsForStudioReadiness(
