@@ -9,7 +9,6 @@ import {
 import {
   narrationStoryboardSection,
   narrationStoryboardSections,
-  STRUCTURAL_STORYBOARD_SECTION_IDS,
 } from "../../src/creator-workflow/storyboard-sections.ts";
 import {
   resolveTextAnnotationQuoteRange,
@@ -49,13 +48,14 @@ const resolvedStoryboardMode = (review, section) => {
   return primaryVisualType;
 };
 
-export const bindAuthoredMediaToNarration = (project, narration) => {
+export const bindAuthoredMediaToNarration = (project, narration, { lockedMaterialIds = new Set() } = {}) => {
   let changed = false;
   for (const section of narration.sections) {
-    if (authoredMediaKinds.has(section.visualIntent) && section.materialIds.length !== 1)
-      throw new Error(`Section ${section.id} must reference exactly one material before locking`);
-    if (section.materialIds.length === 0) continue;
-    const material = project.materials.find((item) => item.id === section.materialIds[0]);
+    const lockedIds = section.materialIds.filter((materialId) => lockedMaterialIds.has(materialId));
+    if (!lockedIds.length) continue;
+    if (lockedIds.length !== 1)
+      throw new Error(`Locked section ${section.id} must reference exactly one material before locking`);
+    const material = project.materials.find((item) => item.id === lockedIds[0]);
     if (!material?.assetId) throw new Error(`Section ${section.id} references an unavailable material`);
     if (!authoredMediaKinds.has(material.kind) || material.kind !== section.visualIntent)
       throw new Error(`Section ${section.id} must bind a ${section.visualIntent} material`);
@@ -64,7 +64,7 @@ export const bindAuthoredMediaToNarration = (project, narration) => {
     const boundSections = narration.sections.filter(
       (section) => section.visualIntent === material.kind && section.materialIds.includes(material.id),
     );
-    const nextRequired = boundSections.length > 0;
+    const nextRequired = lockedMaterialIds.has(material.id);
     if (material.required !== nextRequired) {
       material.required = nextRequired;
       changed = true;
@@ -105,7 +105,6 @@ export const updateNarration = async (projectId, input) => {
 export const lockNarration = async (projectId, input) => {
   const narration = input ? await updateNarration(projectId, input) : await loadNarration(projectId);
   const project = await loadCreatorProject(projectId);
-  bindAuthoredMediaToNarration(project, narration);
   const storyboard = await loadVisualStoryboard(projectId, narration);
   const storyboardNarrationSections = narrationStoryboardSections(narration);
   for (const sectionId of storyboardNarrationSections.map((section) => section.id)) {
@@ -119,6 +118,9 @@ export const lockNarration = async (projectId, input) => {
         : {}),
     };
   }
+  // Version 4 gives downstream production full freedom over every visual and
+  // material. Only explicit user text annotations become execution locks.
+  bindAuthoredMediaToNarration(project, narration);
   await saveVisualStoryboard(projectId, storyboard, narration);
   const confirmedAnnotationEntries = Object.entries(storyboard.sections).flatMap(([sectionId, review]) => {
     const spokenText = narrationStoryboardSection(narration, sectionId)?.narration;
@@ -127,26 +129,7 @@ export const lockNarration = async (projectId, input) => {
       .filter((annotation) => annotation.status === "confirmed")
       .map((annotation) => ({ sectionId, spokenText, annotation }));
   });
-  const visualSections = narration.sections.filter((section) => section.visualIntent === "screen-recording");
   const scenes = [];
-  for (const section of visualSections) {
-    if (storyboard.sections[section.id]?.beats?.some((beat) => beat.primaryVisualType === "screen-demo")) continue;
-    const material = project.materials.find((item) => item.id === section.materialIds[0]);
-    scenes.push({
-      id: `scene-${section.id}`,
-      type: "screen-evidence",
-      assetId: material.assetId,
-      startAnchor: { text: anchorText(section.narration) },
-      endAnchor: { text: anchorText(section.narration, true) },
-      required: material.required,
-      speakerPip: {
-        shape: "circle",
-        preferredPosition: "bottom-left",
-        size: 360,
-        objectPosition: "50% 38%",
-      },
-    });
-  }
   const authoringDir = resolve(projectDir(projectId), "authoring");
   const finalPath = resolve(authoringDir, "final-script.md");
   const scenePath = resolve(authoringDir, "authored-scene-plan.json");
@@ -164,6 +147,7 @@ export const lockNarration = async (projectId, input) => {
         throw new Error(`Confirmed animation section ${sectionId} has no deterministic animation intent`);
       return {
         sectionId,
+        executionPolicy: "reference",
         anchorText: anchorText(spokenText),
         endAnchorText: anchorText(spokenText, true),
         mode,
@@ -187,43 +171,19 @@ export const lockNarration = async (projectId, input) => {
     return (review.beats ?? [])
       .filter((beat) => beat.status === "confirmed")
       .map((beat) => {
+        const executionPolicy = "reference";
         const quoteRange = resolveVisualBeatQuoteRange(beat, spokenText);
         const materialIds = [...new Set([...(beat.materialIds ?? []), ...(beat.materialId ? [beat.materialId] : [])])];
-        const boundMaterials = materialIds.map((materialId) => {
+        const boundMaterials = materialIds.flatMap((materialId) => {
           const material = project.materials.find((item) => item.id === materialId);
-          if (!material?.assetId) throw new Error(`Visual beat ${beat.id} references an unavailable material`);
-          if (beat.primaryVisualType === "image" && material.kind !== "screenshot")
-            throw new Error(`Visual beat ${beat.id} requires screenshot materials`);
-          if (beat.primaryVisualType === "screen-demo" && material.kind !== "screen-recording")
-            throw new Error(`Visual beat ${beat.id} requires a screen recording`);
-          material.required = true;
-          return material;
+          if (!material?.assetId) return [];
+          if (beat.primaryVisualType === "image" && material.kind !== "screenshot") return [];
+          if (beat.primaryVisualType === "screen-demo" && material.kind !== "screen-recording") return [];
+          return [material];
         });
-        if (beat.primaryVisualType === "screen-demo") {
-          const material = boundMaterials[0];
-          scenes.push({
-            id: `scene-${beat.id}`,
-            type: "screen-evidence",
-            assetId: material.assetId,
-            startAnchor: {
-              text: beat.exactSpokenQuote,
-              ...(beat.quoteOccurrence ? { occurrence: beat.quoteOccurrence } : {}),
-            },
-            endAnchor: {
-              text: beat.exactSpokenQuote,
-              ...(beat.quoteOccurrence ? { occurrence: beat.quoteOccurrence } : {}),
-            },
-            required: true,
-            speakerPip: {
-              shape: "circle",
-              preferredPosition: "bottom-left",
-              size: 360,
-              objectPosition: "50% 38%",
-            },
-          });
-        }
         return {
           ...beat,
+          executionPolicy,
           sectionId,
           quoteStart: quoteRange.start,
           quoteEnd: quoteRange.end,
@@ -236,8 +196,11 @@ export const lockNarration = async (projectId, input) => {
   });
   const authoredTextAnnotations = confirmedAnnotationEntries.map(({ sectionId, spokenText, annotation }) => {
     const quoteRange = resolveTextAnnotationQuoteRange(annotation, spokenText);
+    const origin = annotation.origin ?? "user";
     return {
       ...annotation,
+      origin,
+      executionPolicy: origin === "user" ? "locked" : "reference",
       sectionId,
       quoteStart: quoteRange.start,
       quoteEnd: quoteRange.end,
@@ -245,32 +208,11 @@ export const lockNarration = async (projectId, input) => {
       finalScriptSha256,
     };
   });
-  const structuralIds = new Set(STRUCTURAL_STORYBOARD_SECTION_IDS);
-  for (const section of storyboardNarrationSections.filter((item) => structuralIds.has(item.id))) {
-    const review = storyboard.sections[section.id];
-    if (review?.status !== "confirmed" || resolvedStoryboardMode(review, section) !== "material" || !review.materialId)
-      continue;
-    const material = project.materials.find((item) => item.id === review.materialId);
-    if (!material?.assetId || !authoredMediaKinds.has(material.kind))
-      throw new Error(`Confirmed ${section.title} material is unavailable`);
-    material.required = true;
-    if (material.kind === "screen-recording") {
-      scenes.push({
-        id: `scene-${section.id}`,
-        type: "screen-evidence",
-        assetId: material.assetId,
-        startAnchor: { text: anchorText(section.narration) },
-        endAnchor: { text: anchorText(section.narration, true) },
-        required: true,
-        speakerPip: { shape: "circle", preferredPosition: "bottom-left", size: 360, objectPosition: "50% 38%" },
-      });
-    }
-  }
   await writeFile(finalPath, `# ${narration.title}\n\n${narration.fullScript}\n`);
   await writeJsonAtomic(scenePath, { schemaVersion: "1.0", scenes });
   const authoredVisualPlan = {
     schemaVersion: "1.0",
-    visualPlanContractVersion: "3.0",
+    visualPlanContractVersion: "4.0",
     finalScriptSha256,
     sections: authoredVisualSections,
     beats: authoredVisualBeats,
@@ -299,8 +241,13 @@ export const lockNarration = async (projectId, input) => {
 };
 
 export const createVideoHandoff = async (projectId, { speakerAssetId }) => {
-  const project = await loadCreatorProject(projectId);
+  let project = await loadCreatorProject(projectId);
   if (project.authoring.state !== "locked") throw new Error("Lock the final narration before creating a video handoff");
+  // The storyboard remains editable after the narration is locked. Rebuild the
+  // deterministic authored plans at handoff time so a later confirmed visual
+  // change cannot leave the video workflow reading a stale (or empty) plan.
+  await lockNarration(projectId);
+  project = await loadCreatorProject(projectId);
   const narration = await loadNarration(projectId);
   const storyboard = await loadVisualStoryboard(projectId, narration);
   if (bindAuthoredMediaToNarration(project, narration)) await saveCreatorProject(project);
@@ -345,21 +292,27 @@ export const createVideoHandoff = async (projectId, { speakerAssetId }) => {
   for (const section of storyboardNarrationSections) {
     const review = storyboard.sections[section.id];
     const intents = [
-      ...(review?.animationIntent ? [review.animationIntent] : []),
+      ...(review?.animationIntent ? [{ intent: review.animationIntent, executionPolicy: "reference" }] : []),
       ...(review?.beats ?? [])
         .filter((beat) => beat.status === "confirmed" && beat.primaryVisualType === "animation" && beat.animationIntent)
-        .map((beat) => beat.animationIntent),
+        .map((beat) => ({ intent: beat.animationIntent, executionPolicy: "reference" })),
     ];
-    for (const intent of intents)
+    for (const { intent, executionPolicy } of intents)
       for (const stage of intent.stages)
         if (stage.imageAssetId && !animationAssetBindings.has(stage.imageAssetId))
-          animationAssetBindings.set(stage.imageAssetId, stage);
+          animationAssetBindings.set(stage.imageAssetId, { stage, executionPolicy });
   }
-  for (const [libraryAssetId, stage] of animationAssetBindings) {
-    const [asset, preview] = await Promise.all([
-      getPromotedImageAsset(libraryAssetId),
-      resolveImageAssetPreview({ assetId: libraryAssetId }),
-    ]);
+  for (const [libraryAssetId, { stage, executionPolicy }] of animationAssetBindings) {
+    let asset;
+    let preview;
+    try {
+      [asset, preview] = await Promise.all([
+        getPromotedImageAsset(libraryAssetId),
+        resolveImageAssetPreview({ assetId: libraryAssetId }),
+      ]);
+    } catch {
+      continue;
+    }
     imageEvidence.push({
       id: `animation-${sha256Text(libraryAssetId).slice(0, 16)}`,
       path: preview.path,
@@ -367,13 +320,19 @@ export const createVideoHandoff = async (projectId, { speakerAssetId }) => {
       description: asset.description?.trim() || asset.subject || asset.id,
       sourceLabel: `动画素材库 · ${libraryAssetId}`,
       anchorText: stage.spokenQuote,
-      required: true,
+      required: executionPolicy === "locked",
       fit: "contain",
       focalPoint: { x: 0.5, y: 0.5 },
     });
   }
   for (const material of project.materials.filter((item) => item.assetId && item.kind !== "speaker-video")) {
     if (authoredMediaKinds.has(material.kind) && !selectedMaterialIds.has(material.id)) continue;
+    let resolvedMaterialPath;
+    try {
+      resolvedMaterialPath = await resolveCreatorAsset(projectId, material.assetId);
+    } catch {
+      continue;
+    }
     if (material.kind === "screenshot") {
       const boundBeats = storyboardNarrationSections.flatMap((section) => {
         const review = storyboard.sections[section.id];
@@ -397,8 +356,9 @@ export const createVideoHandoff = async (projectId, { speakerAssetId }) => {
           );
         })
         .map((section) => ({ id: section.id, narration: section.narration, materialIds: section.materialIds }));
-      const path = relative(dirname(outputPath), await resolveCreatorAsset(projectId, material.assetId));
+      const path = relative(dirname(outputPath), resolvedMaterialPath);
       for (const { beat } of boundBeats) {
+        const executionPolicy = "reference";
         const evidenceId = `${material.assetId}-${beat.id}`;
         imageEvidence.push({
           id: evidenceId,
@@ -407,18 +367,20 @@ export const createVideoHandoff = async (projectId, { speakerAssetId }) => {
           description: material.description?.trim() || material.label,
           sourceLabel: material.sourceLabel?.trim() || material.label,
           anchorText: beat.exactSpokenQuote,
-          required: true,
+          required: executionPolicy === "locked",
           fit: material.fit ?? "contain",
           focalPoint: material.focalPoint ?? { x: 0.5, y: 0.5 },
         });
-        manifest.policies.edit.protectedAnchors.push(
-          imageEvidenceProtectedAnchor(material, beat.exactSpokenQuote, `-${beat.id}`),
-        );
+        if (executionPolicy === "locked")
+          manifest.policies.edit.protectedAnchors.push(
+            imageEvidenceProtectedAnchor(material, beat.exactSpokenQuote, `-${beat.id}`),
+          );
       }
       for (const section of boundSections) {
         const repeated = boundSections.length > 1;
         const evidenceId = repeated ? `${material.assetId}-${section.id}` : material.assetId;
         const spokenAnchor = anchorText(section.narration);
+        const executionPolicy = "reference";
         imageEvidence.push({
           id: evidenceId,
           path,
@@ -426,19 +388,20 @@ export const createVideoHandoff = async (projectId, { speakerAssetId }) => {
           description: material.description?.trim() || material.label,
           sourceLabel: material.sourceLabel?.trim() || material.label,
           anchorText: spokenAnchor,
-          required: true,
+          required: executionPolicy === "locked",
           fit: material.fit ?? "contain",
           focalPoint: material.focalPoint ?? { x: 0.5, y: 0.5 },
         });
-        manifest.policies.edit.protectedAnchors.push(
-          imageEvidenceProtectedAnchor(material, spokenAnchor, repeated ? `-${section.id}` : ""),
-        );
+        if (executionPolicy === "locked")
+          manifest.policies.edit.protectedAnchors.push(
+            imageEvidenceProtectedAnchor(material, spokenAnchor, repeated ? `-${section.id}` : ""),
+          );
       }
       continue;
     }
     supplemental.push({
       id: material.assetId,
-      path: relative(dirname(outputPath), await resolveCreatorAsset(projectId, material.assetId)),
+      path: relative(dirname(outputPath), resolvedMaterialPath),
       role: material.kind === "screen-recording" ? "screen-evidence" : "result-showcase",
       orientation: "any",
       required: material.required,

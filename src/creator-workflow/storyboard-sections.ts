@@ -23,7 +23,10 @@ const structuralSectionFields = {
 
 export const inferStructuralVisualForm = (text: string): NarrationVisualForm => {
   const value = text.trim();
-  if (/\d|[一二三四五六七八九十]+(?:个|项|种|步)|百分之|%/.test(value)) return "number-focus";
+  // Generic classifiers such as "一个选题" or "一位创作者" are not
+  // headline statistics. Keep number-focus for explicit metrics and bounded
+  // enumerable units that the key-stat component can materialize truthfully.
+  if (/\d|[一二三四五六七八九十]+(?:项|种|步)|百分之|%/.test(value)) return "number-focus";
   if (/(?:如果|只要|只有|否则|条件).*(?:就|才|会|结果)/.test(value)) return "conditional-outcomes";
   if (/(?:因为|由于|原因|导致|带来|所以|因此|从而)/.test(value)) return "cause-to-result";
   if (/(?:对比|相比|不同|区别|而不是|前后|优点|缺点)/.test(value)) return "two-way-contrast";

@@ -22,6 +22,7 @@ const execFileAsync = promisify(execFile);
 const modes = new Set(["auto", "speaker", "speaker-only", "material", "information", "animation"]);
 const statuses = new Set(["suggested", "confirmed"]);
 const materialDisplays = new Set(["full", "crop", "annotate"]);
+const executionPolicies = new Set(["reference", "locked"]);
 const materialKinds = new Set(["screenshot", "screen-recording"]);
 const forms = new Set(NARRATION_VISUAL_FORM_IDS);
 const componentIds = new Set(Object.keys(approvedComponentRegistry));
@@ -61,6 +62,8 @@ const migrateLegacyBeats = (review, spokenText) => {
       exactSpokenQuote: beat.exactSpokenQuote,
       ...(beat.quoteOccurrence ? { quoteOccurrence: beat.quoteOccurrence } : {}),
       status: beat.status,
+      origin: "agent",
+      executionPolicy: "reference",
       effect: "circle",
     }));
   return {
@@ -85,6 +88,8 @@ export const validateVisualStoryboard = (input, narration) => {
     if (!review) throw new Error(`Missing storyboard review for ${sectionId}`);
     if (!statuses.has(review.status)) throw new Error(`Unsupported storyboard status for ${sectionId}`);
     if (!modes.has(review.mode)) throw new Error(`Unsupported storyboard mode for ${sectionId}`);
+    if (review.executionPolicy !== undefined && !executionPolicies.has(review.executionPolicy))
+      throw new Error(`Unsupported storyboard execution policy for ${sectionId}`);
     if (review.form && !forms.has(review.form)) throw new Error(`Unsupported storyboard form for ${sectionId}`);
     if (review.componentId && !componentIds.has(review.componentId))
       throw new Error(`Unsupported storyboard component for ${sectionId}`);
@@ -104,12 +109,22 @@ export const validateVisualStoryboard = (input, narration) => {
     if (review.mode !== "animation" && animationIntent)
       throw new Error(`Non-animation storyboard section ${sectionId} cannot contain animation intent`);
     const rawAnnotations = review.annotations ?? migrated.annotations;
+    const classifiedAnnotations = rawAnnotations?.map((annotation) => ({
+      ...annotation,
+      // Older annotations in the editor were created by a person selecting
+      // narration text. Preserve that intent while classifying Agent migration.
+      origin: annotation.origin ?? "user",
+      executionPolicy: annotation.executionPolicy ?? (annotation.origin === "agent" ? "reference" : "locked"),
+    }));
     const annotations =
-      rawAnnotations === undefined ? undefined : validateTextAnnotations(rawAnnotations, spokenText ?? "");
+      classifiedAnnotations === undefined
+        ? undefined
+        : validateTextAnnotations(classifiedAnnotations, spokenText ?? "");
     const beats = review.beats === undefined ? undefined : validateVisualBeats(review.beats, spokenText ?? "");
     sections[sectionId] = {
       mode: review.mode,
       status: review.status,
+      executionPolicy: review.executionPolicy ?? "reference",
       ...(review.form ? { form: review.form } : {}),
       ...(review.componentId ? { componentId: review.componentId } : {}),
       ...(review.materialId ? { materialId: review.materialId } : {}),

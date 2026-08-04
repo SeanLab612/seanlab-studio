@@ -87,6 +87,7 @@ const makeBeat = ({
   id: `${sectionId}-beat-${index}`,
   exactSpokenQuote: quote,
   status: "suggested",
+  executionPolicy: "reference",
   primaryVisualType: type,
   ...(form ? { semanticForm: form } : {}),
   ...(materialIds?.length === 1 ? { materialId: materialIds[0] } : {}),

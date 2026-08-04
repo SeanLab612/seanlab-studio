@@ -600,7 +600,8 @@ test("Studio reviews narration and visual choices together without adding human 
   assert.match(app, /data-visual-mode/);
   assert.doesNotMatch(app, /confirm-all-visuals/);
   assert.doesNotMatch(app, /确认全部自动方案/);
-  assert.match(app, /锁定最终稿时一次性确认当前完整方案/);
+  assert.match(app, /下游可以按全文重新规划/);
+  assert.match(app, /只有你亲手添加的文字标注会作为必须保留项/);
   assert.match(app, /信息关系/);
   assert.match(app, /文字标注/);
   assert.match(app, /选中 2–24 个字符/);

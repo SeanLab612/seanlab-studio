@@ -31,7 +31,7 @@ import {
 } from "../src/semantic-planning/index.ts";
 import { visualRhetoricByComponent } from "../src/visual-brief/component-rhetoric.ts";
 import { generateVisualBrief, validateComponentProps } from "../src/visual-brief/generator.ts";
-import { resolveExactSpokenQuoteCaptionRange } from "../src/visual-production/timeline.ts";
+import { authoredVisualEntryIsLocked, resolveExactSpokenQuoteCaptionRange } from "../src/visual-production/timeline.ts";
 import { createMimoJsonAdapter, groupCaptionSegments } from "./workflow/mimo-adapter.mjs";
 
 const config = JSON.parse(await readFile(resolve(process.argv[2] ?? "config/workflow-test.json"), "utf8"));
@@ -62,6 +62,7 @@ if (config.authoredVisualPlanFile) {
   }
 }
 for (const beat of authoredVisualPlan.beats ?? []) {
+  if (!authoredVisualEntryIsLocked(authoredVisualPlan, beat)) continue;
   const quoteSha256 = createHash("sha256").update(beat.exactSpokenQuote).digest("hex");
   if (beat.exactSpokenQuoteSha256 && beat.exactSpokenQuoteSha256 !== quoteSha256)
     throw new Error(`Visual beat ${beat.id} exact-spoken-quote hash binding is stale`);
@@ -76,12 +77,17 @@ const endAnchorForLegacyConstraint = (constraint) => {
       : lockedNarrationForRanges?.sections?.find((section) => section.id === constraint.sectionId)?.narration;
   return typeof spokenText === "string" ? spokenText.replace(/\s+/g, "").trim().slice(-42) : undefined;
 };
-const legacyAuthoredVisualConstraints = authoredVisualPlan.sections ?? [];
+const legacyAuthoredVisualConstraints = (authoredVisualPlan.sections ?? []).filter((section) =>
+  authoredVisualEntryIsLocked(authoredVisualPlan, section),
+);
 // Exact Visual Beats are materialized separately from the section fallback.
 // Feeding them into the legacy segment router would replace an entire semantic
 // segment merely because one exact phrase overlaps it.
 const componentVisualBeats = (authoredVisualPlan.beats ?? []).filter(
-  (beat) => beat.status === "confirmed" && beat.primaryVisualType === "component",
+  (beat) =>
+    beat.status === "confirmed" &&
+    beat.primaryVisualType === "component" &&
+    authoredVisualEntryIsLocked(authoredVisualPlan, beat),
 );
 const authoredVisualConstraints = legacyAuthoredVisualConstraints.map((constraint) => {
   const resolved = resolveAuthoredVisualRange(

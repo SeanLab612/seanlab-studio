@@ -461,6 +461,15 @@ test("source grounding treats 无需 as 不需要 and ignores lexical singulars 
   assert.deepEqual(report.groundedSourceTerms, ["不需要"]);
 });
 
+test("source grounding recognizes English do not need evidence in Chinese narration", () => {
+  const report = evaluateSourceGrounding({
+    outputText: "普通网页开发不需要 Blender。",
+    sourceText: "Contributors do not need Blender for ordinary web development.",
+  });
+  assert.deepEqual(report.unsupportedSourceTerms, []);
+  assert.deepEqual(report.groundedSourceTerms, ["不需要"]);
+});
+
 test("source grounding recognizes direct English evidence translated into Chinese narration", () => {
   const report = evaluateSourceGrounding({
     outputText: "项目支持 Codex，是 Claude Design 的开源替代方案，并采用 Apache 2.0 许可证。",

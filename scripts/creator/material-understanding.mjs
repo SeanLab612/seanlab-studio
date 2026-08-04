@@ -53,9 +53,12 @@ const applyVisibleTextCorrections = (output, project) => {
   };
 };
 
+const authoringEvidenceMaterials = (project) =>
+  project.materials.filter((material) => material.kind !== "speaker-video");
+
 const materialInventory = async (projectId, project, { includeContentHash = true } = {}) =>
   Promise.all(
-    project.materials.map(async (material) => {
+    authoringEvidenceMaterials(project).map(async (material) => {
       let assetPath;
       let info;
       if (material.assetId) {
@@ -210,7 +213,7 @@ const prepareMaterial = async (projectId, material, mediaDir) => {
 
 const assertUnderstandingOutput = (output, project) => {
   const sourceIds = new Set(project.sources.map((item) => item.id));
-  const materialIds = new Set(project.materials.map((item) => item.id));
+  const materialIds = new Set(authoringEvidenceMaterials(project).map((item) => item.id));
   if (
     output.sources.length !== sourceIds.size ||
     output.sources.some((item) => !sourceIds.has(item.sourceId)) ||
@@ -288,12 +291,13 @@ export const analyzeMaterialUnderstanding = async (
   await writeJsonAtomic(resolve(authoringDir, "source-context.json"), sourceContext);
   onProgress({ percent: 28, phase: "media", message: "正在读取图片，并从录屏抽取代表画面" });
   const prepared = [];
-  for (const material of project.materials) prepared.push(await prepareMaterial(projectId, material, mediaDir));
+  for (const material of authoringEvidenceMaterials(project))
+    prepared.push(await prepareMaterial(projectId, material, mediaDir));
   const imagePaths = prepared.flatMap((item) => (item.imagePath ? [item.imagePath] : []));
   onProgress({
     percent: 52,
     phase: "agent",
-    message: `正在由 ${project.agent.id} 汇总 ${project.sources.length} 份资料和 ${project.materials.length} 份素材`,
+    message: `正在由 ${project.agent.id} 汇总 ${project.sources.length} 份资料和 ${authoringEvidenceMaterials(project).length} 份写稿证据素材`,
   });
   let output;
   let provider;

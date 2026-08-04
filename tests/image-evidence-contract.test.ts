@@ -13,7 +13,7 @@ const narration = {
   ],
 };
 
-test("locking derives a verbatim screenshot anchor from its one bound narration section", () => {
+test("reference screenshots stay optional while retaining a narration anchor", () => {
   const project = {
     materials: [
       {
@@ -26,7 +26,7 @@ test("locking derives a verbatim screenshot anchor from its one bound narration 
     ],
   };
   assert.equal(bindAuthoredMediaToNarration(project, narration), true);
-  assert.equal(project.materials[0].required, true);
+  assert.equal(project.materials[0].required, false);
   assert.match(project.materials[0].anchorText, /^项目创建时，还会选定参与内容理解的Agent/);
   assert.ok(narration.sections[0].narration.replace(/\s+/g, "").includes(project.materials[0].anchorText));
   assert.deepEqual(imageEvidenceProtectedAnchor(project.materials[0]), {
@@ -60,22 +60,26 @@ test("one registered screenshot may create several narration placements", () => 
     ],
   };
   assert.equal(bindAuthoredMediaToNarration(project, repeated), true);
-  assert.equal(project.materials[0].required, true);
+  assert.equal(project.materials[0].required, false);
   assert.deepEqual(project.materials[0].anchorTexts, ["这里先展示完整工作台。", "后面再次放大审核区域。"]);
 });
 
-test("locking requires every authored media section to bind one matching available candidate", () => {
+test("reference media never blocks locking, but an explicit locked material is validated", () => {
   const project = {
     materials: [{ id: "material-2", kind: "screen-recording", assetId: "asset-2", required: false }],
   };
   const unbound = {
     sections: [{ id: "section-2", narration: "这里展示操作过程。", visualIntent: "screen-recording", materialIds: [] }],
   };
-  assert.throws(() => bindAuthoredMediaToNarration(project, unbound), /exactly one material before locking/);
+  assert.doesNotThrow(() => bindAuthoredMediaToNarration(project, unbound));
   const mismatched = {
     sections: [
       { id: "section-2", narration: "这里展示操作过程。", visualIntent: "screenshot", materialIds: ["material-2"] },
     ],
   };
-  assert.throws(() => bindAuthoredMediaToNarration(project, mismatched), /must bind a screenshot material/);
+  assert.doesNotThrow(() => bindAuthoredMediaToNarration(project, mismatched));
+  assert.throws(
+    () => bindAuthoredMediaToNarration(project, mismatched, { lockedMaterialIds: new Set(["material-2"]) }),
+    /must bind a screenshot material/,
+  );
 });

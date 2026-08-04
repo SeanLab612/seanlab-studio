@@ -16,6 +16,7 @@ type LockedVisualBeat = {
   sectionId: string;
   exactSpokenQuote: string;
   status: "suggested" | "confirmed";
+  executionPolicy?: "reference" | "locked";
   primaryVisualType: PrimaryVisualType;
   takeover: TakeoverMode;
   speakerPresence: SpeakerPresenceMode;
@@ -33,6 +34,8 @@ type LockedTextAnnotation = {
   exactSpokenQuote: string;
   quoteOccurrence?: number;
   status: "suggested" | "confirmed";
+  origin?: "user" | "agent";
+  executionPolicy?: "reference" | "locked";
   effect: TextAnnotationEffect;
   exactSpokenQuoteSha256?: string;
   finalScriptSha256?: string;
@@ -41,11 +44,23 @@ type LockedTextAnnotation = {
 type LockedAnimationSection = {
   sectionId: string;
   mode: string;
+  executionPolicy?: "reference" | "locked";
   anchorText: string;
   endAnchorText: string;
   animationAnchorText?: string;
   animationEndAnchorText?: string;
   animationIntent?: AnimationIntent;
+};
+
+type AuthoredVisualPlanVersion = { visualPlanContractVersion?: string };
+export const authoredVisualEntryIsLocked = (
+  plan: AuthoredVisualPlanVersion,
+  entry: { origin?: "user" | "agent"; executionPolicy?: "reference" | "locked" },
+  kind: "visual" | "annotation" = "visual",
+) => {
+  if (plan.visualPlanContractVersion === "4.0")
+    return kind === "annotation" && entry.origin === "user" && entry.executionPolicy === "locked";
+  return entry.executionPolicy === "locked" || entry.executionPolicy === undefined;
 };
 
 const normalizeSpokenText = (value: string) =>
@@ -90,11 +105,11 @@ export const resolveLockedVisualBeatTimeline = ({
   plan,
   captions,
 }: {
-  plan: { beats?: LockedVisualBeat[]; finalScriptSha256?: string };
+  plan: AuthoredVisualPlanVersion & { beats?: LockedVisualBeat[]; finalScriptSha256?: string };
   captions: SemanticCaption[];
 }) => {
   const intervals = (plan.beats ?? [])
-    .filter((beat) => beat.status === "confirmed")
+    .filter((beat) => beat.status === "confirmed" && authoredVisualEntryIsLocked(plan, beat))
     .map((beat) => {
       if (plan.finalScriptSha256 && beat.finalScriptSha256 !== plan.finalScriptSha256)
         throw new Error(`Visual beat ${beat.id} final-script hash binding is stale`);
@@ -161,11 +176,13 @@ export const resolveLockedTextAnnotationTimeline = ({
   plan,
   captions,
 }: {
-  plan: { annotations?: LockedTextAnnotation[]; finalScriptSha256?: string };
+  plan: AuthoredVisualPlanVersion & { annotations?: LockedTextAnnotation[]; finalScriptSha256?: string };
   captions: SemanticCaption[];
 }): ResolvedTextAnnotation[] =>
   (plan.annotations ?? [])
-    .filter((annotation) => annotation.status === "confirmed")
+    .filter(
+      (annotation) => annotation.status === "confirmed" && authoredVisualEntryIsLocked(plan, annotation, "annotation"),
+    )
     .map((annotation) => {
       if (plan.finalScriptSha256 && annotation.finalScriptSha256 !== plan.finalScriptSha256)
         throw new Error(`Text annotation ${annotation.id} final-script hash binding is stale`);
@@ -193,11 +210,12 @@ export const resolveLockedSectionAnimationTimeline = ({
   plan,
   captions,
 }: {
-  plan: { sections?: LockedAnimationSection[] };
+  plan: AuthoredVisualPlanVersion & { sections?: LockedAnimationSection[] };
   captions: SemanticCaption[];
 }): ResolvedAnimationCue[] =>
   (plan.sections ?? []).flatMap((section) => {
-    if (section.mode !== "animation" || !section.animationIntent) return [];
+    if (section.mode !== "animation" || !section.animationIntent || !authoredVisualEntryIsLocked(plan, section))
+      return [];
     const firstStageQuote = section.animationIntent.stages[0]?.spokenQuote;
     const lastStageQuote = section.animationIntent.stages.at(-1)?.spokenQuote;
     const startAnchor = section.animationAnchorText ?? firstStageQuote ?? section.anchorText;

@@ -1426,7 +1426,7 @@ const visualArrangementCard = (project, section, index) => {
   if (review?.beats?.length) {
     const confirmed = review.status === "confirmed";
     return `<aside class="visual-arrangement-card multi-beat-arrangement">
-      <div class="visual-arrangement-head"><div><span>自动视觉编排</span><b class="visual-status ${confirmed ? "confirmed" : ""}">${confirmed ? "已纳入整体确认" : "等待整体确认"}</b></div><strong>${review.beats.length} 个视觉节拍</strong></div>
+      <div class="visual-arrangement-head"><div><span>自动视觉编排 · 制作参考</span><b class="visual-status ${confirmed ? "confirmed" : ""}">${confirmed ? "已确认参考" : "等待确认参考"}</b></div><strong>${review.beats.length} 个视觉节拍</strong></div>
       ${visualBeatPlanMarkup(project,section,index,review)}
       ${textAnnotationEditor(section,index)}
     </aside>`;
@@ -1460,11 +1460,11 @@ const visualArrangementCard = (project, section, index) => {
     const animation = rawAnimation ? applyAnimationAssetMatches(section, rawAnimation) : undefined;
     body = animation
       ? animationReviewMarkup(section, animation, mode, evidence, index)
-      : `<div class="visual-empty"><strong>这段暂时无法生成稳定动画</strong><p>请保留自动方案或改为人物、组件、图片或录屏。</p></div>`;
+      : `<div class="visual-empty"><strong>这段没有稳定的动画参考</strong><p>制作 Agent 会结合全文重新选择人物、组件、图片、录屏或其他动画方案。</p></div>`;
   } else {
     body = `<div class="visual-recommendation"><span>${mode === "auto" ? "系统建议" : "已选择"}</span><strong>人物画面</strong></div><div class="visual-evidence"><span>判断依据</span><p>${section.visualOpportunities?.length ? "当前不使用结构组件，保留人物表达。" : "这段没有必须展示的素材或明确信息关系。"}</p></div>`;
   }
-  return `<aside class="visual-arrangement-card"><div class="visual-arrangement-head"><div><span>主视觉安排</span><b class="visual-status ${confirmed ? "confirmed" : ""}">${confirmed ? "已纳入整体确认" : "等待整体确认"}</b></div>${modeSelector(project,section,index,mode)}</div>${body}${index === -2 ? "" : textAnnotationEditor(section,index)}</aside>`;
+  return `<aside class="visual-arrangement-card"><div class="visual-arrangement-head"><div><span>主视觉参考</span><b class="visual-status ${confirmed ? "confirmed" : ""}">${confirmed ? "已确认参考" : "等待确认参考"}</b></div>${modeSelector(project,section,index,mode)}</div>${body}${index === -2 ? "" : textAnnotationEditor(section,index)}</aside>`;
 };
 const animationAssetTargetCount = () =>
   Object.values(state.detail?.visualStoryboard?.sections ?? {}).reduce(
@@ -1538,12 +1538,12 @@ const visualStoryboard = (project, narration) => {
     .sort((left, right) => right[1] - left[1])
     .map(([styleId, count], index) => `${index === 0 ? "主" : "辅"}：${animationTemplateFor(styleId)?.label ?? styleId} ${count}段`)
     .join(" · ");
-  return `<div class="storyboard-heading"><div><h3>口播稿与视觉方案 · 分镜脚本（${entries.length} 段）</h3><p>逐段检查文案和画面安排；锁定最终稿时一次性确认当前完整方案。</p></div><div class="storyboard-heading-meta"><span data-visual-save-status data-state="saved">视觉修改自动保存</span><span>当前已确认 ${confirmed}/${entries.length}</span></div></div>${animationAssetReplanPanel(project)}${annotations.length || styleSummary ? `<details class="storyboard-summary-details"><summary>查看分镜统计</summary><p>文字标注 ${annotations.length}${styleSummary ? ` · 动画风格 ${escapeHtml(styleSummary)}` : ""}</p></details>` : ""}<div id="section-editor" class="visual-storyboard">${entries.map(({section,index},itemIndex) => {
+  return `<div class="storyboard-heading"><div><h3>口播稿与视觉方案 · 分镜脚本（${entries.length} 段）</h3><p>这里的视觉方案供你预览方向，也供制作 Agent 参考；下游可以按全文重新规划。只有你亲手添加的文字标注会作为必须保留项。</p></div><div class="storyboard-heading-meta"><span data-visual-save-status data-state="saved">视觉修改自动保存</span><span>当前已确认参考 ${confirmed}/${entries.length}</span></div></div>${animationAssetReplanPanel(project)}${annotations.length || styleSummary ? `<details class="storyboard-summary-details"><summary>查看分镜统计</summary><p>用户文字标注 ${annotations.length}${styleSummary ? ` · 参考动画风格 ${escapeHtml(styleSummary)}` : ""}</p></details>` : ""}<div id="section-editor" class="visual-storyboard">${entries.map(({section,index},itemIndex) => {
     const number = String(itemIndex + 1).padStart(2,"0");
     const narrationControl = `<textarea data-section-narration="${index}">${escapeHtml(section.narration)}</textarea>`;
     return itemIndex === active
       ? `<article class="storyboard-active" data-section="${index}"><div class="narration-edit-card"><div class="storyboard-section-title"><span>${number}</span><strong>${escapeHtml(section.title)}</strong></div><label>旁白文案${narrationControl}</label></div>${visualArrangementCard(project,section,index)}</article>`
-      : `<button type="button" class="storyboard-collapsed" data-open-narration-section="${itemIndex}"><span>${number}</span><strong>${escapeHtml(section.title)}</strong><p>${escapeHtml(section.narration)}</p><b>${escapeHtml(visualSummary(project,section))}</b><i class="${storyboardReview(section)?.status === "confirmed" ? "confirmed" : ""}">${storyboardReview(section)?.status === "confirmed" ? "已确认" : "待确认"}</i><span aria-hidden="true">⌄</span></button>`;
+      : `<button type="button" class="storyboard-collapsed" data-open-narration-section="${itemIndex}"><span>${number}</span><strong>${escapeHtml(section.title)}</strong><p>${escapeHtml(section.narration)}</p><b>${escapeHtml(visualSummary(project,section))}</b><i class="${storyboardReview(section)?.status === "confirmed" ? "confirmed" : ""}">${storyboardReview(section)?.status === "confirmed" ? "参考已确认" : "参考待确认"}</i><span aria-hidden="true">⌄</span></button>`;
   }).join("")}</div>`;
 };
 const postDraftMaterialForm = () => `
@@ -1696,7 +1696,16 @@ const narrationExportControls = () => `
 const narrationHistory = (project) => {
   const attempts = state.detail?.narrationHistory ?? [];
   if (!attempts.length) return "";
-  const labels = { initial:"初稿", rewrite:"Agent 重写", "manual-save":"人工保存", restore:"历史恢复" };
+  const labels = {
+    initial:"初稿",
+    rewrite:"Agent 重写",
+    "evidence-review-input":"Agent 事实审稿前版本",
+    "automatic-repair":"Agent 内部修复版本",
+    "manual-save":"人工保存",
+    restore:"历史恢复"
+  };
+  const statusLabel = (attempt) =>
+    attempt.status === "succeeded" ? "可用" : attempt.status === "superseded" ? "已完成内部审核" : "内部未采用";
   const changeLabel = (attempt) => {
     const summary = attempt.changeSummary;
     if (!summary) return "";
@@ -1707,7 +1716,7 @@ const narrationHistory = (project) => {
   };
   return `<details class="review-details history-panel"><summary>版本历史 · ${attempts.length}</summary><div class="history-list">${attempts.map((attempt) => `
     <div class="history-row ${attempt.attemptId === project.authoring.currentAttemptId ? "current" : ""}">
-      <div><strong>${escapeHtml(labels[attempt.kind] ?? attempt.kind)}</strong><span>${formatDateTime(attempt.createdAt)} · ${attempt.status === "succeeded" ? "可用" : "失败"}${escapeHtml(changeLabel(attempt))}</span></div>
+      <div><strong>${escapeHtml(labels[attempt.kind] ?? attempt.kind)}</strong><span>${formatDateTime(attempt.createdAt)} · ${statusLabel(attempt)}${escapeHtml(changeLabel(attempt))}</span></div>
       ${attempt.status === "succeeded" && attempt.attemptId !== project.authoring.currentAttemptId && project.authoring.state === "drafted" ? `<button class="secondary compact" data-restore-narration="${escapeHtml(attempt.attemptId)}">恢复为新版本</button>` : attempt.attemptId === project.authoring.currentAttemptId ? `<span class="badge">当前版本</span>` : ""}
     </div>`).join("")}</div></details>`;
 };
@@ -3334,6 +3343,8 @@ const bindWorkspaceActions = () => {
       const annotation = { ...annotations[annotationIndex] };
       mutate(annotation, section);
       annotation.status = "confirmed";
+      annotation.origin = "user";
+      annotation.executionPolicy = "locked";
       annotations[annotationIndex] = annotation;
       setStoryboardReview(section, { ...review, annotations });
     });
@@ -3363,7 +3374,7 @@ const bindWorkspaceActions = () => {
         return itemStart < end && itemStart + item.exactSpokenQuote.length > start;
       });
       if (overlaps) return toast("这段文字已经包含在另一处标注中");
-      annotations.push({ id:nextAnnotationId(annotations), exactSpokenQuote:selectedQuote, ...(occurrence > 1 ? { quoteOccurrence:occurrence } : {}), status:"confirmed", effect:"highlight" });
+      annotations.push({ id:nextAnnotationId(annotations), exactSpokenQuote:selectedQuote, ...(occurrence > 1 ? { quoteOccurrence:occurrence } : {}), status:"confirmed", origin:"user", executionPolicy:"locked", effect:"highlight" });
       setStoryboardReview(section, { ...review, annotations });
     });
   }));

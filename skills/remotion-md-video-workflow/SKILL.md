@@ -130,19 +130,21 @@ Treat semantic components and asset foundations as separate layers and apply the
    - Refuse unsupported numbers, incomplete matrices, missing identity evidence, placeholders, incomplete titles, or copy beyond the reviewed component capacity. A skipped visual is safer than invented or clipped content.
    - Freeze every valid component candidate before whole-video direction. The local-only `visual-direction` stage assigns hero/support/accent/none importance, enforces breathing, duration, density, coverage, and repetition budgets, and writes an auditable show/skip decision for every candidate. It may shorten, delay, replace, or skip a candidate but may not invent new semantic evidence or choose an unapproved component.
    - When the manifest supplies authored screen recordings, probe and checksum them before planning, then resolve authored spoken-text anchors against punctuation-preserving captions in `scene-align`. A required resolved recording is a hard constraint: it suppresses overlapping semantic components, stays muted, and uses the edited speaker video as the single audio master plus a muted safe-area PIP. Never let the director guess, replace, or silently skip the requested asset.
-   - Resolve the locked section-level primary-visual plan against punctuation-preserving semantic captions. Reject stale
-     final-script bindings and overlapping primary intervals. A selected image, screen-demo, animation, or explicit
-     speaker interval suppresses conflicting semantic component candidates and may never be silently moved or replaced.
-   - Resolve locked text annotations independently against the same semantic captions. Reject stale hashes, missing
+   - Treat every version 4 authored section, beat, animation, and material plan as an upstream reference. Reference
+     entries may be replaced, moved, omitted, or supplemented by downstream semantic planning and must never block
+     production because their anchors, component forms, or materials are stale. Only a user-origin text annotation may
+     carry an execution lock. Keep the version 3 fail-closed behavior only for already frozen projects.
+   - Resolve locked user text annotations independently against the same semantic captions. Reject stale hashes, missing
      quotes, and overlaps between annotations, but never suppress the primary visual because of an annotation. Render a
      compact annotation with the approved `rough-annotation` renderer in the primary visual's safe zone; do not wrap it
-     in a new surface container. For a component, prefer the available space below it.
+     in a new surface container. For a component, prefer the available space below it. If downstream planning proposes
+     the same target in the same interval, keep the user annotation and remove only the duplicate Agent item.
    - Keep `speaker`, `component`, `image`, `screen-demo`, and `animation` mutually exclusive as primary interval types.
      Report component coverage, real-material coverage, animation coverage, full-screen takeover, and speaker visibility
      separately. These reports are diagnostic and must not force irrelevant visuals.
-   - Animation may use only approved semantic archetypes and style profiles. The locked authored visual plan binds the
-     creator-confirmed structure and style per section; a creator-workflow handoff uses `per-cue` animation policy and
-     must never replace those choices with one project-wide template. Each animation is full-screen with a fixed
+   - Animation may use only approved semantic archetypes and style profiles. Version 4 upstream animation choices remain
+     references; a creator-workflow handoff uses `per-cue` animation policy rather than forcing one project-wide template.
+     Each animation is full-screen with a fixed
      top-right circular speaker PIP. Candidate movement primitives require static phase review and bounded 540p
      continuous excerpts covering every confirmed animation cue; omit animation cues from delivery props until
      explicit renderer promotion. Full continuous 720p pacing review remains an explicit strict option.

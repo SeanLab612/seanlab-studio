@@ -88,6 +88,7 @@ const sourceConstraintEnglishAliases: Partial<Record<(typeof sourceConstraintTer
   强大: /\bpowerful\b/i,
   成熟: /\bmature\b/i,
   领先: /\bleading\b/i,
+  不需要: /\b(?:do(?:es)?\s+not|don['’]t|doesn['’]t)\s+need\b|\bwithout\s+(?:requiring|the\s+need\s+for)\b/i,
 };
 
 const normalizeGroundingText = (value: string) =>
@@ -150,6 +151,10 @@ export const evaluateSourceGrounding = ({ outputText, sourceText }: { outputText
       sourceGroundingCoverage: 1,
       groundedSourceTerms: [] as string[],
       unsupportedSourceTerms: [] as string[],
+      groundedQualifierTerms: [] as string[],
+      unsupportedQualifierTerms: [] as string[],
+      groundedNumberClaims: [] as string[],
+      unsupportedNumberClaims: [] as string[],
     };
   const output = normalizeGroundingText(outputText);
   const source = normalizeGroundingText(sourceText);
@@ -171,6 +176,10 @@ export const evaluateSourceGrounding = ({ outputText, sourceText }: { outputText
     ),
     groundedSourceTerms,
     unsupportedSourceTerms,
+    groundedQualifierTerms: groundedTerms,
+    unsupportedQualifierTerms: unsupportedTerms,
+    groundedNumberClaims: groundedNumbers,
+    unsupportedNumberClaims: unsupportedNumbers,
   };
 };
 

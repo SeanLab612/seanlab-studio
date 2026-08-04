@@ -58,3 +58,11 @@ At draft level, `section.materialIds` remains an optional preferred recording or
 - The downstream planner may place several non-overlapping visual beats in any spoken block. Each beat owns one primary visual; uncovered words remain on the speaker.
 - A single image beat may group up to three directly related screenshots. A screen recording must anchor to the exact short quote it proves, never automatically stretch across the complete section.
 - Manual edits that change the quoted section invalidate its old visual-opportunity hints; regenerate them through Agent rewrite or let downstream understanding work from the final recording.
+
+## Evidence review boundary
+
+- The pinned Agent performs a separate evidence-editing pass after it produces a structurally valid draft and before the creator sees it.
+- That pass evaluates complete claim meaning, including translation and paraphrase, against frozen sources, creator direction, and confirmed material-understanding cards.
+- Unsupported claims are removed or narrowed by the Agent inside the same job. They are not returned to the creator as keyword errors.
+- Local hard validation is limited to deterministic contracts: package structure, registered material references, exact numeric claims, and derived-script consistency.
+- Lexical qualifiers such as “free”, “stable”, “support”, or their translations may be reported for audit metrics, but a missing literal token match must never reject a narration draft.

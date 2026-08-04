@@ -53,7 +53,7 @@ test("visual authoring forms cover every approved component without exposing com
   assert.deepEqual(coverage, Object.keys(approvedComponentRegistry).sort());
 });
 
-test("narration source grounding blocks unsupported project claims before persistence", () => {
+test("narration qualifier terms remain visible for audit without acting as a hard blocker", () => {
   const narration = {
     schemaVersion: "1.0",
     title: "四千星开源工具",
@@ -73,26 +73,79 @@ test("narration source grounding blocks unsupported project claims before persis
     fullScript: "",
     shootingGuide: [],
   };
+  const report = assertNarrationSourceGrounding({
+    narration,
+    project: {
+      ...project,
+      brief: { topic: "说明项目在 GitHub 上大约有四千个星", category: "tool-review" },
+      materials: [{ id: "material-1", label: "GitHub 截图", description: "显示 4K Stars" }],
+    },
+    sourceContext: [
+      {
+        id: "source-1",
+        label: "原始口播",
+        kind: "note",
+        status: "resolved",
+        content: "这个项目在 GitHub 上已经大约有四千个星。",
+      },
+    ],
+  });
+  assert.deepEqual(new Set(report.unsupportedQualifierTerms), new Set(["开源", "工具", "受欢迎"]));
+  assert.deepEqual(report.unsupportedNumberClaims, []);
+});
+
+test("narration deterministic grounding still blocks unsupported exact numbers and unknown material ids", () => {
+  const base = {
+    schemaVersion: "1.0",
+    title: "项目介绍",
+    opening: "这个项目如何工作？",
+    overview: "这里看它的完整过程。",
+    sections: [
+      {
+        id: "one",
+        title: "入口",
+        narration: "它有 12 个入口。",
+        visualIntent: "semantic-visual",
+        visualOpportunities: [],
+        materialIds: [],
+        recordingInstruction: null,
+      },
+      {
+        id: "two",
+        title: "结果",
+        narration: "访客可以输入文字。",
+        visualIntent: "semantic-visual",
+        visualOpportunities: [],
+        materialIds: [],
+        recordingInstruction: null,
+      },
+    ],
+    conclusion: "最后回到输入本身。",
+    fullScript: "",
+    shootingGuide: ["展示现有素材。"],
+  };
   assert.throws(
     () =>
       assertNarrationSourceGrounding({
-        narration,
-        project: {
-          ...project,
-          brief: { topic: "说明项目在 GitHub 上大约有四千个星", category: "tool-review" },
-          materials: [{ id: "material-1", label: "GitHub 截图", description: "显示 4K Stars" }],
-        },
-        sourceContext: [
-          {
-            id: "source-1",
-            label: "原始口播",
-            kind: "note",
-            status: "resolved",
-            content: "这个项目在 GitHub 上已经大约有四千个星。",
-          },
-        ],
+        narration: base,
+        project: { ...project, materials: [] },
+        sourceContext: [{ status: "resolved", label: "README", content: "访客可以输入文字。" }],
       }),
-    /开源.*受欢迎|受欢迎.*开源/,
+    /无法核对的明确数字：12/,
+  );
+  assert.throws(
+    () =>
+      assertNarrationSourceGrounding({
+        narration: {
+          ...base,
+          sections: base.sections.map((section, index) =>
+            index === 0 ? { ...section, narration: "访客可以输入文字。", materialIds: ["missing"] } : section,
+          ),
+        },
+        project: { ...project, materials: [] },
+        sourceContext: [{ status: "resolved", label: "README", content: "访客可以输入文字。" }],
+      }),
+    /不存在的素材：missing/,
   );
 });
 

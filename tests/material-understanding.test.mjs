@@ -96,6 +96,19 @@ test("material understanding binds real inputs and becomes stale after intake ch
     assert.equal(attachedImages.length, 1);
     const confirmed = await understanding.confirmMaterialUnderstanding("material-test", report.inputSha256);
     assert.equal(confirmed.status, "confirmed");
+    const speakerVideo = resolve(root, "speaker.mp4");
+    await writeFile(speakerVideo, "speaker-video-bytes");
+    await store.importCreatorAsset({
+      projectId: "material-test",
+      sourcePath: speakerVideo,
+      kind: "speaker-video",
+      label: "写稿后补充的人物口播",
+    });
+    assert.equal(
+      (await understanding.loadMaterialUnderstanding("material-test", undefined, { verifyContentHash: true })).status,
+      "confirmed",
+      "speaker footage belongs to production and must not invalidate confirmed writing evidence",
+    );
     await store.updateCreatorEditorialBrief({
       projectId: "material-test",
       editorialBrief: {
