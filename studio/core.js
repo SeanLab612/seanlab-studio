@@ -1,3 +1,5 @@
+import { localeTag, translateText } from "./i18n.js";
+
 export const $ = (selector) => document.querySelector(selector);
 
 export const escapeHtml = (value) =>
@@ -24,6 +26,7 @@ export const api = async (path, options = {}) => {
       ...options,
       headers: {
         "content-type": "application/json",
+        "accept-language": localeTag(),
         ...(studioToken ? { "x-studio-token": studioToken } : {}),
         ...(options.headers ?? {}),
       },
@@ -33,13 +36,13 @@ export const api = async (path, options = {}) => {
     throw new Error("Studio 服务连接已中断，请重新启动服务后再试");
   }
   const value = await response.json();
-  if (!response.ok) throw new Error(value.error ?? `Request failed: ${response.status}`);
+  if (!response.ok) throw new Error(translateText(value.error ?? `Request failed: ${response.status}`));
   if (typeof value.csrfToken === "string") studioToken = value.csrfToken;
   return value;
 };
 
 export const toast = (message) => {
-  $("#toast").textContent = message;
+  $("#toast").textContent = translateText(message);
   $("#toast").classList.add("show");
   setTimeout(() => $("#toast").classList.remove("show"), 2600);
 };

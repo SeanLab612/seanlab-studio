@@ -6,6 +6,8 @@ button { cursor:pointer; }
 button:focus-visible { outline:2px solid #58a982; outline-offset:2px; }
 .studio-shell { height:100vh; display:flex; flex-direction:column; }
 .global-topbar { height:66px; flex:none; display:grid; grid-template-columns:220px minmax(280px,1fr) auto; align-items:center; gap:12px; padding:0 14px 0 8px; color:#f8fbf9; background:#101715; border-bottom:1px solid #27322e; box-shadow:0 8px 28px rgba(20,38,31,.13); z-index:10; }
+html[lang="en"] .global-topbar { grid-template-columns:220px minmax(220px,1fr) auto; gap:9px; }
+html[lang="en"] .topbar-actions { gap:7px; }
 .brand.topbar-brand { align-self:stretch; justify-content:flex-start; padding:2px 0 0; gap:11px; min-width:0; }
 .topbar-brand > div { min-width:0; display:flex; flex-direction:column; gap:2px; }
 .topbar-brand strong { font-size:14px; line-height:1.15; white-space:nowrap; }
@@ -29,6 +31,8 @@ button:focus-visible { outline:2px solid #58a982; outline-offset:2px; }
 .agent-logo { width:22px; height:22px; object-fit:contain; border-radius:5px; flex:none; }
 .agent-logo[src$="/codex.svg"] { padding:3px; background:#fff; }
 .agent-status-text { color:#7fae98; font-size:10px; font-weight:600; }
+.language-toggle { min-width:38px; height:30px; padding:0 9px; border:1px solid #34433d; border-radius:8px; background:#151d1a; color:#b8c8c0; font-size:11px; font-weight:750; letter-spacing:.04em; }
+.language-toggle:hover,.language-toggle:focus-visible { border-color:#638173; background:#1c2924; color:#fff; }
 .settings-button { width:38px; height:38px; display:grid; place-items:center; border:0; padding:0; background:transparent; color:#e8efeb; }
 .settings-button img { width:20px; height:20px; opacity:.76; transition:opacity .14s ease,transform .14s ease; }
 .settings-button:hover,.settings-button:focus-visible { background:transparent; outline:none; }

@@ -14,6 +14,17 @@ import {
   workflowStatusLabels,
 } from "./contracts.js";
 import { $, agentAsset, api, escapeHtml, toast } from "./core.js";
+import {
+  formatDateTime,
+  getLocale,
+  localeButtonLabel,
+  localeButtonTitle,
+  startI18n,
+  switchLocale,
+  translateText,
+} from "./i18n.js";
+
+startI18n();
 
 const state = {
   projects: [],
@@ -605,6 +616,10 @@ const renderTopbar = () => {
       ? "已认证"
       : "当前不可用"
     : "等待选择项目";
+  const languageToggle = $("#language-toggle");
+  languageToggle.textContent = localeButtonLabel();
+  languageToggle.title = localeButtonTitle();
+  languageToggle.setAttribute("aria-label", localeButtonTitle());
 };
 const setFormError = (selector, message = "") => {
   const element = $(selector);
@@ -833,7 +848,7 @@ const renderSettingsPanel = () => {
     <div class="about-list">
       <div class="about-row"><span>版本</span><strong>${shortVersion()}</strong></div>
       <div class="about-row"><span>工作模式</span><strong>本地优先</strong></div>
-      <div class="about-row"><span>界面语言</span><strong>简体中文</strong></div>
+      <div class="about-row"><span>界面语言</span><strong>${getLocale() === "en" ? "English" : "简体中文"}</strong></div>
       <div class="about-row"><span>已适配 Agent</span><strong>Codex CLI、Claude Code</strong></div>
     </div>`;
 };
@@ -1692,7 +1707,7 @@ const narrationHistory = (project) => {
   };
   return `<details class="review-details history-panel"><summary>版本历史 · ${attempts.length}</summary><div class="history-list">${attempts.map((attempt) => `
     <div class="history-row ${attempt.attemptId === project.authoring.currentAttemptId ? "current" : ""}">
-      <div><strong>${escapeHtml(labels[attempt.kind] ?? attempt.kind)}</strong><span>${new Date(attempt.createdAt).toLocaleString("zh-CN")} · ${attempt.status === "succeeded" ? "可用" : "失败"}${escapeHtml(changeLabel(attempt))}</span></div>
+      <div><strong>${escapeHtml(labels[attempt.kind] ?? attempt.kind)}</strong><span>${formatDateTime(attempt.createdAt)} · ${attempt.status === "succeeded" ? "可用" : "失败"}${escapeHtml(changeLabel(attempt))}</span></div>
       ${attempt.status === "succeeded" && attempt.attemptId !== project.authoring.currentAttemptId && project.authoring.state === "drafted" ? `<button class="secondary compact" data-restore-narration="${escapeHtml(attempt.attemptId)}">恢复为新版本</button>` : attempt.attemptId === project.authoring.currentAttemptId ? `<span class="badge">当前版本</span>` : ""}
     </div>`).join("")}</div></details>`;
 };
@@ -2025,7 +2040,7 @@ const qaSummary = (review) => {
 };
 const reviewInfoContent = (review) => {
   const provenance = review.provenance ?? {};
-  const provenanceTime = provenance.evidenceGeneratedAt ? new Date(provenance.evidenceGeneratedAt).toLocaleString("zh-CN") : "时间未知";
+  const provenanceTime = provenance.evidenceGeneratedAt ? formatDateTime(provenance.evidenceGeneratedAt) : "时间未知";
   return `
     <section class="review-info-section">
       <h3>证据状态</h3>
@@ -2118,7 +2133,7 @@ const staticReviewView = (project, review) => {
     ${review.artifacts.motionRiskReview ? `<div class="panel recut-player"><h3>动画风险片段 · 540p</h3><video controls preload="metadata" src="${escapeHtml(review.artifacts.motionRiskReview)}"></video><p class="muted">这里只包含需要连续观看的动画段落。请检查进入、逐项推进和退出节奏；其他静态组件以审核帧为准。</p></div>` : review.summary.motionReviewMode === "conditional-excerpts" && review.summary.motionRiskReviewRequired === false ? `<div class="panel"><h3>本次无需动态片段</h3><p class="muted">当前没有需要连续判断的动画，静态风险帧审核通过后即可批准进入成片。</p></div>` : ""}
     ${review.artifacts.mediaTransitionEntry || review.artifacts.mediaTransitionExit ? `<div class="panel"><div class="review-section-head"><div><h3>录屏与图片转场</h3></div></div><div class="field-row">${review.artifacts.mediaTransitionEntry ? `<div class="recut-player"><h4>进入画面</h4><video controls preload="metadata" src="${escapeHtml(review.artifacts.mediaTransitionEntry)}"></video></div>` : ""}${review.artifacts.mediaTransitionExit ? `<div class="recut-player"><h4>退出画面</h4><video controls preload="metadata" src="${escapeHtml(review.artifacts.mediaTransitionExit)}"></video></div>` : ""}</div></div>` : ""}
     <div class="panel gallery-panel"><div class="review-section-head"><div><h3>逐帧审核</h3></div><div class="review-contact-actions">${review.artifacts.contactSheet ? `<a class="secondary review-contact-link" href="${escapeHtml(review.artifacts.contactSheet)}" target="_blank" rel="noopener">查看总览大图</a>` : ""}${review.artifacts.titleContactSheet ? `<a class="secondary review-contact-link" href="${escapeHtml(review.artifacts.titleContactSheet)}" target="_blank" rel="noopener">查看标题连续性</a>` : ""}</div></div><div id="review-gallery-content">${galleryMarkup(review)}</div></div>
-    ${review.notes.length ? `<div class="panel"><h3>已记录意见 · ${review.notes.length}</h3><div class="review-note-list">${review.notes.map((note) => `<article><span>${new Date(note.createdAt).toLocaleString("zh-CN")}</span><p>${escapeHtml(note.text)}</p></article>`).join("")}</div></div>` : ""}
+    ${review.notes.length ? `<div class="panel"><h3>已记录意见 · ${review.notes.length}</h3><div class="review-note-list">${review.notes.map((note) => `<article><span>${formatDateTime(note.createdAt)}</span><p>${escapeHtml(note.text)}</p></article>`).join("")}</div></div>` : ""}
     ${reviewDecisionPanel(review)}
     <details class="technical-details"><summary>查看审核版本标识</summary><code>${escapeHtml(review.approvalBindingSha256)}</code></details>
   </section>`;
@@ -2183,7 +2198,7 @@ const deliveryValidationView = (delivery) => {
   </div>`;
 };
 const deliveryActivityView = (delivery) => delivery.progress.activity?.length
-  ? `<div class="panel"><h3>最近处理记录</h3><div class="delivery-activity">${delivery.progress.activity.map((item) => `<div><span></span><p><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.message)} · ${new Date(item.at).toLocaleString("zh-CN")}</small></p></div>`).join("")}</div></div>`
+  ? `<div class="panel"><h3>最近处理记录</h3><div class="delivery-activity">${delivery.progress.activity.map((item) => `<div><span></span><p><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.message)} · ${formatDateTime(item.at)}</small></p></div>`).join("")}</div></div>`
   : "";
 const deliveryDecisionView = (delivery) => {
   if (delivery.status === "delivered") return `<div class="panel delivery-complete"><div class="eyebrow">DELIVERY COMPLETE</div><h2>项目已经完成交付</h2><p>${delivery.summary ? `最终成片 ${formatBytes(delivery.summary.finalVideo?.bytes)}，已经通过检查并完成登记。` : "最终成片已经通过检查并完成登记。"}</p>${delivery.decision?.note ? `<p class="decision-record">交付备注：${escapeHtml(delivery.decision.note)}</p>` : ""}</div>`;
@@ -2273,7 +2288,7 @@ const coverStudioView = (project, cover) => {
     </div>
     <div class="actions"><button type="button" class="primary" id="generate-cover" ${cover.portraitConfigured ? "" : "disabled"}>${cover.portraitConfigured ? "生成 4:3 横版与 3:4 竖版封面" : "请先导入自己的照片"}</button></div>
     <div class="cover-output-grid"><figure class="landscape">${landscape}<figcaption><span>4:3 · 横版</span>${landscapeDownload}</figcaption></figure><figure class="portrait">${portrait}<figcaption><span>3:4 · 竖版</span>${portraitDownload}</figcaption></figure></div>
-    ${cover.generatedAt ? `<p class="hint">最后生成：${new Date(cover.generatedAt).toLocaleString("zh-CN")}。每次重新生成会覆盖当前封面预览，不影响成片。</p>` : ""}
+    ${cover.generatedAt ? `<p class="hint">最后生成：${formatDateTime(cover.generatedAt)}。每次重新生成会覆盖当前封面预览，不影响成片。</p>` : ""}
   </div>`;
 };
 const deliveryView = (project, delivery) => {
@@ -2357,7 +2372,7 @@ const revisionPreviewView = (preview) => {
 };
 const operationsRevisionView = (operations) => {
   const kind = state.revisionKind ?? "translation";
-  return `<div class="revision-builder"><form class="revision-form" id="revision-form"><h3>创建返修请求</h3><label>返修类型<select id="revision-kind">${Object.entries(revisionKindLabels).map(([id,label]) => `<option value="${id}" ${id === kind ? "selected" : ""}>${label}</option>`).join("")}</select></label><label>具体原因<textarea id="revision-reason" rows="3" maxlength="1000" placeholder="说明哪里不对，以及期望改成什么"></textarea></label><div class="revision-fields">${revisionFieldsView(kind, operations)}</div><button type="submit" class="secondary">预览影响</button></form>${revisionPreviewView(state.revisionPreview)}</div><div class="operations-card wide" style="margin-top:14px"><h3>返修审计记录</h3><div class="revision-history">${operations.revisions.map((item) => `<div class="revision-row"><b>${escapeHtml(item.revisionId)}</b><span>${escapeHtml(item.reason)}<br><small>${escapeHtml((item.changed ?? []).join("、"))}</small></span><span>${escapeHtml(item.earliestStaleStage)}<br><small>${new Date(item.appliedAt).toLocaleString("zh-CN")}</small></span></div>`).join("") || '<div class="revision-row">尚无返修记录</div>'}</div></div>`;
+  return `<div class="revision-builder"><form class="revision-form" id="revision-form"><h3>创建返修请求</h3><label>返修类型<select id="revision-kind">${Object.entries(revisionKindLabels).map(([id,label]) => `<option value="${id}" ${id === kind ? "selected" : ""}>${label}</option>`).join("")}</select></label><label>具体原因<textarea id="revision-reason" rows="3" maxlength="1000" placeholder="说明哪里不对，以及期望改成什么"></textarea></label><div class="revision-fields">${revisionFieldsView(kind, operations)}</div><button type="submit" class="secondary">预览影响</button></form>${revisionPreviewView(state.revisionPreview)}</div><div class="operations-card wide" style="margin-top:14px"><h3>返修审计记录</h3><div class="revision-history">${operations.revisions.map((item) => `<div class="revision-row"><b>${escapeHtml(item.revisionId)}</b><span>${escapeHtml(item.reason)}<br><small>${escapeHtml((item.changed ?? []).join("、"))}</small></span><span>${escapeHtml(item.earliestStaleStage)}<br><small>${formatDateTime(item.appliedAt)}</small></span></div>`).join("") || '<div class="revision-row">尚无返修记录</div>'}</div></div>`;
 };
 const operationsRuntimeView = (operations) => {
   const latestJob = operations.operations.jobs[0];
@@ -2368,7 +2383,7 @@ const operationsRuntimeView = (operations) => {
     ? `<article class="operations-card wide"><h3>下一审核门检查</h3><p class="card-meta">${readiness.readinessStatus === "blocked" ? "存在阻塞项" : readiness.readinessStatus === "up-to-date" ? "已经到达下一审核门" : "可以安全继续"} · 目标 ${escapeHtml(readiness.nextHumanGate)}</p><div class="about-list"><div class="about-row"><span>需要运行</span><strong>${readiness.plannedStages.length} 个阶段</strong></div><div class="about-row"><span>直接复用</span><strong>${readiness.reusedStages.length} 个阶段</strong></div><div class="about-row"><span>视频渲染</span><strong>${readiness.execution.videoRenderStages}</strong></div><div class="about-row"><span>Agent / 翻译</span><strong>${readiness.execution.agentCalls} / ${readiness.execution.translationCalls}</strong></div></div>${readiness.blockedStages.length ? `<p class="job-banner-error">阻塞阶段：${escapeHtml(readiness.blockedStages.join("、"))}</p>` : ""}${readiness.avoidedExpensiveStages.length ? `<p class="hint">本次可复用的高成本阶段：${escapeHtml(readiness.avoidedExpensiveStages.join("、"))}</p>` : ""}</article>`
     : "";
   const disk = operations.operations.disk;
-  return `<div class="operations-grid">${readinessView}<article class="operations-card wide"><h3>任务历史</h3><p class="card-meta">刷新页面或重启 Studio 后仍可核对任务状态和最近技术记录。</p><div class="job-history">${operations.operations.jobs.map((job) => `<div class="job-row"><b>${escapeHtml(job.kind)}<small>${escapeHtml(job.action ?? "")}</small></b><span class="status-pill">${escapeHtml(job.status)}</span><span>${escapeHtml(job.progress?.message ?? job.error ?? "—")}</span><small>${job.startedAt ? new Date(job.startedAt).toLocaleString("zh-CN") : job.queuedAt ? `${new Date(job.queuedAt).toLocaleString("zh-CN")} 排队` : "—"}</small></div>`).join("") || '<div class="job-row">尚无任务历史</div>'}</div><div class="actions"><button type="button" class="secondary" id="operations-readiness">检查下一步是否可安全运行</button>${canResume ? '<button type="button" class="secondary" id="operations-retry">检查后从当前有效断点继续</button>' : ""}</div></article><article class="operations-card"><h3>项目磁盘占用</h3><p><strong>${formatBytes(disk.project.bytes)}</strong> · ${disk.project.files} 个文件</p><p class="muted">本地上限 ${formatBytes(disk.project.quotaBytes)} · ${disk.project.status === "over-quota" ? "已超过项目配额" : "配额内"}</p></article><article class="operations-card"><h3>安全清理</h3>${disk.cleanupPreview.map((item) => `<label class="cleanup-row"><span><input type="checkbox" data-cleanup-candidate="${escapeHtml(item.id)}"/><span><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.reason)}</small></span></span><strong>${formatBytes(item.bytes)}</strong></label>`).join("") || '<p class="muted">当前没有明确可重建的缓存。</p>'}<p class="hint">只允许删除上述可再生成目录，人物原片、登记素材、审批快照和最终成片始终受保护。</p>${disk.cleanupPreview.length ? `<label class="confirmation-row"><input type="checkbox" id="cleanup-confirm"/><span>我确认删除选中的可再生成缓存</span></label><div class="actions"><button type="button" class="secondary" id="operations-cleanup" data-plan-sha="${escapeHtml(disk.planSha256)}">执行安全清理</button></div>` : ""}</article></div>`;
+  return `<div class="operations-grid">${readinessView}<article class="operations-card wide"><h3>任务历史</h3><p class="card-meta">刷新页面或重启 Studio 后仍可核对任务状态和最近技术记录。</p><div class="job-history">${operations.operations.jobs.map((job) => `<div class="job-row"><b>${escapeHtml(job.kind)}<small>${escapeHtml(job.action ?? "")}</small></b><span class="status-pill">${escapeHtml(job.status)}</span><span>${escapeHtml(job.progress?.message ?? job.error ?? "—")}</span><small>${job.startedAt ? formatDateTime(job.startedAt) : job.queuedAt ? `${formatDateTime(job.queuedAt)} 排队` : "—"}</small></div>`).join("") || '<div class="job-row">尚无任务历史</div>'}</div><div class="actions"><button type="button" class="secondary" id="operations-readiness">检查下一步是否可安全运行</button>${canResume ? '<button type="button" class="secondary" id="operations-retry">检查后从当前有效断点继续</button>' : ""}</div></article><article class="operations-card"><h3>项目磁盘占用</h3><p><strong>${formatBytes(disk.project.bytes)}</strong> · ${disk.project.files} 个文件</p><p class="muted">本地上限 ${formatBytes(disk.project.quotaBytes)} · ${disk.project.status === "over-quota" ? "已超过项目配额" : "配额内"}</p></article><article class="operations-card"><h3>安全清理</h3>${disk.cleanupPreview.map((item) => `<label class="cleanup-row"><span><input type="checkbox" data-cleanup-candidate="${escapeHtml(item.id)}"/><span><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.reason)}</small></span></span><strong>${formatBytes(item.bytes)}</strong></label>`).join("") || '<p class="muted">当前没有明确可重建的缓存。</p>'}<p class="hint">只允许删除上述可再生成目录，人物原片、登记素材、审批快照和最终成片始终受保护。</p>${disk.cleanupPreview.length ? `<label class="confirmation-row"><input type="checkbox" id="cleanup-confirm"/><span>我确认删除选中的可再生成缓存</span></label><div class="actions"><button type="button" class="secondary" id="operations-cleanup" data-plan-sha="${escapeHtml(disk.planSha256)}">执行安全清理</button></div>` : ""}</article></div>`;
 };
 const latestRecoveryDiagnosis = (projectId, recoverySha256) =>
   state.jobs
@@ -2875,7 +2890,7 @@ const bindWorkspaceActions = () => {
   document.querySelectorAll("[data-delete-material]").forEach((button) => {
     button.addEventListener("click", async () => {
       const label = button.dataset.materialLabel || "这份素材";
-      if (!window.confirm(`确认从当前项目移除“${label}”？原文件会保留在项目回收目录中。`)) return;
+      if (!window.confirm(translateText(`确认从当前项目移除“${label}”？原文件会保留在项目回收目录中。`))) return;
       button.disabled = true;
       try {
         const result = await api(`/api/projects/${id}/materials/${encodeURIComponent(button.dataset.deleteMaterial)}`, {
@@ -3359,7 +3374,7 @@ const bindWorkspaceActions = () => {
     }
   });
   $("#confirm-animation-asset-replan")?.addEventListener("click", async (event) => {
-    if (!window.confirm("确认后，这次 Agent 规划会替换当前动画阶段的图片与图标安排。继续吗？")) return;
+    if (!window.confirm(translateText("确认后，这次 Agent 规划会替换当前动画阶段的图片与图标安排。继续吗？"))) return;
     const button = event.currentTarget;
     button.disabled = true;
     try {
@@ -3434,7 +3449,7 @@ const bindWorkspaceActions = () => {
     else window.location.assign(url);
   }));
   document.querySelectorAll("[data-restore-narration]").forEach((button) => button.addEventListener("click", async () => {
-    if (!window.confirm("恢复后会创建一个新版本，当前版本和历史版本都会保留。继续吗？")) return;
+    if (!window.confirm(translateText("恢复后会创建一个新版本，当前版本和历史版本都会保留。继续吗？"))) return;
     try {
       await api(`/api/projects/${id}/narration/restore`, { method:"POST", body:{ attemptId:button.dataset.restoreNarration } });
       toast("历史稿件已恢复为新的当前版本");
@@ -3522,7 +3537,7 @@ const bindWorkspaceActions = () => {
   $("#reject-recut")?.addEventListener("click", async () => { const note = $("#recut-feedback")?.value.trim() ?? ""; if (!note) return toast("请先填写具体修改意见"); try { await api(`/api/projects/${id}/workflow/recut-decision`, { method:"POST", body:{ decision:"rejected", note, screenSha256:state.workflow.recut.screenSha256 } }); toast("已保存意见并驳回当前方案"); await selectProject(id); } catch(error){ toast(error.message); } });
   $("#reopen-recut")?.addEventListener("click", async () => { try { await api(`/api/projects/${id}/workflow/recut-decision`, { method:"POST", body:{ decision:"reopened", screenSha256:state.workflow.recut.screenSha256 } }); toast("已重新打开当前提案"); await selectProject(id); } catch(error){ toast(error.message); } });
   $("#approve-recut")?.addEventListener("click", async () => { if (!$("#approve-confirm")?.checked) return toast("请先确认已完成连续预览审核"); try { await api(`/api/projects/${id}/workflow`, { method:"POST", body:{ action:"approve-recut", screenSha256:state.workflow.recut.screenSha256 } }); toast("粗剪批准已提交，正在提升 EDL"); pollUntilDone(id); } catch(error){ toast(error.message); } });
-  $("#replan-recut")?.addEventListener("click", async () => { if (!window.confirm("确认把上述意见交给 Agent 重新规划？当前版本会保留为历史记录。")) return; try { await api(`/api/projects/${id}/workflow`, { method:"POST", body:{ action:"replan-recut", confirmation:"human-recut-replan", screenSha256:state.workflow.recut.screenSha256 } }); toast("已按修改意见重新规划粗剪"); pollUntilDone(id); } catch(error){ toast(error.message); } });
+  $("#replan-recut")?.addEventListener("click", async () => { if (!window.confirm(translateText("确认把上述意见交给 Agent 重新规划？当前版本会保留为历史记录。"))) return; try { await api(`/api/projects/${id}/workflow`, { method:"POST", body:{ action:"replan-recut", confirmation:"human-recut-replan", screenSha256:state.workflow.recut.screenSha256 } }); toast("已按修改意见重新规划粗剪"); pollUntilDone(id); } catch(error){ toast(error.message); } });
   $("#workflow-refresh")?.addEventListener("click", async () => { try { const result = await api(`/api/projects/${id}/workflow/refresh`, { method:"POST", body:{} }); const restored = result.changed?.filter((item) => item.status === "succeeded").length ?? 0; toast(restored ? `已恢复 ${restored} 个有效步骤` : "已有进度已校验"); await selectProject(id); state.viewStep = 3; renderWorkspace(); } catch(error){ toast(error.message); } });
   $("#workflow-progress-open")?.addEventListener("click", () => {
     $("#workflow-progress-body").innerHTML = workflowProgressContent(state.detail.project, state.workflow);
@@ -3556,7 +3571,7 @@ const bindWorkspaceActions = () => {
     state.viewStep = 5;
     renderWorkspace();
   });
-  $("#replan-semantic-workflow")?.addEventListener("click", async () => { if (!window.confirm("英文字幕已经更新，需要由当前项目的 Agent 重新理解内容。旧计划会保留用于比较，是否继续？")) return; try { await api(`/api/projects/${id}/workflow`, { method:"POST", body:{ action:"replan-semantic", confirmation:"human-semantic-replan" } }); toast("正在重新理解内容，已完成的上游步骤会自动跳过"); pollUntilDone(id); } catch(error){ toast(error.message); } });
+  $("#replan-semantic-workflow")?.addEventListener("click", async () => { if (!window.confirm(translateText("英文字幕已经更新，需要由当前项目的 Agent 重新理解内容。旧计划会保留用于比较，是否继续？"))) return; try { await api(`/api/projects/${id}/workflow`, { method:"POST", body:{ action:"replan-semantic", confirmation:"human-semantic-replan" } }); toast("正在重新理解内容，已完成的上游步骤会自动跳过"); pollUntilDone(id); } catch(error){ toast(error.message); } });
   $("#back-to-video-workflow")?.addEventListener("click", () => { state.viewStep = 3; renderWorkspace(); });
   $("#back-to-static-review")?.addEventListener("click", () => { state.viewStep = 4; renderWorkspace(); });
   bindReviewGalleryActions();
@@ -3768,6 +3783,7 @@ $("#new-project").onclick = openDialog;
 $("#empty-create").onclick = openDialog;
 $("#refresh").onclick = refresh;
 $("#settings-open").onclick = openSettings;
+$("#language-toggle").onclick = switchLocale;
 $("#settings-close").onclick = () => $("#settings-dialog").close();
 $("#review-lightbox-close").onclick = () => $("#review-lightbox").close();
 $("#operations-close").onclick = () => $("#operations-dialog").close();
