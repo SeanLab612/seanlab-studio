@@ -186,7 +186,7 @@ const runScenario = async ({
       assert.equal(evidence.failure.stage, scenario === "repair-code" ? "component-props" : "visual-qa");
       assert.deepEqual(evidence.preserved.approvedStages, ["recut-approval"]);
       assert.equal(evidence.decision.readiness.nextHumanGate, "human-approval");
-      assert.equal(evidence.decision.readiness.targetStage, "regression-fixtures");
+      assert.equal(evidence.decision.readiness.targetStage, "agent-review");
       assert.equal(evidence.decision.workflowAction === "delivery", false);
     }
 

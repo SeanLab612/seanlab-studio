@@ -112,9 +112,11 @@ export const buildStudioRecovery = ({ projectId, workflow, jobs = [], artifacts 
   const completedStages = workflow.stages.filter((stage) => stage.status === "succeeded").map((stage) => stage.name);
   const approvedStages = workflow.stages.filter((stage) => stage.status === "approved").map((stage) => stage.name);
   const availableArtifacts = artifacts.filter((artifact) => artifact.available);
+  const failedStage = workflow.stages.find((stage) => incompleteStageStatuses.has(stage.status))?.name;
   const resumeStage =
-    workflow.stages.find((stage) => incompleteStageStatuses.has(stage.status))?.name ??
-    resumeStageForStudio(workflow.stages);
+    failure?.stage === "agent-review"
+      ? "visual-input-preflight"
+      : (failedStage ?? resumeStageForStudio(workflow.stages));
   const resumeAction = workflow.reviewApproved
     ? "delivery"
     : workflow.reviewReady

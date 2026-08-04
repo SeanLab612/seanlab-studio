@@ -51,7 +51,7 @@ const stages = state
     })
   : [];
 const currentFailure = stages.find((stage) => stage.status === "failed")?.failure;
-const reviewReady = ["review-evidence", "visual-qa", "regression-fixtures"].every(
+const reviewReady = ["review-evidence", "visual-qa", "regression-fixtures", "agent-review"].every(
   (name) => state?.stages[name]?.status === "succeeded",
 );
 const approved = state?.stages["human-approval"]?.status === "approved";

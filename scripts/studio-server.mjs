@@ -83,6 +83,7 @@ import { repairProductionVisualContract } from "./creator/production-agent-visua
 import {
   approveProductionBaseline,
   createProductionBaseline,
+  deliverProductionBaseline,
   loadProductionBaseline,
 } from "./creator/production-agent-baseline.mjs";
 import {
@@ -602,15 +603,6 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
   if (productionAgent.state !== "diagnosing") return;
   const attempts = automaticProductionRecoveryAttempts(productionAgent);
   if (attempts >= MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS) {
-    if (failedRecord.action === "delivery") {
-      await transitionProductionAgent({
-        projectId,
-        state: "waiting-human",
-        reason: "delivery-recovery-exhausted",
-        metadata: { failedJobId: failedRecord.id, attempts },
-      });
-      return;
-    }
     job(
       "production-baseline",
       projectId,
@@ -766,7 +758,7 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
           adapter: bindingAdapter,
         });
       }
-      if (!repair && diagnosis.recommendedAction === "repair-visual") {
+      if (!repair && (recovery.failure?.stage === "agent-review" || diagnosis.recommendedAction === "repair-visual")) {
         reportProgress({ phase: "repair", percent: 42, message: "制作 Agent 正在将无效视觉节拍安全回退为人物画面" });
         repair = await repairProductionVisualContract({ projectId, recovery });
       }
@@ -792,7 +784,7 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
         repair,
       });
       let baseline;
-      if (decision.action !== "resume" && recovery.resume?.action !== "delivery") {
+      if (decision.action !== "resume") {
         reportProgress({ phase: "baseline", percent: 72, message: "正在准备不依赖增强视觉的基础审核版本" });
         baseline = await createProductionBaseline({ projectId, failure: recovery.failure }).catch((error) => ({
           kind: "production-baseline",
@@ -1030,14 +1022,16 @@ const streamVideo = async (request, response, projectId) => {
   });
 };
 
-const streamProductionBaseline = async (request, response, projectId) => {
+const streamProductionBaseline = async (request, response, projectId, kind = "review") => {
   const baseline = await loadProductionBaseline(projectId);
   if (!baseline) throw new Error("基础审核版本当前不可用");
-  const info = await stat(baseline.review.path);
+  const asset = baseline[kind];
+  if (!asset?.path) throw new Error("基础版本成片当前不可用");
+  const info = await stat(asset.path);
   streamFile({
     request,
     response,
-    asset: { path: baseline.review.path, size: info.size },
+    asset: { path: asset.path, size: info.size },
     mediaType: "video/mp4",
     cacheControl: "private, no-store",
     allowRanges: true,
@@ -1503,9 +1497,15 @@ const routes = async (request, response, url) => {
   if (request.method === "GET" && action === "workflow/recut-preview") return streamVideo(request, response, projectId);
   if (request.method === "GET" && action === "workflow/production-baseline/video")
     return streamProductionBaseline(request, response, projectId);
+  if (request.method === "GET" && action === "workflow/production-baseline/delivery-video")
+    return streamProductionBaseline(request, response, projectId, "delivery");
   if (request.method === "POST" && action === "workflow/production-baseline/approve") {
     assertProjectIdle(projectId);
     return json(response, 200, await approveProductionBaseline({ projectId, ...(await body(request)) }));
+  }
+  if (request.method === "POST" && action === "workflow/production-baseline/deliver") {
+    assertProjectIdle(projectId);
+    return json(response, 200, await deliverProductionBaseline({ projectId, ...(await body(request)) }));
   }
   if (request.method === "GET" && action === "workflow/static-review")
     return json(response, 200, await loadStaticReview(projectId));
@@ -1600,7 +1600,7 @@ const routes = async (request, response, url) => {
       manifest: project.video.manifest,
       workflowArgs: readinessArgs,
     });
-    const expectedTargetStage = recovery.resume.action === "recut" ? "recut-review" : "regression-fixtures";
+    const expectedTargetStage = recovery.resume.action === "recut" ? "recut-review" : "agent-review";
     assertStudioReadinessConfirmation({
       readiness,
       expectedSha256: input.readinessSha256,
@@ -1766,7 +1766,7 @@ const routes = async (request, response, url) => {
         manifest: project.video.manifest,
         workflowArgs: readinessArgs,
       });
-      const expectedTargetStage = input.action === "recut" ? "recut-review" : "regression-fixtures";
+      const expectedTargetStage = input.action === "recut" ? "recut-review" : "agent-review";
       assertStudioReadinessConfirmation({
         readiness,
         expectedSha256: input.readinessSha256,

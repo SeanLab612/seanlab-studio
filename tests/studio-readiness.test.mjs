@@ -16,7 +16,7 @@ const readiness = {
   readinessSha256: "a".repeat(64),
   scopeSignature: "b".repeat(64),
   readinessStatus: "warning",
-  targetStage: "regression-fixtures",
+  targetStage: "agent-review",
   nextHumanGate: "human-approval",
   plannedStages: ["review-base"],
   reusedStages: ["captions"],

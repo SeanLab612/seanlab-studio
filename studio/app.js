@@ -1770,7 +1770,7 @@ const workflowStageLabels = {
   preflight: "检查本机环境", ingest: "准备人物原片", probe: "读取视频信息", "supplemental-probe": "检查录屏素材", "image-probe": "检查图片证据", transcribe: "识别口播内容", "transcript-conformance": "对照定稿校对转录",
   terminology: "校对专有名词", layout: "分析人物位置", "recut-plan": "理解口播节奏", "edit-plan": "生成粗剪方案", "recut-review": "生成 720p 审核预览",
   "recut-approval": "等待你审核粗剪", "edit-promote": "应用已通过的粗剪", "brand-align": "安排 SeanLab 品牌片头", captions: "生成中文字幕", "visual-input-preflight": "预检录屏与视觉锚点", translate: "翻译英文字幕", "scene-align": "对齐录屏和图片",
-  "semantic-plan": "理解内容重点", "component-props": "准备视觉组件", "visual-direction": "安排画面节奏", validate: "检查视觉方案", "review-base": "准备审核画面", "brand-review": "检查片头与音效", "qa-capture": "生成静态审核图", "visual-qa": "检查显示完整性", "visual-pacing-review": "按需生成动画片段预览", "review-evidence": "整理审核画廊", "regression-fixtures": "检查已批准风格", "human-approval": "等待最终审核", "delivery-render": "渲染最终成片", "delivery-validate": "验收成片文件",
+  "semantic-plan": "理解内容重点", "component-props": "准备视觉组件", "visual-direction": "安排画面节奏", validate: "检查视觉方案", "review-base": "准备审核画面", "brand-review": "检查片头与音效", "qa-capture": "生成静态审核图", "visual-qa": "检查显示完整性", "visual-pacing-review": "按需生成动画片段预览", "review-evidence": "整理审核画廊", "regression-fixtures": "检查已批准风格", "agent-review": "制作 Agent 自主复核", "human-approval": "等待最终审核", "delivery-render": "渲染最终成片", "delivery-validate": "验收成片文件",
 };
 const friendlyWorkflowFailure = (failure) => {
   if (!failure) return "";
@@ -1837,7 +1837,7 @@ const recutReviewView = (project, workflow) => {
 };
 const workflowProductionProgress = (workflow) => {
   const stages = workflow?.stages ?? [];
-  const reviewBoundary = stages.findIndex(({ name }) => name === "regression-fixtures");
+  const reviewBoundary = stages.findIndex(({ name }) => name === "agent-review");
   const productionStages = reviewBoundary >= 0 ? stages.slice(0, reviewBoundary + 1) : stages;
   const completed = productionStages.filter(({ status }) => ["succeeded", "approved"].includes(status)).length;
   return {
@@ -1958,8 +1958,10 @@ const workflowTopActions = (project, workflow) => {
 const productionBaselineReviewView = (workflow) => {
   const baseline = workflow?.productionBaseline;
   if (!baseline) return "";
+  if (baseline.status === "delivered")
+    return `<section class="static-review"><div class="panel approval-success"><div class="eyebrow">SAFE BASELINE DELIVERY</div><h2>基础版本成片已生成</h2><p>最终成片与已通过的审核版本内容一致。</p></div><div class="panel delivery-player"><video controls preload="metadata" src="${escapeHtml(baseline.deliveryUrl)}"></video><div class="actions"><a class="button secondary" href="${escapeHtml(baseline.deliveryUrl)}" download>下载最终成片</a></div></div></section>`;
   if (baseline.status === "approved")
-    return `<section class="static-review"><div class="panel approval-success"><div class="eyebrow">SAFE BASELINE</div><h2>基础审核版本已通过</h2><p>增强视觉未能完成时，系统保留了人物主画面和已批准的剪辑结果。</p></div></section>`;
+    return `<section class="static-review"><div class="panel approval-success"><div class="eyebrow">SAFE BASELINE</div><h2>基础审核版本已通过</h2><p>增强视觉未能完成时，系统保留了人物主画面和已批准的剪辑结果。</p><div class="actions"><button type="button" class="primary" id="deliver-production-baseline">生成最终成片</button></div></div></section>`;
   return `<section class="static-review production-baseline-review">
     <div class="panel review-header"><div><div class="eyebrow">SAFE BASELINE</div><h2>基础版本审核</h2><p>增强视觉已自动降级，但人物主画面和已批准的粗剪完整保留。</p></div><span class="status-pill">可以审核</span></div>
     <div class="panel recut-player"><video controls preload="metadata" src="${escapeHtml(baseline.reviewUrl)}"></video></div>
@@ -3599,6 +3601,21 @@ const bindWorkspaceActions = () => {
       });
       toast("基础版本已通过");
       await selectProject(id);
+    } catch(error){ toast(error.message); }
+  });
+  $("#deliver-production-baseline")?.addEventListener("click", async () => {
+    try {
+      await api(`/api/projects/${id}/workflow/production-baseline/deliver`, {
+        method:"POST",
+        body:{
+          confirmation:"human-production-baseline-delivery",
+          inputSha256:state.workflow.productionBaseline.inputSha256,
+        },
+      });
+      toast("基础版本最终成片已生成");
+      await selectProject(id);
+      state.viewStep = 4;
+      renderWorkspace();
     } catch(error){ toast(error.message); }
   });
   $("#open-delivery")?.addEventListener("click", async () => {

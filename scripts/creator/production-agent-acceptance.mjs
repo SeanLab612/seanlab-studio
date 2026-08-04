@@ -121,10 +121,10 @@ export const productionAgentAcceptanceRecoveryFixture = ({ projectId, failedReco
     readinessSha256: stableHash({ projectId, failedJobId: failedRecord.id, stage: failure.stage }),
     readinessStatus: "ready",
     nextHumanGate: "human-approval",
-    targetStage: "regression-fixtures",
+    targetStage: "agent-review",
     plannedStages: sourceRepair
-      ? ["component-props", "visual-direction", "visual-qa", "review-evidence", "regression-fixtures"]
-      : ["visual-qa", "review-evidence", "regression-fixtures"],
+      ? ["component-props", "visual-direction", "visual-qa", "review-evidence", "regression-fixtures", "agent-review"]
+      : ["visual-qa", "review-evidence", "regression-fixtures", "agent-review"],
     reusedStages: ["recut-approval"],
     blockedStages: [],
     issues: [],

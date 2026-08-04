@@ -85,10 +85,12 @@ export const loadStudioWorkflow = async (projectId) => {
   const enhancedReviewReady =
     state?.stages?.["review-evidence"]?.status === "succeeded" &&
     state?.stages?.["visual-qa"]?.status === "succeeded" &&
-    state?.stages?.["regression-fixtures"]?.status === "succeeded";
+    state?.stages?.["regression-fixtures"]?.status === "succeeded" &&
+    state?.stages?.["agent-review"]?.status === "succeeded";
   const reviewReady = enhancedReviewReady || Boolean(productionBaseline);
   const reviewApproved =
-    state?.stages?.["human-approval"]?.status === "approved" || productionBaseline?.status === "approved";
+    state?.stages?.["human-approval"]?.status === "approved" ||
+    ["approved", "delivered"].includes(productionBaseline?.status);
   const workflowStarted = Object.values(state?.stages ?? {}).some(
     (entry) => entry?.status && entry.status !== "pending",
   );

@@ -8,7 +8,7 @@ import test from "node:test";
 
 const execFileAsync = promisify(execFile);
 
-test("an unrecoverable enhanced production can publish and approve a source-bound baseline without Git", async () => {
+test("an unrecoverable enhanced production can publish, approve, and deliver a source-bound baseline without Git", async () => {
   const root = await mkdtemp(resolve(tmpdir(), "seanlab-production-baseline-"));
   try {
     const script = `
@@ -16,7 +16,7 @@ test("an unrecoverable enhanced production can publish and approve a source-boun
       import { resolve } from "node:path";
       import { createCreatorProject, saveCreatorProject } from ${JSON.stringify(new URL("../scripts/creator/project-store.mjs", import.meta.url).href)};
       import { createManifest, readManifest, writeManifest } from ${JSON.stringify(new URL("../scripts/workflow/manifest.mjs", import.meta.url).href)};
-      import { approveProductionBaseline, createProductionBaseline, loadProductionBaseline } from ${JSON.stringify(new URL("../scripts/creator/production-agent-baseline.mjs", import.meta.url).href)};
+      import { approveProductionBaseline, createProductionBaseline, deliverProductionBaseline, loadProductionBaseline } from ${JSON.stringify(new URL("../scripts/creator/production-agent-baseline.mjs", import.meta.url).href)};
 
       const root = process.env.REMOTION_MD_CREATOR_ROOT;
       const projectId = "baseline-fixture";
@@ -38,7 +38,8 @@ test("an unrecoverable enhanced production can publish and approve a source-boun
       await writeFile(resolve(paths.workspace, "media-manifest.json"), JSON.stringify({ width: 1920, height: 1080, fps: 30, durationSeconds: 2 }));
       await writeFile(resolve(paths.workspace, "edl.json"), JSON.stringify({ sources: [source], ranges: [{ source: 0, start: 0, end: 2 }], totalDurationS: 2 }));
       const reviewPath = resolve(root, projectId, "review", "baseline.mp4");
-      await writeFile(paths.runtimeConfig, JSON.stringify({ publicReviewFile: reviewPath, editDir: paths.workspace, source }));
+      const deliveryPath = resolve(root, projectId, "delivery", "baseline-final.mp4");
+      await writeFile(paths.runtimeConfig, JSON.stringify({ publicReviewFile: reviewPath, publicDeliveryFile: deliveryPath, editDir: paths.workspace, source }));
       const created = await createProductionBaseline({
         projectId,
         failure: { stage: "semantic-plan", code: "PROVIDER_REQUEST_TIMEOUT" },
@@ -50,7 +51,10 @@ test("an unrecoverable enhanced production can publish and approve a source-boun
       await approveProductionBaseline({ projectId, confirmation: "human-production-baseline-approved", inputSha256: loaded.inputSha256 });
       const approved = await loadProductionBaseline(projectId);
       if (approved.status !== "approved") throw new Error("baseline was not approved");
-      console.log(JSON.stringify({ created: created.success, status: approved.status, fallback: approved.fallbackReason }));
+      await deliverProductionBaseline({ projectId, confirmation: "human-production-baseline-delivery", inputSha256: approved.inputSha256 });
+      const delivered = await loadProductionBaseline(projectId);
+      if (delivered.status !== "delivered" || !delivered.deliveryUrl) throw new Error("baseline was not delivered");
+      console.log(JSON.stringify({ created: created.success, status: delivered.status, fallback: delivered.fallbackReason }));
     `;
     const { stdout } = await execFileAsync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", script], {
       cwd: process.cwd(),
@@ -59,13 +63,14 @@ test("an unrecoverable enhanced production can publish and approve a source-boun
     const result = JSON.parse(stdout.trim().split(/\r?\n/).at(-1));
     assert.deepEqual(result, {
       created: true,
-      status: "approved",
+      status: "delivered",
       fallback: { stage: "semantic-plan", code: "PROVIDER_REQUEST_TIMEOUT" },
     });
     const record = JSON.parse(
       await readFile(resolve(root, "projects", "baseline-fixture", "review", "production-baseline.json"), "utf8"),
     );
-    assert.equal(record.status, "approved");
+    assert.equal(record.status, "delivered");
+    assert.equal(record.delivery.sha256, record.review.sha256);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

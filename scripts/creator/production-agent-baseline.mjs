@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
-import { readFile, stat } from "node:fs/promises";
-import { resolve } from "node:path";
+import { copyFile, mkdir, readFile, stat } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { promisify } from "node:util";
 import { fileExists, hashFile, signatureFor } from "../workflow/state.mjs";
 import { readManifest } from "../workflow/manifest.mjs";
@@ -42,9 +42,22 @@ export const loadProductionBaseline = async (projectId) => {
       (await hashFile(baseline.review.path)) === baseline.review.sha256,
   );
   if (!reviewCurrent) return undefined;
+  if (baseline.status === "delivered") {
+    const deliveryInfo = await stat(baseline.delivery?.path ?? "").catch(() => undefined);
+    const deliveryCurrent = Boolean(
+      deliveryInfo &&
+        deliveryInfo.size === baseline.delivery.bytes &&
+        (await hashFile(baseline.delivery.path)) === baseline.delivery.sha256,
+    );
+    if (!deliveryCurrent) return undefined;
+  }
   return {
     ...baseline,
     reviewUrl: `/api/projects/${encodeURIComponent(projectId)}/workflow/production-baseline/video`,
+    deliveryUrl:
+      baseline.status === "delivered"
+        ? `/api/projects/${encodeURIComponent(projectId)}/workflow/production-baseline/delivery-video`
+        : undefined,
   };
 };
 
@@ -103,4 +116,32 @@ export const approveProductionBaseline = async ({ projectId, confirmation, input
   delete approved.reviewUrl;
   await writeJsonAtomic(baselinePath(projectId), approved);
   return approved;
+};
+
+export const deliverProductionBaseline = async ({ projectId, confirmation, inputSha256: expectedInputSha256 }) => {
+  if (confirmation !== "human-production-baseline-delivery") throw new Error("生成基础版本成片需要明确确认");
+  const baseline = await loadProductionBaseline(projectId);
+  if (!baseline || !["approved", "delivered"].includes(baseline.status)) throw new Error("请先审核并通过基础版本");
+  if (!expectedInputSha256 || baseline.inputSha256 !== expectedInputSha256)
+    throw new Error("基础版本已经变化，请重新审核后再生成成片");
+  if (baseline.status === "delivered") return baseline;
+  const context = await baselineContext(projectId);
+  const runtime = await readJson(context.paths.runtimeConfig);
+  const deliveryPath = resolve(runtime.publicDeliveryFile);
+  await mkdir(dirname(deliveryPath), { recursive: true });
+  await copyFile(baseline.review.path, deliveryPath);
+  const info = await stat(deliveryPath);
+  const delivered = {
+    ...baseline,
+    status: "delivered",
+    deliveredAt: new Date().toISOString(),
+    delivery: {
+      path: deliveryPath,
+      bytes: info.size,
+      sha256: await hashFile(deliveryPath),
+    },
+  };
+  delete delivered.reviewUrl;
+  await writeJsonAtomic(baselinePath(projectId), delivered);
+  return delivered;
 };

@@ -267,6 +267,14 @@ test("production Agent recognizes one invalid confirmed component beat for speak
     visualContractTargetId({ message: "Confirmed component beat start-beat-2 has no overlapping semantic evidence" }),
     "start-beat-2",
   );
+  assert.equal(
+    visualContractTargetId({
+      details: {
+        logTail: "Production Agent self-review requested speaker fallback for confirmed component beat: proof-beat-3",
+      },
+    }),
+    "proof-beat-3",
+  );
   const decision = decideAutomaticProductionRecovery({
     recovery: { status: "blocked", resume: { enabled: false, action: "continue", stage: "component-props" } },
     diagnosis: { safeToResume: false, recommendedAction: "repair-visual", userMessage: "回退后继续" },

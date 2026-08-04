@@ -277,7 +277,7 @@ test("Studio product shell keeps health, translation, storage, and project evide
   assert.match(app, /class="panel workflow-candidates"/);
   assert.doesNotMatch(app, /#agent-pin"\)\.innerHTML/);
   assert.match(app, /id="workflow-progress-open"/);
-  assert.match(app, /name === "regression-fixtures"/);
+  assert.match(app, /name === "agent-review"/);
   assert.match(app, /completed \/ productionStages\.length/);
   assert.match(app, /workflow-progress-badge/);
   assert.match(styles, /\.workflow-refresh-icon\.refresh-help:hover \.workflow-hover-tip/);

@@ -7,7 +7,10 @@ export const visualContractTargetId = (failure = {}) => {
   const text = [failure.message, failure.details?.logTail].filter(Boolean).join("\n");
   return (
     /Confirmed component beat [a-z0-9-]+:([a-z0-9-]+) could not be materialized/i.exec(text)?.[1] ??
-    /Confirmed component beat ([a-z0-9-]+) has no overlapping semantic evidence/i.exec(text)?.[1]
+    /Confirmed component beat ([a-z0-9-]+) has no overlapping semantic evidence/i.exec(text)?.[1] ??
+    /Production Agent self-review requested speaker fallback for confirmed component beat:\s*([a-z0-9-]+)/i.exec(
+      text,
+    )?.[1]
   );
 };
 

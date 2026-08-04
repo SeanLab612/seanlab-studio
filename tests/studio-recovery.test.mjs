@@ -54,7 +54,7 @@ test("recovery snapshot exposes preserved work and a bound resumable action", ()
         readiness: {
           readinessSha256: "a".repeat(64),
           readinessStatus: "ready",
-          targetStage: "regression-fixtures",
+          targetStage: "agent-review",
           nextHumanGate: "human-approval",
           plannedStages: ["semantic-plan", "visual-direction"],
           reusedStages: ["ingest", "recut-approval"],
@@ -101,6 +101,32 @@ test("recovery prefers the real failed stage over an earlier optional pending st
     agent: {},
   });
   assert.equal(recovery.resume.stage, "semantic-plan");
+});
+
+test("an Agent self-review revision restarts visual production from the safe authored-plan boundary", () => {
+  const workflow = baseWorkflow();
+  workflow.currentFailure = {
+    code: "STAGE_EXECUTION_FAILED",
+    category: "workflow",
+    stage: "agent-review",
+    message: "one confirmed component needs speaker fallback",
+    retryable: true,
+  };
+  workflow.stages = [
+    { name: "visual-input-preflight", status: "succeeded" },
+    { name: "regression-fixtures", status: "succeeded" },
+    { name: "agent-review", status: "failed" },
+    { name: "human-approval", status: "pending" },
+  ];
+  const recovery = buildStudioRecovery({
+    projectId: "agent-review-revision",
+    workflow,
+    jobs: [],
+    artifacts: [],
+    agent: {},
+  });
+  assert.equal(recovery.resume.action, "continue");
+  assert.equal(recovery.resume.stage, "visual-input-preflight");
 });
 
 test("an approved review keeps the Agent responsible for delivery render and validation failures", () => {
@@ -235,7 +261,7 @@ test("recovery confirmation is written before a state-changing resume", async ()
     recovery,
     readiness: {
       readinessSha256: "c".repeat(64),
-      targetStage: "regression-fixtures",
+      targetStage: "agent-review",
       plannedStages: ["semantic-plan"],
       reusedStages: ["ingest"],
       execution: { agentCalls: 1 },
