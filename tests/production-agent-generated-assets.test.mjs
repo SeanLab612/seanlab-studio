@@ -44,18 +44,18 @@ test("production Agents distinguish native image generation from external provid
   );
 });
 
-test("generated image requests bind subject and one of the three approved style contracts", () => {
+test("generated image requests bind subject to the hand-drawn style contract", () => {
   const request = buildGeneratedImageRequest({
     agentId: "codex-cli",
     projectId: "demo",
     beatId: "beat-1",
-    templateId: "research-archive",
+    templateId: "paper-editorial",
     subject: "录音机",
     context: "介绍三个测试模型",
   });
   assert.equal(request.background, "transparent");
   assert.match(request.prompt, /录音机/);
-  assert.match(request.prompt, /archival technical illustration/);
+  assert.match(request.prompt, /editorial paper cutout illustration/);
   assert.match(request.negativePrompt, /readable text/);
 });
 

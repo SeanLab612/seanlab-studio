@@ -101,6 +101,9 @@ export const validateCreatorProject = (input: unknown): CreatorProject => {
     throw new Error("Creator project Agent semantic contract must be 1.1");
   if (value.animation !== undefined) {
     if (!isRecord(value.animation)) throw new Error("Creator project animation must be an object");
+    const legacyTemplateId = (value.animation as { templateId?: unknown }).templateId;
+    if (legacyTemplateId === "stop-motion-machine" || legacyTemplateId === "research-archive")
+      (value.animation as { templateId: "paper-editorial" }).templateId = "paper-editorial";
     if (!animationTemplateIds.includes(value.animation.templateId))
       throw new Error("Creator project animation template is invalid");
     assertTimestamp(value.animation.lockedAt, "animation lockedAt");

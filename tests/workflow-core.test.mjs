@@ -33,7 +33,7 @@ test("recut provider schema declares explicit types for strict Codex structured 
 });
 
 test("creates a portable manifest and resolves project-relative paths", async () => {
-  assert.deepEqual(ANIMATION_TEMPLATE_IDS, ["paper-editorial", "stop-motion-machine", "research-archive"]);
+  assert.deepEqual(ANIMATION_TEMPLATE_IDS, ["paper-editorial"]);
   const root = await mkdtemp(join(tmpdir(), "video-remotion-"));
   const source = join(root, "source.mp4");
   const transcript = join(root, "transcript.json");
@@ -43,16 +43,12 @@ test("creates a portable manifest and resolves project-relative paths", async ()
   const manifest = createManifest({id: "demo-project", title: "Demo", source, transcript, outputPath: output});
   assert.equal(manifest.policies.animation.templateId, "paper-editorial");
   manifest.policies.animation.templateId = "stop-motion-machine";
-  assert.equal(validateManifest(manifest).policies.animation.templateId, "stop-motion-machine");
+  assert.equal(validateManifest(manifest).policies.animation.templateId, "paper-editorial");
   manifest.policies.animation = {
     mode: "per-cue",
     allowedTemplateIds: ["paper-editorial", "stop-motion-machine", "research-archive"],
   };
-  assert.deepEqual(validateManifest(manifest).policies.animation.allowedTemplateIds, [
-    "paper-editorial",
-    "stop-motion-machine",
-    "research-archive",
-  ]);
+  assert.deepEqual(validateManifest(manifest).policies.animation.allowedTemplateIds, ["paper-editorial"]);
   await writeManifest(manifest, output);
   const stored = JSON.parse(await readFile(output, "utf8"));
   assert.equal(validateManifest(stored).project.id, "demo-project");

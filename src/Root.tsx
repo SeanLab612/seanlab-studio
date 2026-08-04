@@ -3,13 +3,7 @@ import { Composition, staticFile } from "remotion";
 import { reviewCompositions } from "./compositions/review-registry";
 import { coverAssetPackFixture, coverReviewFixture, generatedCoverReviewFixture, SeanLabCover } from "./cover/index.ts";
 import { TalkingHeadOverlay } from "./compositions/TalkingHeadOverlay";
-import {
-  AnimationSystemReview,
-  AnimationTemplatePreview,
-  ResearchArchiveTemplatePreview,
-  StopMotionSystemReview,
-  StopMotionTemplatePreview,
-} from "./animation-system/index.ts";
+import { AnimationSystemReview, AnimationTemplatePreview } from "./animation-system/index.ts";
 import { ProductionMobileComponentReview } from "./compositions/ProductionMobileComponentReview";
 
 const REVIEW_FPS = 30;
@@ -108,30 +102,6 @@ export const RemotionRoot = () => (
     <Composition
       id="AnimationTemplatePreview"
       component={AnimationTemplatePreview}
-      durationInFrames={300}
-      fps={REVIEW_FPS}
-      width={REVIEW_WIDTH}
-      height={REVIEW_HEIGHT}
-    />
-    <Composition
-      id="StopMotionSystemReview"
-      component={StopMotionSystemReview}
-      durationInFrames={1080}
-      fps={REVIEW_FPS}
-      width={REVIEW_WIDTH}
-      height={REVIEW_HEIGHT}
-    />
-    <Composition
-      id="StopMotionTemplatePreview"
-      component={StopMotionTemplatePreview}
-      durationInFrames={300}
-      fps={REVIEW_FPS}
-      width={REVIEW_WIDTH}
-      height={REVIEW_HEIGHT}
-    />
-    <Composition
-      id="ResearchArchiveTemplatePreview"
-      component={ResearchArchiveTemplatePreview}
       durationInFrames={300}
       fps={REVIEW_FPS}
       width={REVIEW_WIDTH}

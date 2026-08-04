@@ -126,7 +126,7 @@
       "required": ["prototypeId", "styleProfileId", "stages", "takeaway"],
       "properties": {
         "prototypeId": {"enum": ["process-flow", "state-transition", "evidence-gate", "causal-chain", "before-after", "layered-system", "aggregate-decompose", "focus-zoom", "threshold-landing", "converge-diffuse"]},
-        "styleProfileId": {"enum": ["paper-editorial", "stop-motion-machine", "research-archive"]},
+        "styleProfileId": {"const": "paper-editorial"},
         "stages": {
           "type": "array",
           "minItems": 2,

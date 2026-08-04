@@ -1068,18 +1068,7 @@ const animationStructureFor = (prototypeId) =>
   state.metadata.animationStructures?.find((item) => item.id === prototypeId);
 const animationTemplateFor = (styleProfileId) =>
   state.metadata.animationTemplates?.find((item) => item.id === styleProfileId);
-const recommendedAnimationStyleId = (section, prototypeId) => {
-  const structure = animationStructureFor(prototypeId);
-  const evidence = `${section.title ?? ""} ${section.narration ?? ""} ${(section.visualOpportunities ?? []).map((item) => item.evidenceText ?? "").join(" ")}`;
-  const mechanical = /(?:流程|工作流|步骤|阶段|处理|生成|制作|渲染|交付|输入|输出|上传|下载|系统|模块|数据|审核|检查|验证|门槛|放行|链路|管线|自动化)/.test(evidence);
-  if (
-    mechanical &&
-    structure?.compatibleStyleIds?.includes("stop-motion-machine") &&
-    ["process-flow", "evidence-gate", "causal-chain", "layered-system"].includes(prototypeId)
-  )
-    return "stop-motion-machine";
-  return structure?.defaultStyleId ?? "paper-editorial";
-};
+const recommendedAnimationStyleId = () => "paper-editorial";
 const cleanAnimationStage = (value) => value.trim().replace(/^[：:，,。；;、\s]+|[：:，,。；;、\s]+$/g, "").replace(/^(然后|接着|再|最后|并且|以及|同时|会|要|让|把)/, "").trim();
 const recommendedAnimationIntent = (section, overrides = {}) => {
   const opportunity = section.visualOpportunities?.find((item) => animationPrototypeForForm[item.form]);
@@ -1400,8 +1389,6 @@ const animationReviewMarkup = (section, animation, mode, evidence, index) => {
   const backupCandidates = compatibleComponents(backupForm);
   const componentBackup = recommendedComponent(section, backupForm, backupCandidates);
   const structures = state.metadata.animationStructures ?? Object.entries(animationPrototypeLabels).map(([id, label]) => ({ id, label }));
-  const compatibleStyleIds = structure?.compatibleStyleIds ?? (state.metadata.animationTemplates ?? []).map((item) => item.id);
-  const templates = (state.metadata.animationTemplates ?? []).filter((item) => compatibleStyleIds.includes(item.id));
   return `<div class="visual-recommendation"><span>${mode === "auto" ? "首选动画 · 系统推荐" : "当前动画 · 人工选择"}</span><strong>${escapeHtml(animationPrototypeLabels[animation.prototypeId] ?? animation.prototypeId)}＋${escapeHtml(template?.label ?? animation.styleProfileId)}</strong></div>
     <div class="visual-recommendation-stack">
       ${alternatives.map((intent, alternativeIndex) => {
@@ -1412,7 +1399,7 @@ const animationReviewMarkup = (section, animation, mode, evidence, index) => {
     </div>
     <div class="animation-choice-grid">
       <label>语义结构<select data-animation-prototype="${index}">${structures.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === animation.prototypeId ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}</select><small>决定这段内容用流程、因果、状态或分层等哪种关系表达。</small></label>
-      <label>表现风格<select data-animation-style="${index}">${templates.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === animation.styleProfileId ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}</select><small>系统按口播语义推荐，可在整体确认前人工调整。</small></label>
+      <label>表现风格<div class="fixed-animation-style">手绘编辑风格</div><small>默认使用统一的手绘视觉语言，下游 Agent 仍可自主规划信息结构。</small></label>
     </div>
     <div class="animation-section-preview">
       <div><b>${escapeHtml(animation.takeaway)}</b><span>${escapeHtml(template?.label ?? animation.styleProfileId)} · 人物右上角圆形 PIP</span></div>
@@ -3308,23 +3295,6 @@ const bindWorkspaceActions = () => {
         section.recordingInstruction = null;
       }
       toast("已切换为组件备选，整体确认后才会锁定");
-    });
-  }));
-  document.querySelectorAll("[data-animation-style]").forEach((select) => select.addEventListener("change", () => {
-    const index = Number(select.dataset.animationStyle);
-    updateNarrationSection(index, (section) => {
-      const review = storyboardReview(section) ?? { mode:"animation", status:"suggested" };
-      const current = review.animationIntent ?? recommendedAnimationIntent(section);
-      if (!current) return toast("当前口播暂时没有可调整的动画建议");
-      const structure = animationStructureFor(current.prototypeId);
-      if (structure?.compatibleStyleIds && !structure.compatibleStyleIds.includes(select.value))
-        return toast("当前动画结构不支持这个表现风格");
-      const animationIntent = recommendedAnimationIntent(section, {
-        prototypeId:current.prototypeId,
-        styleProfileId:select.value,
-      });
-      if (!animationIntent) return toast("当前口播无法生成这个动画风格所需的有效阶段");
-      setStoryboardReview(section, { ...review, mode:"animation", status:"suggested", animationIntent });
     });
   }));
   document.querySelectorAll("[data-material-display]").forEach((select) => select.addEventListener("change", () => {

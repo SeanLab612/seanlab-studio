@@ -419,7 +419,8 @@ test("Studio defers animation style selection until visual review", async () => 
   assert.doesNotMatch(app, /animationTemplateId:data\.get\("animationTemplateId"\)/);
   assert.doesNotMatch(server, /animationTemplateId: input\.animationTemplateId/);
   assert.match(app, /data-animation-prototype/);
-  assert.match(app, /data-animation-style/);
+  assert.doesNotMatch(app, /data-animation-style/);
+  assert.match(app, /默认使用统一的手绘视觉语言/);
   assert.match(app, /备选动画/);
   assert.match(app, /第二优先级 · 组件备选/);
   assert.match(app, /data-animation-component-backup/);
@@ -614,7 +615,7 @@ test("Studio reviews narration and visual choices together without adding human 
   assert.match(app, /keepalive:\s*true/);
   assert.match(app, /void autosaveVisualStoryboard\(id\)/);
   assert.match(app, /storyboardReview\(section\)\?\.materialId \?\? section\.materialIds\[0\]/);
-  assert.match(app, /stop-motion-machine/);
+  assert.doesNotMatch(app, /stop-motion-machine/);
   assert.match(app, /动画风格/);
   assert.match(app, /animation: "动画"/);
   assert.match(app, /data-visual-mode="auto"/);

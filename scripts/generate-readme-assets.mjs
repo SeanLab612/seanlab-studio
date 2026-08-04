@@ -11,6 +11,11 @@ const docsDir = resolve("docs/assets");
 
 await mkdir(animationDir, { recursive: true });
 await mkdir(docsDir, { recursive: true });
+await Promise.all(
+  (await readdir(animationDir))
+    .filter((file) => file.endsWith(".png"))
+    .map((file) => rm(resolve(animationDir, file), { force: true })),
+);
 
 await run(
   process.execPath,
@@ -18,11 +23,7 @@ await run(
   { maxBuffer: 24 * 1024 * 1024 },
 );
 
-const animationCases = [
-  ["paper-editorial", "AnimationTemplatePreview", 165],
-  ["stop-motion-machine", "StopMotionTemplatePreview", 165],
-  ["research-archive", "ResearchArchiveTemplatePreview", 165],
-];
+const animationCases = [["paper-editorial", "AnimationTemplatePreview", 165]];
 
 for (const [id, composition, frame] of animationCases) {
   await run(

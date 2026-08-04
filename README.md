@@ -63,15 +63,13 @@ Studio 集中管理项目进度、固定 Agent、审核节点和可复用视觉�
 
 ![数据图表，第 3 组](docs/assets/data-effects-group-03.jpg)
 
-### 3 种动画模板
+### 统一手绘动画风格
 
-动画根据口播语义选择信息结构，可以使用本地图标和经过确认的项目图片素材。
+动画默认使用手绘编辑风格。下游 Agent 根据口播语义自主选择流程、因果、状态、分层等信息结构，并可使用本地图标和已绑定的项目图片素材。
 
-![纸张编辑部、研究档案与定格机器动画模板](docs/assets/animation-templates-overview.jpg)
+![手绘编辑动画风格](docs/assets/animation-templates-overview.jpg)
 
-- [纸张编辑部动画预览](public/assets/animation-templates/paper-editorial-preview-v1.mp4)
-- [研究档案动画预览](public/assets/animation-templates/research-archive-preview-v1.mp4)
-- [定格机器动画预览](public/assets/animation-templates/stop-motion-machine-preview-v1.mp4)
+- [手绘编辑动画预览](public/assets/animation-templates/paper-editorial-preview-v1.mp4)
 
 ## 快速开始
 

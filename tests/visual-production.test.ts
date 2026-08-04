@@ -6,8 +6,6 @@ import {
   applyAnimationStyleProfile,
   bindFrozenAnimationImageAssets,
   PAPER_EDITORIAL_STYLE,
-  RESEARCH_ARCHIVE_STYLE,
-  STOP_MOTION_MACHINE_STYLE,
   recommendAnimationIntent,
   recommendPrimaryVisualType,
   resolveLockedSectionAnimationTimeline,
@@ -19,13 +17,9 @@ import {
   validateAnimationIntent,
 } from "../src/visual-production/index.ts";
 
-test("animation foundation exposes three approved styles and ten semantic prototypes", () => {
+test("animation foundation exposes one approved style and ten semantic prototypes", () => {
   assert.equal(PAPER_EDITORIAL_STYLE.id, "paper-editorial");
   assert.equal(PAPER_EDITORIAL_STYLE.speakerPip.preferredPosition, "top-right");
-  assert.equal(STOP_MOTION_MACHINE_STYLE.id, "stop-motion-machine");
-  assert.equal(STOP_MOTION_MACHINE_STYLE.speakerPip.preferredPosition, "top-right");
-  assert.equal(RESEARCH_ARCHIVE_STYLE.id, "research-archive");
-  assert.equal(RESEARCH_ARCHIVE_STYLE.speakerPip.preferredPosition, "top-right");
   assert.equal(Object.keys(animationPrototypeRegistry).length, 10);
   assert.ok(Object.values(animationPrototypeRegistry).every((item) => item.semanticStatus === "approved"));
   assert.ok(Object.values(animationPrototypeRegistry).every((item) => item.rendererStatus === "approved"));
@@ -110,7 +104,7 @@ test("the local recommender promotes process narration to an automatic animation
   assert.ok(section.visualOpportunities.some((item) => item.form === "ordered-progression"));
   const intent = recommendAnimationIntent(section);
   assert.equal(intent?.prototypeId, "process-flow");
-  assert.equal(intent?.styleProfileId, "stop-motion-machine");
+  assert.equal(intent?.styleProfileId, "paper-editorial");
   assert.deepEqual(
     intent?.stages.map((stage) => stage.spokenQuote),
     ["先写稿", "完成拍摄", "生成交付文件"],
@@ -219,14 +213,14 @@ test("core-and-supports uses layered-system animation instead of a component", (
   assert.equal(recommendPrimaryVisualType(section), "animation");
   const intent = recommendAnimationIntent(section);
   assert.equal(intent?.prototypeId, "layered-system");
-  assert.equal(intent?.styleProfileId, "stop-motion-machine");
+  assert.equal(intent?.styleProfileId, "paper-editorial");
   assert.equal(
     recommendAnimationIntent(section, { styleProfileId: "paper-editorial" })?.styleProfileId,
     "paper-editorial",
   );
 });
 
-test("research archive semantics select four distinct structures from spoken evidence", () => {
+test("research semantics select four structures within the hand-drawn style", () => {
   const cases = [
     {
       expected: "aggregate-decompose",
@@ -262,7 +256,7 @@ test("research archive semantics select four distinct structures from spoken evi
     };
     const intent = recommendAnimationIntent(section);
     assert.equal(intent?.prototypeId, item.expected);
-    assert.equal(intent?.styleProfileId, "research-archive");
+    assert.equal(intent?.styleProfileId, "paper-editorial");
     assert.equal(recommendPrimaryVisualType(section), "animation");
   }
 });
@@ -459,9 +453,9 @@ test("confirmed beats resolve against semantic captions and reserve the interval
     [{ start: 2, end: 4.6 }],
   );
   assert.equal(resolvedAnimationCues(intervals)[0].styleProfileId, "paper-editorial");
-  const stopMotionCues = applyAnimationStyleProfile(resolvedAnimationCues(intervals), "stop-motion-machine");
-  assert.equal(stopMotionCues[0].styleProfileId, "stop-motion-machine");
-  assert.equal(stopMotionCues[0].animationIntent.styleProfileId, "stop-motion-machine");
+  const handDrawnCues = applyAnimationStyleProfile(resolvedAnimationCues(intervals), "paper-editorial");
+  assert.equal(handDrawnCues[0].styleProfileId, "paper-editorial");
+  assert.equal(handDrawnCues[0].animationIntent.styleProfileId, "paper-editorial");
   const candidates = suppressCandidatesForPrimaryVisualIntervals(
     [{ start: 2.5, end: 4, materializationStatus: "planned", overlayCue: { id: "component" } }],
     intervals,
@@ -471,37 +465,17 @@ test("confirmed beats resolve against semantic captions and reserve the interval
   assert.match(candidates[0].materializationReason ?? "", /reserves this interval for animation/);
 });
 
-test("animation style changes fail closed when a renderer does not support the semantic structure", () => {
-  assert.throws(
-    () =>
-      applyAnimationStyleProfile(
-        [
-          {
-            id: "research-only",
-            sectionId: "section",
-            start: 0,
-            end: 4,
-            startCue: 0,
-            endCue: 1,
-            primaryVisualType: "animation",
-            takeover: "full",
-            speakerPresence: "circle-pip",
-            styleProfileId: "research-archive",
-            animationIntent: {
-              prototypeId: "focus-zoom",
-              styleProfileId: "research-archive",
-              takeaway: "聚焦关键细节",
-              stages: [
-                { id: "whole", spokenQuote: "先看整体", action: "观察全局", label: "整体" },
-                { id: "detail", spokenQuote: "再看细节", action: "聚焦细节", label: "细节" },
-              ],
-            },
-          },
-        ],
-        "paper-editorial",
-      ),
-    /incompatible/,
-  );
+test("legacy animation styles migrate to the hand-drawn renderer", () => {
+  const migrated = validateAnimationIntent({
+    prototypeId: "focus-zoom",
+    styleProfileId: "research-archive",
+    takeaway: "聚焦关键细节",
+    stages: [
+      { id: "whole", spokenQuote: "先看整体", action: "观察全局", label: "整体" },
+      { id: "detail", spokenQuote: "再看细节", action: "聚焦细节", label: "细节" },
+    ],
+  });
+  assert.equal(migrated.styleProfileId, "paper-editorial");
 });
 
 test("locked visual beats reject stale final-script bindings", () => {

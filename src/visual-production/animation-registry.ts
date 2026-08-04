@@ -21,8 +21,8 @@ export const animationPrototypeRegistry: Record<AnimationPrototypeId, AnimationP
     maximumStages: 6,
     semanticStatus: "approved",
     rendererStatus: "approved",
-    compatibleStyleIds: ["stop-motion-machine", "paper-editorial"],
-    defaultStyleId: "stop-motion-machine",
+    compatibleStyleIds: ["paper-editorial"],
+    defaultStyleId: "paper-editorial",
   },
   "state-transition": {
     id: "state-transition",
@@ -32,7 +32,7 @@ export const animationPrototypeRegistry: Record<AnimationPrototypeId, AnimationP
     maximumStages: 5,
     semanticStatus: "approved",
     rendererStatus: "approved",
-    compatibleStyleIds: ["paper-editorial", "stop-motion-machine"],
+    compatibleStyleIds: ["paper-editorial"],
     defaultStyleId: "paper-editorial",
   },
   "evidence-gate": {
@@ -43,8 +43,8 @@ export const animationPrototypeRegistry: Record<AnimationPrototypeId, AnimationP
     maximumStages: 5,
     semanticStatus: "approved",
     rendererStatus: "approved",
-    compatibleStyleIds: ["stop-motion-machine", "paper-editorial"],
-    defaultStyleId: "stop-motion-machine",
+    compatibleStyleIds: ["paper-editorial"],
+    defaultStyleId: "paper-editorial",
   },
   "causal-chain": {
     id: "causal-chain",
@@ -54,7 +54,7 @@ export const animationPrototypeRegistry: Record<AnimationPrototypeId, AnimationP
     maximumStages: 5,
     semanticStatus: "approved",
     rendererStatus: "approved",
-    compatibleStyleIds: ["paper-editorial", "stop-motion-machine"],
+    compatibleStyleIds: ["paper-editorial"],
     defaultStyleId: "paper-editorial",
   },
   "before-after": {
@@ -65,7 +65,7 @@ export const animationPrototypeRegistry: Record<AnimationPrototypeId, AnimationP
     maximumStages: 4,
     semanticStatus: "approved",
     rendererStatus: "approved",
-    compatibleStyleIds: ["paper-editorial", "stop-motion-machine"],
+    compatibleStyleIds: ["paper-editorial"],
     defaultStyleId: "paper-editorial",
   },
   "layered-system": {
@@ -76,7 +76,7 @@ export const animationPrototypeRegistry: Record<AnimationPrototypeId, AnimationP
     maximumStages: 6,
     semanticStatus: "approved",
     rendererStatus: "approved",
-    compatibleStyleIds: ["paper-editorial", "stop-motion-machine"],
+    compatibleStyleIds: ["paper-editorial"],
     defaultStyleId: "paper-editorial",
   },
   "aggregate-decompose": {
@@ -87,8 +87,8 @@ export const animationPrototypeRegistry: Record<AnimationPrototypeId, AnimationP
     maximumStages: 6,
     semanticStatus: "approved",
     rendererStatus: "approved",
-    compatibleStyleIds: ["research-archive"],
-    defaultStyleId: "research-archive",
+    compatibleStyleIds: ["paper-editorial"],
+    defaultStyleId: "paper-editorial",
   },
   "focus-zoom": {
     id: "focus-zoom",
@@ -98,8 +98,8 @@ export const animationPrototypeRegistry: Record<AnimationPrototypeId, AnimationP
     maximumStages: 6,
     semanticStatus: "approved",
     rendererStatus: "approved",
-    compatibleStyleIds: ["research-archive"],
-    defaultStyleId: "research-archive",
+    compatibleStyleIds: ["paper-editorial"],
+    defaultStyleId: "paper-editorial",
   },
   "threshold-landing": {
     id: "threshold-landing",
@@ -109,8 +109,8 @@ export const animationPrototypeRegistry: Record<AnimationPrototypeId, AnimationP
     maximumStages: 4,
     semanticStatus: "approved",
     rendererStatus: "approved",
-    compatibleStyleIds: ["research-archive"],
-    defaultStyleId: "research-archive",
+    compatibleStyleIds: ["paper-editorial"],
+    defaultStyleId: "paper-editorial",
   },
   "converge-diffuse": {
     id: "converge-diffuse",
@@ -120,35 +120,13 @@ export const animationPrototypeRegistry: Record<AnimationPrototypeId, AnimationP
     maximumStages: 6,
     semanticStatus: "approved",
     rendererStatus: "approved",
-    compatibleStyleIds: ["research-archive"],
-    defaultStyleId: "research-archive",
+    compatibleStyleIds: ["paper-editorial"],
+    defaultStyleId: "paper-editorial",
   },
 };
 
 export const PAPER_EDITORIAL_STYLE = Object.freeze({
   id: "paper-editorial" as const,
-  status: "approved" as const,
-  speakerPip: {
-    shape: "circle" as const,
-    preferredPosition: "top-right" as const,
-    diameterRatio: 0.14,
-    edgeRatio: 0.05,
-  },
-});
-
-export const STOP_MOTION_MACHINE_STYLE = Object.freeze({
-  id: "stop-motion-machine" as const,
-  status: "approved" as const,
-  speakerPip: {
-    shape: "circle" as const,
-    preferredPosition: "top-right" as const,
-    diameterRatio: 0.14,
-    edgeRatio: 0.05,
-  },
-});
-
-export const RESEARCH_ARCHIVE_STYLE = Object.freeze({
-  id: "research-archive" as const,
   status: "approved" as const,
   speakerPip: {
     shape: "circle" as const,
