@@ -405,8 +405,10 @@ test("Studio cover workspace renders registered local layers without invoking an
   assert.match(server, /coverDownloadMatch/);
   assert.match(covers, /CoverAssetPackLandscape/);
   assert.match(covers, /CoverAssetPackPortrait/);
-  assert.match(covers, /portraitTreatment: "photo-crop"/);
-  assert.match(app, /导入你自己的正面或半身照片/);
+  assert.match(covers, /portraitTreatment: "transparent-cutout"/);
+  assert.match(covers, /background-only-no-people-no-text-v1|coverRegistryPath/);
+  assert.match(app, /导入你自己的透明人物抠图/);
+  assert.match(app, /background\.landscape/);
   assert.doesNotMatch(covers, /detectAgent|generateNarration|semantic/);
 });
 

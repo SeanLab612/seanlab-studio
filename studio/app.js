@@ -2277,10 +2277,10 @@ const coverStudioView = (project, cover) => {
     : "";
   return `<div class="panel cover-studio-panel">
     <div class="review-section-head"><div><div class="eyebrow">COVER STUDIO</div><h3>视频封面</h3></div><span class="status-pill">${cover.status === "generated" ? "已生成" : "待生成"}</span></div>
-    <p class="cover-studio-intro">导入你自己的正面或半身照片，调整人物位置与缩放，再由本地 Remotion 生成 4:3 横版和 3:4 竖版封面。照片只复制到当前本地项目，不会提交到代码仓库，也不会调用 Agent 或生图模型。</p>
+    <p class="cover-studio-intro">从三套已入库背景中选一套，再导入你自己的透明人物抠图，由本地 Remotion 生成 4:3 横版和 3:4 竖版封面。人物素材只复制到当前本地项目，不会提交到代码仓库，也不会调用 Agent 或生图模型。</p>
     <section class="cover-portrait-setup">
-      <div class="cover-portrait-guide"><h4>1. 导入自己的照片</h4><p>建议脸部清晰、光线均匀；背景无需提前抠图。填写图片绝对路径，支持 PNG、JPG、JPEG、WebP。</p></div>
-      <label class="cover-portrait-path">照片路径<input id="cover-portrait-path" placeholder="/Users/you/Pictures/portrait.jpg"/></label>
+      <div class="cover-portrait-guide"><h4>1. 导入自己的人物抠图</h4><p>请先准备透明背景的 PNG 或 WebP；Studio 只负责本地排版，不会替你上传或生成人像。</p></div>
+      <label class="cover-portrait-path">抠图路径<input id="cover-portrait-path" placeholder="/Users/you/Pictures/portrait-cutout.png"/></label>
       <div class="cover-crop-controls">
         <label>水平位置 <input id="cover-crop-x" type="range" min="0" max="100" step="1" value="${Number(selection.portraitCrop?.x ?? 64)}"/></label>
         <label>垂直位置 <input id="cover-crop-y" type="range" min="0" max="100" step="1" value="${Number(selection.portraitCrop?.y ?? 42)}"/></label>
@@ -2293,8 +2293,8 @@ const coverStudioView = (project, cover) => {
       <label>背景主题<select id="cover-background">${cover.catalog.backgrounds.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === selection.backgroundId ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}</select></label>
     </div>
     <div class="cover-source-preview">
-      <div><span>人物照片</span>${cover.portraitConfigured ? `<img id="cover-person-thumb" src="/api/projects/${encodeURIComponent(project.project.id)}/cover/catalog-asset/person/user-portrait?v=${cache}" alt="用户导入的人物照片"/>` : `<div class="cover-empty-preview"><b>待导入</b><span>使用你自己的照片</span></div>`}</div>
-      <div><span>背景主题</span><div class="cover-theme-swatch" style="--cover-accent-a:${escapeHtml(background.accents[0])};--cover-accent-b:${escapeHtml(background.accents[1])}"><b>${escapeHtml(background.label)}</b><span>由本地样式生成</span></div></div>
+      <div><span>人物抠图</span>${cover.portraitConfigured ? `<img id="cover-person-thumb" src="/api/projects/${encodeURIComponent(project.project.id)}/cover/catalog-asset/person/user-portrait?v=${cache}" alt="用户导入的透明人物抠图"/>` : `<div class="cover-empty-preview"><b>待导入</b><span>使用你自己的透明抠图</span></div>`}</div>
+      <div><span>背景模板</span><img src="/local-assets/${escapeHtml(background.landscape)}" alt="${escapeHtml(background.label)} 背景预览"/></div>
     </div>
     ${coverIconPickerView(cover)}
     <div class="cover-copy-grid">

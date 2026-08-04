@@ -14,6 +14,7 @@ here before a release.
 | `public/review-assets/*.svg` | SeanLab-authored mock interfaces and placeholders | MIT | Mock interfaces do not reproduce vendor logos. |
 | `docs/assets/*` | Screenshots and renders of SeanLab Studio | MIT | Generated from this repository; imported user projects are excluded. |
 | `public/assets/animation-templates/*.mp4` | SeanLab-authored template renders | MIT | Rendered from repository animation source. |
+| `public/assets/covers/backgrounds/*.png` | SeanLab-generated background-only cover templates | MIT | No people, logos, or text; exact hashes are frozen in `public/assets/covers/registry.json`. |
 | `regression-fixtures/golden/**` | SeanLab-authored component renders | MIT | Generated from repository components and local fixtures. |
 | `regression-fixtures/topics/assets/deepswe-score-card.svg` | SeanLab-authored factual test card | MIT | Source facts are attributed in `src/regression-fixtures/topic-fixtures.ts`. |
 | `regression-fixtures/topics/assets/kimi-k3-fact-card.svg` | SeanLab-authored factual test card | MIT | Source facts are attributed in `src/regression-fixtures/topic-fixtures.ts`. |

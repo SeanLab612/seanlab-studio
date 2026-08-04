@@ -147,6 +147,7 @@ export const RemotionRoot = () => (
       defaultProps={coverAssetPackFixture({
         format: "landscape",
         personSrc: "review-assets/creator-placeholder.svg",
+        backgroundSrc: "assets/covers/backgrounds/signal-tech-landscape-v1.png",
         theme: "signal",
         accents: ["#6EA8FF", "#FF626B"],
         titleLines: ["把写稿、素材", "制作与交付连起来"],
@@ -163,6 +164,7 @@ export const RemotionRoot = () => (
       defaultProps={coverAssetPackFixture({
         format: "portrait",
         personSrc: "review-assets/creator-placeholder.svg",
+        backgroundSrc: "assets/covers/backgrounds/signal-tech-portrait-v1.png",
         theme: "signal",
         accents: ["#6EA8FF", "#FF626B"],
         titleLines: ["把写稿、素材", "制作与交付连起来"],
