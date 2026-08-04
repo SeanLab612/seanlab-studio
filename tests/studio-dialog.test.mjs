@@ -663,6 +663,16 @@ test("Studio persists jobs serially and only recovers interrupted work after own
   assert.match(server, /server\.once\("error"/);
 });
 
+test("Studio exposes a source-bound baseline review instead of sending enhanced-production failures to the user", async () => {
+  const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
+  const server = await readFile(new URL("../scripts/studio-server.mjs", import.meta.url), "utf8");
+  assert.match(app, /productionBaselineReviewView/);
+  assert.match(app, /human-production-baseline-approved/);
+  assert.match(server, /createProductionBaseline/);
+  assert.match(server, /workflow\/production-baseline\/video/);
+  assert.match(server, /automatic-baseline-ready/);
+});
+
 test("production Remotion root registers the workflow composition used by every render stage", async () => {
   const root = await readFile(new URL("../src/Root.tsx", import.meta.url), "utf8");
   assert.match(root, /id: "GeneratedWorkflowReview"/);

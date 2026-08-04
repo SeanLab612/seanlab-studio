@@ -946,7 +946,7 @@ const renderSteps = (status, viewedStep) => {
       (index === 1 && current >= 1 && state.detail?.narration) ||
       (index === 2 && current >= 2) ||
       (index === 3 && Boolean(state.detail?.project.video.manifest)) ||
-      (index === 4 && Boolean(state.staticReview?.available)) ||
+      (index === 4 && Boolean(state.staticReview?.available || state.workflow?.productionBaseline)) ||
       (index === 5 && Boolean(state.delivery?.approval?.approved));
     const className = `${index < current ? "done" : ""} ${index === viewedStep ? "active" : ""} ${canView ? "clickable" : ""}`;
     const content = `<span class="step-number">${index < current ? "✓" : index + 1}</span><span class="step-copy"><b>${label}</b><small>${description}</small></span>`;
@@ -1924,7 +1924,7 @@ const workflowReadinessCard = (project, workflow) => {
   const action = failed
     ? '<p class="guide-note">制作 Agent 会读取保留产物并从安全断点处理；只有需要你决定时才会提示。</p>'
     : workflow?.reviewReady
-      ? '<button type="button" class="primary" id="open-static-review">进入静态审核</button>'
+      ? `<button type="button" class="primary" id="open-static-review">${workflow.productionBaseline ? "进入基础版本审核" : "进入静态审核"}</button>`
       : workflow?.semanticReplanRequired
         ? '<button type="button" class="primary" id="replan-semantic-workflow">重新理解内容</button>'
         : next && !readiness
@@ -1949,9 +1949,21 @@ const workflowTopActions = (project, workflow) => {
   const warning = `<button type="button" class="workflow-refresh-icon warning ${warningCount ? "active" : ""}" id="workflow-warning-open" aria-label="查看粗剪提示" title="粗剪提示"><img src="/assets/icons/warning.svg" alt=""/>${warningCount ? `<span>${warningCount}</span>` : ""}</button>`;
   return `${refresh}${progress}${warning}`;
 };
+const productionBaselineReviewView = (workflow) => {
+  const baseline = workflow?.productionBaseline;
+  if (!baseline) return "";
+  if (baseline.status === "approved")
+    return `<section class="static-review"><div class="panel approval-success"><div class="eyebrow">SAFE BASELINE</div><h2>基础审核版本已通过</h2><p>增强视觉未能完成时，系统保留了人物主画面和已批准的剪辑结果。</p></div></section>`;
+  return `<section class="static-review production-baseline-review">
+    <div class="panel review-header"><div><div class="eyebrow">SAFE BASELINE</div><h2>基础版本审核</h2><p>增强视觉已自动降级，但人物主画面和已批准的粗剪完整保留。</p></div><span class="status-pill">可以审核</span></div>
+    <div class="panel recut-player"><video controls preload="metadata" src="${escapeHtml(baseline.reviewUrl)}"></video></div>
+    <div class="panel recut-actions-panel"><label class="confirmation-row"><input type="checkbox" id="production-baseline-confirm"/><span>我已完整播放基础版本，并确认可作为本次审核结果</span></label><div class="actions"><button type="button" class="primary" id="approve-production-baseline">通过基础版本</button></div></div>
+  </section>`;
+};
 const videoView = (project, workflow) => `
   <div class="panel workflow-workbench-header"><div><div class="eyebrow">VIDEO WORKFLOW</div><h2>视频制作工作台</h2></div><div class="workflow-workbench-actions">${workflowTopActions(project, workflow)}</div></div>
   ${workflowReadinessCard(project, workflow)}
+  ${workflow?.productionBaseline ? productionBaselineReviewView(workflow) : ""}
   ${workflow?.recutReady ? recutReviewView(project, workflow) : workflow?.recutApprovalStatus === "stale" ? `<div class="panel recut-actions-panel"><h3>需重新审核粗剪</h3><p>录屏定位句或粗剪保护范围已变化，上一次的 720p 审核结果不再适用。系统只会重新生成粗剪预览，不会重做转写和 Agent 理解。</p></div>` : `<div class="panel"><h3>智能粗剪 2.0</h3><p>就绪检查会同时展示执行计划，因此不再需要先启动一个独立的预览任务。</p></div>`}`;
 
 const componentDisplayLabels = {
@@ -2615,7 +2627,10 @@ const renderWorkspace = () => {
   else if (viewedStep === 1 && currentStep >= 2 && narration) $("#workspace-body").innerHTML = lockedNarrationView(project, narration);
   else if (project.authoring.state === "drafted" && narration) $("#workspace-body").innerHTML = narrationView(project, narration, state.detail.sourceContext);
   else if (project.authoring.state === "locked" && !project.video.manifest) $("#workspace-body").innerHTML = mediaView(project, narration);
-  else if (viewedStep === 4) $("#workspace-body").innerHTML = staticReviewView(project, state.staticReview);
+  else if (viewedStep === 4)
+    $("#workspace-body").innerHTML = state.workflow?.productionBaseline
+      ? productionBaselineReviewView(state.workflow)
+      : staticReviewView(project, state.staticReview);
   else if (viewedStep === 5) $("#workspace-body").innerHTML = deliveryView(project, state.delivery);
   else if (project.video.manifest) $("#workspace-body").innerHTML = videoView(project, state.workflow);
   else $("#workspace-body").innerHTML = intakeView(project);
@@ -3566,6 +3581,20 @@ const bindWorkspaceActions = () => {
     }));
   });
   $("#open-static-review")?.addEventListener("click", () => { state.viewStep = 4; renderWorkspace(); });
+  $("#approve-production-baseline")?.addEventListener("click", async () => {
+    if (!$("#production-baseline-confirm")?.checked) return toast("请先完整播放并确认基础版本");
+    try {
+      await api(`/api/projects/${id}/workflow/production-baseline/approve`, {
+        method:"POST",
+        body:{
+          confirmation:"human-production-baseline-approved",
+          inputSha256:state.workflow.productionBaseline.inputSha256,
+        },
+      });
+      toast("基础版本已通过");
+      await selectProject(id);
+    } catch(error){ toast(error.message); }
+  });
   $("#open-delivery")?.addEventListener("click", async () => {
     state.delivery = await api(`/api/projects/${id}/workflow/delivery`).catch(() => state.delivery);
     state.viewStep = 5;

@@ -81,6 +81,11 @@ import {
 import { repairProductionBinding } from "./creator/production-agent-binding-repair.mjs";
 import { repairProductionVisualContract } from "./creator/production-agent-visual-contract-repair.mjs";
 import {
+  approveProductionBaseline,
+  createProductionBaseline,
+  loadProductionBaseline,
+} from "./creator/production-agent-baseline.mjs";
+import {
   isAutonomousTechnicalRepairEligible,
   runProductionAgentTechnicalRepair,
 } from "./creator/production-agent-technical-repair.mjs";
@@ -603,12 +608,36 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
   if (productionAgent.state !== "diagnosing") return;
   const attempts = automaticProductionRecoveryAttempts(productionAgent);
   if (attempts >= MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS) {
-    await transitionProductionAgent({
+    job(
+      "production-baseline",
       projectId,
-      state: "waiting-human",
-      reason: "automatic-attempt-limit-reached",
-      metadata: { failedJobId: failedRecord.id, attempts },
-    });
+      async (reportProgress) => {
+        reportProgress({ phase: "baseline", percent: 15, message: "增强制作未能继续，正在生成基础审核版本" });
+        const baseline = await createProductionBaseline({
+          projectId,
+          failure: failedRecord.currentFailure,
+        });
+        if (!baseline.success) throw new Error(baseline.reason);
+        await transitionProductionAgent({
+          projectId,
+          state: "active",
+          reason: "automatic-baseline-ready",
+          metadata: { failedJobId: failedRecord.id, attempts },
+        });
+        reportProgress({ phase: "review-ready", percent: 100, message: "基础审核版本已经准备好" });
+        return baseline;
+      },
+      {
+        onFailure: () =>
+          transitionProductionAgent({
+            projectId,
+            state: "waiting-human",
+            reason: "automatic-attempt-limit-reached",
+            metadata: { failedJobId: failedRecord.id, attempts },
+          }),
+      },
+    );
+    await persistJobs();
     return;
   }
   const diagnosisJob = job(
@@ -752,13 +781,28 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
           workflowArgs: workflowArgsForStudioReadiness(snapshot),
         });
       }
-      const decision = decideAutomaticProductionRecovery({
+      let decision = decideAutomaticProductionRecovery({
         recovery,
         diagnosis,
         attempts,
         readiness,
         repair,
       });
+      let baseline;
+      if (decision.action !== "resume") {
+        reportProgress({ phase: "baseline", percent: 72, message: "正在准备不依赖增强视觉的基础审核版本" });
+        baseline = await createProductionBaseline({ projectId, failure: recovery.failure }).catch((error) => ({
+          kind: "production-baseline",
+          success: false,
+          reason: error?.message ?? String(error),
+        }));
+        if (baseline.success)
+          decision = {
+            action: "baseline",
+            reason: "automatic-baseline-ready",
+            message: "增强制作已安全降级，基础审核版本已经准备好",
+          };
+      }
       const evidence = await recordProductionAgentDiagnosis({
         projectId,
         recovery,
@@ -780,6 +824,17 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
             readinessSha256: readiness?.readinessSha256,
           },
         });
+      else if (decision.action === "baseline")
+        await transitionProductionAgent({
+          projectId,
+          state: "active",
+          reason: decision.reason,
+          metadata: {
+            failedJobId: failedRecord.id,
+            diagnosisPath: evidence.path,
+            baselineSha256: baseline.record.review.sha256,
+          },
+        });
       else
         await transitionProductionAgent({
           projectId,
@@ -792,11 +847,15 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
           },
         });
       reportProgress({
-        phase: decision.action === "resume" ? "recovery" : "waiting-human",
+        phase:
+          decision.action === "resume" ? "recovery" : decision.action === "baseline" ? "review-ready" : "waiting-human",
         percent: 100,
-        message: decision.action === "resume" ? decision.message : `已保留产物：${decision.message}`,
+        message:
+          decision.action === "resume" || decision.action === "baseline"
+            ? decision.message
+            : `已保留产物：${decision.message}`,
       });
-      return { decision, evidence, readiness };
+      return { decision, evidence, readiness, baseline };
     },
     {
       onCompleted: async (record) => {
@@ -965,6 +1024,21 @@ const streamVideo = async (request, response, projectId) => {
     mediaType: "video/mp4",
     cacheControl: "no-store",
     allowRanges: true,
+  });
+};
+
+const streamProductionBaseline = async (request, response, projectId) => {
+  const baseline = await loadProductionBaseline(projectId);
+  if (!baseline) throw new Error("基础审核版本当前不可用");
+  const info = await stat(baseline.review.path);
+  streamFile({
+    request,
+    response,
+    asset: { path: baseline.review.path, size: info.size },
+    mediaType: "video/mp4",
+    cacheControl: "private, no-store",
+    allowRanges: true,
+    nosniff: true,
   });
 };
 
@@ -1424,6 +1498,12 @@ const routes = async (request, response, url) => {
     return json(response, 200, await reconcileStudioWorkflow(projectId));
   }
   if (request.method === "GET" && action === "workflow/recut-preview") return streamVideo(request, response, projectId);
+  if (request.method === "GET" && action === "workflow/production-baseline/video")
+    return streamProductionBaseline(request, response, projectId);
+  if (request.method === "POST" && action === "workflow/production-baseline/approve") {
+    assertProjectIdle(projectId);
+    return json(response, 200, await approveProductionBaseline({ projectId, ...(await body(request)) }));
+  }
   if (request.method === "GET" && action === "workflow/static-review")
     return json(response, 200, await loadStaticReview(projectId));
   if (request.method === "GET" && action === "workflow/delivery")

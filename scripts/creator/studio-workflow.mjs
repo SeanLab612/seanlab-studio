@@ -5,6 +5,7 @@ import { readManifest } from "../workflow/manifest.mjs";
 import { createStages, signatureConfigForStage } from "../workflow/stages.mjs";
 import { fileExists, recordEvent, saveState, signatureFor } from "../workflow/state.mjs";
 import { creatorRoot, loadCreatorProject, saveCreatorProject } from "./project-store.mjs";
+import { loadProductionBaseline } from "./production-agent-baseline.mjs";
 import { studioStageDependenciesCurrent } from "./studio-contract.mjs";
 
 const reviewFiles = (paths) => [
@@ -80,11 +81,14 @@ export const loadStudioWorkflow = async (projectId) => {
   const recutReady = state?.stages?.["recut-review"]?.status === "succeeded";
   const recutApproved = state?.stages?.["recut-approval"]?.status === "approved";
   const editPromoted = state?.stages?.["edit-promote"]?.status === "succeeded";
-  const reviewReady =
+  const productionBaseline = await loadProductionBaseline(projectId);
+  const enhancedReviewReady =
     state?.stages?.["review-evidence"]?.status === "succeeded" &&
     state?.stages?.["visual-qa"]?.status === "succeeded" &&
     state?.stages?.["regression-fixtures"]?.status === "succeeded";
-  const reviewApproved = state?.stages?.["human-approval"]?.status === "approved";
+  const reviewReady = enhancedReviewReady || Boolean(productionBaseline);
+  const reviewApproved =
+    state?.stages?.["human-approval"]?.status === "approved" || productionBaseline?.status === "approved";
   const workflowStarted = Object.values(state?.stages ?? {}).some(
     (entry) => entry?.status && entry.status !== "pending",
   );
@@ -135,13 +139,14 @@ export const loadStudioWorkflow = async (projectId) => {
     project: { id: manifest.project.id, title: manifest.project.title },
     updatedAt: state?.updatedAt,
     stages,
-    currentFailure: stages.find((item) => item.status === "failed")?.failure,
+    currentFailure: productionBaseline ? undefined : stages.find((item) => item.status === "failed")?.failure,
     recutReady,
     recutApproved,
     recutApprovalStatus: state?.stages?.["recut-approval"]?.status ?? "pending",
     editPromoted,
     reviewReady,
     reviewApproved,
+    productionBaseline,
     semanticReplanRequired,
     creatorStatus,
     recut,
