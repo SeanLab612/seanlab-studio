@@ -24,7 +24,12 @@ const requiredDocs = [
   "SECURITY.md",
   "CODE_OF_CONDUCT.md",
   "THIRD_PARTY_NOTICES.md",
+  "docs/ASSET-LICENSES.md",
+  "docs/DEPENDENCY-LICENSES.md",
   "docs/open-source-edition.md",
+  "LICENSES/Apache-2.0.txt",
+  "LICENSES/Remotion-License.md",
+  "public/fonts/production/OFL-1.1.txt",
 ];
 
 const protectedIgnoreRules = ["projects/", "studio-data/", "out", ".venv/"];
@@ -133,11 +138,55 @@ export const runReleaseReadiness = async ({ root = repositoryRoot, runQualityGat
   else fail("agent.approved-pair", "Approved codex-cli/gpt-5.6-sol evidence is missing");
 
   try {
-    await readFile(resolve(root, "LICENSE"), "utf8");
-    pass("open-source.license", "LICENSE is present");
+    const license = await readFile(resolve(root, "LICENSE"), "utf8");
+    if (packageMetadata.license === "MIT" && /MIT License/u.test(license))
+      pass("open-source.license", "Project-authored source and assets are explicitly licensed under MIT");
+    else fail("open-source.license", "LICENSE and package.json must consistently declare MIT");
   } catch {
-    warn("open-source.license", "No LICENSE is present; public source is not yet an explicit open-source grant");
+    fail("open-source.license", "No LICENSE is present; public source is not an explicit open-source grant");
   }
+
+  const thirdPartyNotices = await readFile(resolve(root, "THIRD_PARTY_NOTICES.md"), "utf8");
+  const requiredNoticeTerms = ["Remotion", "Apache-2.0", "SIL Open Font License", "NASA"];
+  const missingNoticeTerms = requiredNoticeTerms.filter((term) => !thirdPartyNotices.includes(term));
+  if (missingNoticeTerms.length === 0)
+    pass("open-source.third-party-notices", "Independent licenses and media terms are disclosed");
+  else fail("open-source.third-party-notices", `Missing notices: ${missingNoticeTerms.join(", ")}`);
+
+  const assetLicenses = await readFile(resolve(root, "docs/ASSET-LICENSES.md"), "utf8");
+  const agentIconNotice = await readFile(resolve(root, "studio/assets/agent-icons/NOTICE.md"), "utf8");
+  const requiredAssetTerms = [
+    "studio/assets/agent-icons/",
+    "studio/assets/icons/",
+    "public/icons/system/sprite.svg",
+    "christina-koch-landing-nasa.jpg",
+    "christina-koch-nasa.jpg",
+  ];
+  const missingAssetTerms = requiredAssetTerms.filter((term) => !assetLicenses.includes(term));
+  const officialMarkEvidence = [
+    "https://cdn.openai.com/brand/openai-logos.zip",
+    "https://www.anthropic.com/press-kit",
+    "excluded from SeanLab Studio's MIT License",
+  ];
+  const missingMarkEvidence = officialMarkEvidence.filter((term) => !agentIconNotice.includes(term));
+  if (missingAssetTerms.length === 0 && missingMarkEvidence.length === 0)
+    pass("open-source.asset-provenance", "Tracked assets separate MIT works from documented official marks");
+  else
+    fail(
+      "open-source.asset-provenance",
+      `Incomplete asset provenance${
+        missingAssetTerms.length
+          ? `: ${missingAssetTerms.join(", ")}`
+          : `; missing Agent mark evidence: ${missingMarkEvidence.join(", ")}`
+      }`,
+    );
+
+  const dependencyLicenses = await readFile(resolve(root, "docs/DEPENDENCY-LICENSES.md"), "utf8");
+  const directDependencies = Object.keys(packageMetadata.dependencies || {});
+  const missingDependencies = directDependencies.filter((name) => !dependencyLicenses.includes(`\`${name}\``));
+  if (missingDependencies.length === 0 && dependencyLicenses.includes("Remotion License"))
+    pass("open-source.dependency-licenses", `${directDependencies.length} runtime dependencies documented`);
+  else fail("open-source.dependency-licenses", `Missing dependency notices: ${missingDependencies.join(", ")}`);
 
   const failed = checks.filter((check) => check.status === "failed").length;
   const warnings = checks.filter((check) => check.status === "warning").length;

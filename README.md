@@ -126,4 +126,14 @@ npm run docs:assets
 
 ## License
 
-源代码使用 [MIT License](LICENSE)。字体和其他可再分发素材保留各自的许可说明，用户导入的媒体文件不会因使用本项目而改变授权方式。
+SeanLab Studio 原创源代码、界面、功能图标和项目生成的演示素材使用 [MIT License](LICENSE)，可以商用、修改和再分发。
+
+第三方内容不会被重新许可为 MIT：
+
+- Remotion 使用独立的 Remotion License，部分组织或商业用途需要另行取得许可；
+- 霞鹜文楷保留 SIL OFL 1.1；
+- NASA 回归测试图片仅按 NASA 信息用途规则使用并保留来源；
+- Agent 选择器中的 OpenAI 与 Anthropic 官方标识仅用于说明 Codex CLI 和 Claude Code 兼容性，不属于 MIT 素材；
+- 产品名称只用于兼容性说明，不代表 OpenAI、Anthropic、NASA 或 Remotion 的合作或背书。
+
+完整边界请查看 [第三方声明](THIRD_PARTY_NOTICES.md)、[素材许可清单](docs/ASSET-LICENSES.md)和[依赖许可清单](docs/DEPENDENCY-LICENSES.md)。用户导入的媒体文件不会因使用本项目而改变授权方式。

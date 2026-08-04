@@ -7,6 +7,14 @@ test("release readiness keeps version, operator commands, docs, governance, and 
   assert.notEqual(report.status, "failed", JSON.stringify(report.checks, null, 2));
   assert.equal(report.summary.failed, 0);
   assert.ok(report.checks.some((check) => check.id === "local-data.untracked" && check.status === "passed"));
+  for (const id of [
+    "open-source.license",
+    "open-source.third-party-notices",
+    "open-source.asset-provenance",
+    "open-source.dependency-licenses",
+  ]) {
+    assert.ok(report.checks.some((check) => check.id === id && check.status === "passed"), id);
+  }
   assert.equal(report.version, "0.1.0");
   assert.equal(report.productPosition, "local-production-mvp");
   assert.equal(report.versionPromotion, "explicitly-approved");
