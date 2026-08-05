@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+test("Studio job progress is monotonic across internal phases", async () => {
+  const server = await readFile(new URL("../scripts/studio-server.mjs", import.meta.url), "utf8");
+  assert.match(server, /percent: Math\.max\(previousPercent, incomingPercent\)/);
+});
+
 test("new-project dialog close controls never submit the required form", async () => {
   const html = await readFile(new URL("../studio/index.html", import.meta.url), "utf8");
   const closeControls = html.match(/<button\s+type="button"[^>]*data-close-project-dialog[^>]*>/g) ?? [];
@@ -29,7 +34,7 @@ test("new projects collect sources and materials before confirmed understanding 
   );
   assert.match(app, /先完成素材理解/);
   assert.match(app, /素材已理解/);
-  assert.match(app, /确认素材理解/);
+  assert.match(app, /确认素材安排并继续/);
   assert.match(app, /浏览并加入（可多选）/);
   assert.match(app, /data-delete-material/);
   assert.match(app, /原文件会保留在项目回收目录/);
@@ -102,8 +107,8 @@ test("Studio exposes intake inventory while the production Agent reviews recut i
   assert.match(app, /已添加 \$\{items\.length\}/);
   assert.match(app, /workflow\/status/);
   assert.match(app, /screenSha256/);
-  assert.match(app, /制作 Agent 正在审核粗剪/);
-  assert.match(app, /未通过时会自动重新规划/);
+  assert.match(app, /过程预览/);
+  assert.match(app, /不是用户审核门/);
   assert.doesNotMatch(app, /<button[^>]+id="approve-recut"/);
   assert.doesNotMatch(app, /<button[^>]+id="reject-recut"/);
   assert.match(app, /图片适配方式/);
@@ -121,9 +126,7 @@ test("Studio continues through Agent self-review without exposing an intermediat
   assert.match(source, /action: "production"/);
   assert.match(source, /targetGate: "delivery-acceptance"/);
   assert.match(source, /审核最终成片/);
-  assert.match(source, /id="workflow-refresh" aria-label="重新校验已有进度"/);
-  assert.match(source, /assets\/icons\/refresh\.svg/);
-  assert.match(source, /不会启动工作流，也不会重新调用 Agent、翻译或渲染/);
+  assert.doesNotMatch(source, /id="workflow-refresh" aria-label="重新校验已有进度"/);
   assert.match(source, /workflow-workbench-actions/);
   assert.doesNotMatch(source, /workflow-progress-note/);
   assert.doesNotMatch(source, /staticReviewReady \? "" : `<button class="primary" id="continue-workflow"/);
@@ -147,6 +150,9 @@ test("Studio readiness checks the continuous production path before starting", a
   assert.match(app, /workflow-readiness-confirm/);
   assert.match(app, /data-readiness-sha/);
   assert.match(app, /delivery-readiness-check/);
+  assert.match(app, /开始条件由制作 Agent 内部处理/);
+  assert.match(app, /id="delivery-readiness-check">重新安全检查/);
+  assert.match(app, /内部重新检查并从有效断点继续/);
   assert.match(server, /workflowArgsForStudioReadiness/);
   assert.match(server, /input\.action === "readiness"/);
   assert.match(server, /event\.event === "workflow\.preview"/);
@@ -158,7 +164,7 @@ test("Studio readiness checks the continuous production path before starting", a
 test("Studio keeps production and delivery creator-facing while preserving advanced evidence", async () => {
   const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
 
-  assert.match(app, /制作 Agent 正在后台诊断、修改并重新检查/);
+  assert.match(app, /制作 Agent 正在内部重新检查并从有效断点继续/);
   assert.match(app, /无需处理技术错误；详细诊断仅保留在高级详情中/);
   assert.doesNotMatch(app, /\$\{escapeHtml\(delivery\.failure\?\.message/);
   assert.doesNotMatch(app, /id="open-workflow-recovery"/);
@@ -506,12 +512,12 @@ test("Studio replans animation image ingredients as a reviewable Agent draft", a
   assert.match(replanning, /\{ flag: "wx" \}/);
 });
 
-test("Studio component catalog count follows the current 19-item allowlist", async () => {
+test("Studio component catalog count follows the current 20-item allowlist", async () => {
   const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
   const contracts = await import(`../studio/contracts.js?catalog=${Date.now()}`);
-  assert.equal(contracts.visualComponentCatalog.length, 19);
+  assert.equal(contracts.visualComponentCatalog.length, 20);
   assert.match(app, /\$\{visualComponentCatalog\.length\} 个组件/);
-  assert.doesNotMatch(app, /查看全部 20 个组件|20 个组件预览/);
+  assert.doesNotMatch(app, /查看全部 21 个组件|21 个组件预览/);
 });
 
 test("Studio exposes evidence inspectors, typed revision preview, and operations recovery", async () => {
@@ -588,63 +594,37 @@ test("Studio revision choices match the component ids allowed by the revision co
   assert.match(server, /componentIds: Object\.keys\(approvedComponentRegistry\)/);
   assert.match(app, /state\.metadata\.componentIds/);
   assert.deepEqual(registryIds, schemaIds);
-  assert.equal(registryIds.length, 19);
+  assert.equal(registryIds.length, 20);
   assert.match(app, /"image-evidence-inset": "图片证据"/);
   assert.match(app, /"rough-annotation": "手绘语义标注"/);
+  assert.match(app, /"editorial-statement": "观点陈述"/);
 });
 
-test("Studio treats uploaded visual assets as candidates and binds them after drafting", async () => {
+test("Studio curates uploaded visuals before narration and treats confirmed assets as production obligations", async () => {
   const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
-  assert.match(app, /Agent 会读取并理解素材内容/);
-  assert.match(app, /写稿后补充截图或录屏/);
-  assert.match(app, /素材与口播段落/);
-  assert.match(app, /data-section-material/);
-  assert.match(app, /继续生成视觉方案/);
-  assert.match(app, /不会重新调用 Agent 写稿/);
+  assert.match(app, /上传的图片和录屏默认必须进入成片/);
+  assert.match(app, /data-material-disposition/);
+  assert.match(app, /data-material-feedback/);
+  assert.match(app, /必须呈现/);
+  assert.match(app, /不进入成片/);
+  assert.match(app, /确认素材安排并继续/);
   assert.doesNotMatch(app, /asset-anchor-text/);
 });
 
-test("Studio reviews narration and visual choices together without adding human state to the Agent schema", async () => {
+test("Studio exposes narration-only editing and a hash-bound read-only production direction", async () => {
   const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
   const server = await readFile(new URL("../scripts/studio-server.mjs", import.meta.url), "utf8");
   const narrationSchema = JSON.parse(
     await readFile(new URL("../schemas/narration-script-package.schema.json", import.meta.url), "utf8"),
   );
-  assert.match(app, /分镜脚本/);
-  assert.match(app, /主视觉类型/);
-  assert.match(app, /data-visual-mode/);
-  assert.doesNotMatch(app, /confirm-all-visuals/);
-  assert.doesNotMatch(app, /确认全部自动方案/);
-  assert.match(app, /下游可以按全文重新规划/);
-  assert.match(app, /只有你亲手添加的文字标注会作为必须保留项/);
-  assert.match(app, /信息关系/);
-  assert.match(app, /文字标注/);
-  assert.match(app, /选中 2–24 个字符/);
-  assert.match(app, /data-add-text-annotation/);
-  assert.match(app, /data-annotation-effect/);
-  assert.match(app, /视觉修改自动保存/);
-  assert.match(app, /const autosaveVisualStoryboard/);
-  assert.match(app, /keepalive:\s*true/);
-  assert.match(app, /void autosaveVisualStoryboard\(id\)/);
-  assert.match(app, /storyboardReview\(section\)\?\.materialId \?\? section\.materialIds\[0\]/);
-  assert.doesNotMatch(app, /stop-motion-machine/);
-  assert.match(app, /动画风格/);
-  assert.match(app, /animation: "动画"/);
-  assert.match(app, /data-visual-mode="auto"/);
-  assert.match(app, /id:"opening", title:"开场"/);
-  assert.doesNotMatch(app, /data-opening-episode-tag/);
-  assert.doesNotMatch(server, /creatorOpeningIdentity: CREATOR_OPENING_IDENTITY/);
-  assert.match(app, /id:"overview", title:"本期概述"/);
-  assert.doesNotMatch(app, /id:"transition-anchor", title:"入场锚点"/);
-  assert.doesNotMatch(app, /index:-2/);
-  assert.doesNotMatch(app, /固定入场动画/);
-  assert.doesNotMatch(server, /creatorTransitionAnchorVisual: CREATOR_TRANSITION_ANCHOR_VISUAL/);
-  assert.match(app, /id:"conclusion", title:"结尾总结"/);
-  assert.match(app, /storyboardEntries\(narration\)/);
-  assert.doesNotMatch(app, /item\.id !== "rough-annotation"/);
-  assert.doesNotMatch(app, /data-beat-visual-type/);
-  assert.doesNotMatch(app, /data-confirm-beat/);
-  assert.match(server, /action === "visual-storyboard"/);
+  assert.match(app, /这里只审核口播文字/);
+  assert.match(app, /组件、动画、时间线和呈现方式将在锁稿后统一规划/);
+  assert.match(app, /const productionPlanView/);
+  assert.match(app, /这是制作 Agent 根据最终口播稿和全部素材形成的大概执行方向/);
+  assert.match(app, /id="confirm-production-plan"/);
+  assert.match(server, /workflow\/production-plan\/confirm/);
+  assert.match(app, /human-confirm-production-direction/);
+  assert.doesNotMatch(server, /request\.method === "PUT" && action === "visual-storyboard"/);
   assert.equal(narrationSchema.properties.sections.items.properties.visualReview, undefined);
 });
 

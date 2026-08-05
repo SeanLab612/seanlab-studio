@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { resolveAgentExecutable } from "../../src/agents/registry.ts";
 import { processTreeSpawnOptions, terminateProcessTree } from "./process-tree.mjs";
 
 const safeCliToken = /^[A-Za-z0-9._[\]-]+$/;
@@ -86,6 +87,9 @@ const cancelledError = () =>
 
 export const runClaudePrint = async ({ prompt, schemaPath, outputPath, imagePaths = [], config, cwd, signal }) => {
   assertSafeOptionalToken(config.model, "Claude model");
+  const executablePath = await resolveAgentExecutable("claude");
+  if (!executablePath)
+    throw new Error("Claude Code executable could not be resolved from PATH or supported user-local bins");
   const schema = JSON.parse(await readFile(resolve(schemaPath), "utf8"));
   return new Promise((resolveRun, rejectRun) => {
     const args = [
@@ -103,7 +107,7 @@ export const runClaudePrint = async ({ prompt, schemaPath, outputPath, imagePath
       ...(config.model ? ["--model", config.model] : []),
     ];
     const child = spawn(
-      "claude",
+      executablePath,
       args,
       processTreeSpawnOptions({ cwd, env: process.env, stdio: ["pipe", "pipe", "pipe"] }),
     );

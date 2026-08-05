@@ -31,7 +31,7 @@ test("category guidance distinguishes reviews from announcements and benchmark p
   assert.match(newsPrompt, /不能把预测写成事实/);
 });
 
-test("media and visual forms remain silent evidence aids", () => {
+test("required media remains a silent semantic handoff rather than an upstream visual plan", () => {
   const prompt = buildNarrationPrompt(
     {
       brief: { topic: "介绍 SeanLab Video", category: "tool-review" },
@@ -39,10 +39,10 @@ test("media and visual forms remain silent evidence aids", () => {
     },
     [],
   );
-  assert.match(prompt, /截图和录屏只是候选/);
-  assert.match(prompt, /不要为迁就素材重复口播或编造内容/);
-  assert.match(prompt, /不得出现“使用某某组件”/);
-  assert.match(prompt, /不规定整篇必须覆盖多少种形式/);
+  assert.match(prompt, /required=true 的截图和录屏.*必须在成片中真实呈现/);
+  assert.match(prompt, /不要为迁就素材重复观点或编造事实/);
+  assert.match(prompt, /写稿阶段不生成视觉方案/);
+  assert.match(prompt, /section\.materialIds 只是不可见的语义交接/);
 });
 
 test("creator editorial answers control angle, first-person evidence, and optional CTA", () => {

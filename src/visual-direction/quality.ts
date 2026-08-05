@@ -3,8 +3,9 @@ import type { VisualDirectionPlan } from "./types.ts";
 type Interval = { start: number; end: number };
 type QualityInput = {
   plan: VisualDirectionPlan;
-  captions?: Array<{ zh?: string }>;
+  captions?: Array<{ zh?: string; start?: number; end?: number }>;
   screenScenes?: Interval[];
+  primaryVisualIntervals?: Interval[];
   brandIntervals?: Interval[];
   minimumEligibleCoverageRatio?: number;
   minimumMaterializationRatio?: number;
@@ -63,6 +64,7 @@ export const evaluateVisualDirectionQuality = ({
   plan,
   captions = [],
   screenScenes = [],
+  primaryVisualIntervals = [],
   brandIntervals = [],
   minimumEligibleCoverageRatio = 0.8,
   minimumMaterializationRatio = 0.8,
@@ -79,6 +81,7 @@ export const evaluateVisualDirectionQuality = ({
       .filter((item) => item.action === "show" && item.displayStart !== null && item.displayEnd !== null)
       .map((item) => ({ start: item.displayStart as number, end: item.displayEnd as number })),
     ...plan.decisions.filter(reservedPrimaryVisual).map((item) => ({ start: item.sourceStart, end: item.sourceEnd })),
+    ...primaryVisualIntervals,
     ...(plan.titleCues ?? []).map((item) => ({ start: item.start, end: item.end })),
   ]);
   const eligibleSeconds = eligibleSource.reduce((total, item) => total + duration(item), 0);
@@ -89,7 +92,12 @@ export const evaluateVisualDirectionQuality = ({
       !decision.reasons.some((reason) => reason.includes("Confirmed creator storyboard requires speaker-only video")) &&
       subtractIntervals([{ start: decision.sourceStart, end: decision.sourceEnd }], excluded).length > 0,
   );
-  const materialized = eligibleDecisions.filter((item) => item.componentId !== null || reservedPrimaryVisual(item));
+  const materialized = eligibleDecisions.filter(
+    (item) =>
+      item.componentId !== null ||
+      reservedPrimaryVisual(item) ||
+      primaryVisualIntervals.some((visual) => item.sourceStart < visual.end && item.sourceEnd > visual.start),
+  );
   const materializationRatio = eligibleDecisions.length > 0 ? materialized.length / eligibleDecisions.length : 1;
   const components = materialized.flatMap((item) => (item.componentId ? [item.componentId] : []));
   const uniqueComponents = new Set(components).size;
@@ -109,13 +117,24 @@ export const evaluateVisualDirectionQuality = ({
   const opportunityCueIndices = captions.flatMap((caption, index) =>
     explicitOpportunity(caption.zh ?? "") ? [index] : [],
   );
-  const coveredOpportunityCount = opportunityCueIndices.filter((cue) =>
-    plan.decisions.some(
-      (decision) =>
-        (decision.action === "show" || reservedPrimaryVisual(decision)) &&
-        cue >= decision.startCue &&
-        cue <= decision.endCue,
-    ),
+  const coveredOpportunityCount = opportunityCueIndices.filter(
+    (cue) =>
+      plan.decisions.some(
+        (decision) =>
+          (decision.action === "show" || reservedPrimaryVisual(decision)) &&
+          cue >= decision.startCue &&
+          cue <= decision.endCue,
+      ) ||
+      primaryVisualIntervals.some((visual) => {
+        const caption = captions[cue];
+        return Boolean(
+          caption &&
+            Number.isFinite(caption.start) &&
+            Number.isFinite(caption.end) &&
+            Number(caption.start) < visual.end &&
+            Number(caption.end) > visual.start,
+        );
+      }),
   ).length;
   const explicitOpportunityCoverageRatio = opportunityCueIndices.length
     ? coveredOpportunityCount / opportunityCueIndices.length

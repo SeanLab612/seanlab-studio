@@ -108,6 +108,39 @@ test("production Agent must decide every reference beat and reach the configured
   );
 });
 
+test("animation remains auxiliary while component-led segments may cover the rest", () => {
+  const captions = Array.from({ length: 10 }, (_, index) => ({
+    start: index,
+    end: index + 1,
+    zh: index < 3 ? `动画阶段${index + 1}` : `组件说明${index + 1}`,
+  }));
+  const animationSegment = intent({
+    startCue: 0,
+    endCue: 2,
+    animationIntent: {
+      prototypeId: "causal-chain",
+      styleProfileId: "paper-editorial",
+      stages: [
+        { label: "起点", detail: "第一步", spokenQuote: "动画阶段1" },
+        { label: "结果", detail: "第三步", spokenQuote: "动画阶段3" },
+      ],
+      takeaway: "只展示必要变化",
+    },
+  });
+  const plan = {
+    schemaVersion: "1.0",
+    analyzedThroughCue: 9,
+    visualDecisions: [],
+    materialAssignments: [],
+    segments: [animationSegment, intent({ startCue: 3, endCue: 9 })],
+  };
+  assert.throws(
+    () => parseSemanticNarrativePlan(plan, captions, 30, [], 0, new Set(), new Set(), 0.25),
+    /animation coverage 30\.0% exceeds the auxiliary limit 25\.0%/,
+  );
+  assert.doesNotThrow(() => parseSemanticNarrativePlan(plan, captions, 30, [], 0, new Set(), new Set(), 0.3));
+});
+
 test("production Agent cannot reject a creator-registered recording as unavailable", () => {
   const captions = [{ start: 0, end: 4, zh: "录屏可以看到模型在浏览器里旋转。" }];
   const referenceBeats = [
@@ -133,6 +166,124 @@ test("production Agent cannot reject a creator-registered recording as unavailab
         new Set(["recording-1"]),
       ),
     /incorrectly treats an available referenced material as missing/,
+  );
+});
+
+test("production Agent must place every required material on an evidence-bounded timeline", () => {
+  const captions = Array.from({ length: 6 }, (_, index) => ({
+    start: index * 2,
+    end: index * 2 + 2,
+    zh: `素材证据${index + 1}`,
+  }));
+  const base = {
+    schemaVersion: "1.0",
+    analyzedThroughCue: 5,
+    visualDecisions: [],
+    segments: [intent({ startCue: 0, endCue: 1 })],
+  };
+  const available = new Set(["screenshot-1", "recording-1"]);
+  const required = new Set(["screenshot-1", "recording-1"]);
+  assert.throws(
+    () => parseSemanticNarrativePlan(base, captions, 30, [], 0, available, required),
+    /materialAssignments must be an array/,
+  );
+  const materialAssignments = [
+    {
+      assetId: "screenshot-1",
+      kind: "image",
+      startCue: 2,
+      endCue: 3,
+      order: 1,
+      reason: "截图对应这段说明",
+    },
+    {
+      assetId: "recording-1",
+      kind: "screen-demo",
+      startCue: 4,
+      endCue: 5,
+      order: 2,
+      reason: "录屏对应操作结果",
+    },
+  ];
+  assert.doesNotThrow(() =>
+    parseSemanticNarrativePlan({ ...base, materialAssignments }, captions, 30, [], 0.8, available, required),
+  );
+  assert.throws(
+    () =>
+      parseSemanticNarrativePlan(
+        { ...base, materialAssignments: materialAssignments.slice(0, 1) },
+        captions,
+        30,
+        [],
+        0,
+        available,
+        required,
+      ),
+    /missing required materials: recording-1/,
+  );
+});
+
+test("material sequencing rejects ambiguous overlaps and animation collisions", () => {
+  const captions = Array.from({ length: 6 }, (_, index) => ({
+    start: index,
+    end: index + 1,
+    zh: index < 3 ? "第一段素材说明" : "第二段动画说明",
+  }));
+  const assignments = [
+    { assetId: "image-1", kind: "image", startCue: 0, endCue: 2, order: 1, reason: "展示图片" },
+    { assetId: "recording-1", kind: "screen-demo", startCue: 2, endCue: 3, order: 2, reason: "展示录屏" },
+  ];
+  assert.throws(
+    () =>
+      parseSemanticNarrativePlan(
+        {
+          schemaVersion: "1.0",
+          analyzedThroughCue: 5,
+          visualDecisions: [],
+          materialAssignments: assignments,
+          segments: [intent({ startCue: 4, endCue: 5 })],
+        },
+        captions,
+        30,
+        [],
+        0,
+        new Set(["image-1", "recording-1"]),
+        new Set(["image-1", "recording-1"]),
+      ),
+    /overlapping materialAssignments/,
+  );
+  assert.throws(
+    () =>
+      parseSemanticNarrativePlan(
+        {
+          schemaVersion: "1.0",
+          analyzedThroughCue: 5,
+          visualDecisions: [],
+          materialAssignments: [assignments[0]],
+          segments: [
+            intent({
+              startCue: 1,
+              endCue: 3,
+              animationIntent: {
+                prototypeId: "causal-chain",
+                styleProfileId: "paper-editorial",
+                stages: [
+                  { label: "素材", detail: "第一段", spokenQuote: "第一段素材说明" },
+                  { label: "动画", detail: "第二段", spokenQuote: "第二段动画说明" },
+                ],
+                takeaway: "素材与动画不能抢占同一时段",
+              },
+            }),
+          ],
+        },
+        captions,
+        30,
+        [],
+        0,
+        new Set(["image-1"]),
+        new Set(["image-1"]),
+      ),
+    /animation overlaps a required material assignment/,
   );
 });
 

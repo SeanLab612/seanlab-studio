@@ -43,7 +43,8 @@
           "visibleActions",
           "usableEvidence",
           "suggestedUse",
-          "limitations"
+          "limitations",
+          "productionRecommendation"
         ],
         "properties": {
           "materialId": { "type": "string", "minLength": 1, "maxLength": 80 },
@@ -64,6 +65,22 @@
             "items": { "type": "string", "minLength": 1, "maxLength": 300 }
           },
           "suggestedUse": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "productionRecommendation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action", "reason"],
+            "properties": {
+              "action": { "enum": ["keep", "exclude", "merge", "trim"] },
+              "reason": { "type": "string", "minLength": 1, "maxLength": 500 },
+              "relatedMaterialIds": {
+                "type": "array",
+                "maxItems": 12,
+                "uniqueItems": true,
+                "items": { "type": "string", "minLength": 1, "maxLength": 80 }
+              },
+              "clipGuidance": { "type": "string", "minLength": 1, "maxLength": 500 }
+            }
+          },
           "limitations": {
             "type": "array",
             "maxItems": 8,

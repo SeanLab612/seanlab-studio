@@ -133,14 +133,27 @@ if (config.semanticPlanning?.provider === "mimo") {
   );
 }
 if (["codex-cli", "claude-code"].includes(config.semanticPlanning?.provider)) {
-  assert.ok(plan.overlayCues.length > 0, "Codex semantic planning must produce at least one qualified visual cue.");
+  const productionAgentVisualCount =
+    plan.overlayCues.length + (plan.animationCues?.length ?? 0) + (plan.imageCues?.length ?? 0) + screenScenes.length;
+  assert.ok(
+    productionAgentVisualCount > 0,
+    "Production Agent planning must produce at least one qualified component, animation, image, or recording cue.",
+  );
   for (const cue of plan.overlayCues) {
     validateMaterializedBriefContent(cue.generatedVisual);
     assert.ok(cue.contentScale >= 0.82 && cue.contentScale <= 1, "Every Codex cue must persist a safe content scale.");
   }
   const directionPlan = JSON.parse(await readFile(resolve(config.visualDirectionPlanFile), "utf8"));
   validateVisualDirectionPlan(directionPlan);
-  assertVisualDirectionQuality({ plan: directionPlan, screenScenes, captions: semanticCaptions });
+  assertVisualDirectionQuality({
+    plan: directionPlan,
+    screenScenes,
+    captions: semanticCaptions,
+    primaryVisualIntervals: [...(plan.animationCues ?? []), ...(plan.imageCues ?? [])],
+    // The production contract measures total temporal coverage across all visual types.
+    // Component-candidate materialization is no longer a separate blocking quota.
+    minimumMaterializationRatio: 0,
+  });
   assert.equal(
     directionPlan.decisions.filter((decision) => decision.action === "show").length,
     plan.overlayCues.length,

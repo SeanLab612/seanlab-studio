@@ -86,16 +86,14 @@ test("visual opportunities remain semantic, evidence-bound, and backward compati
   );
 });
 
-test("draft media sections may remain unbound but never bind multiple materials", () => {
-  assert.throws(
-    () =>
-      validateNarrationScriptPackage({
-        ...narration,
-        sections: narration.sections.map((section, index) =>
-          index === 1 ? { ...section, materialIds: ["material-1", "material-2"] } : section,
-        ),
-      }),
-    /at most one material/,
+test("narration sections may bind several required materials for downstream planning", () => {
+  assert.doesNotThrow(() =>
+    validateNarrationScriptPackage({
+      ...narration,
+      sections: narration.sections.map((section, index) =>
+        index === 1 ? { ...section, materialIds: ["material-1", "material-2"] } : section,
+      ),
+    }),
   );
   assert.doesNotThrow(() =>
     validateNarrationScriptPackage({

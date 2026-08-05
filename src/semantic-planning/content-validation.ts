@@ -115,6 +115,13 @@ export const validateMaterializedBriefContent = (brief: GeneratedVisualBrief) =>
         nonEmpty(item.effect, `rough annotation items[${index}].effect`);
       });
       break;
+    case "editorial-statement":
+      boundedText(props.emphasis, "editorial statement emphasis", 18);
+      if (props.leadIn) boundedText(props.leadIn, "editorial statement leadIn", 12);
+      if (props.denied) boundedText(props.denied, "editorial statement denied", 18);
+      if (props.prefix) boundedText(props.prefix, "editorial statement prefix", 8);
+      if (props.support) boundedText(props.support, "editorial statement support", 30);
+      break;
     default: {
       const collection = Array.isArray(props.items)
         ? objectArray(props.items, "items")

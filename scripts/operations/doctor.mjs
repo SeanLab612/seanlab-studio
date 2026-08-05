@@ -1,10 +1,11 @@
 import { execFile } from "node:child_process";
-import { access, mkdir, readFile, stat, statfs, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
+import { access, mkdir, readFile, stat, statfs, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
-import { OperationalError, classifyOperationalError } from "./errors.mjs";
+import { promisify } from "node:util";
+import { detectAgent } from "../../src/agents/registry.ts";
+import { classifyOperationalError, OperationalError } from "./errors.mjs";
 import { loadLocalProductPolicy } from "./local-product-policy.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -216,36 +217,40 @@ const mimoCheck = async ({ requireMimo }) => {
   );
 };
 
-const codexCheck = async ({ requireCodex }) => {
-  const [version, login] = await Promise.all([command("codex", ["--version"]), command("codex", ["login", "status"])]);
-  const available = version.ok;
-  const authenticated = login.ok && /logged in/i.test(`${login.stdout}\n${login.stderr}`);
+const codexCheck = async ({ requireCodex, detectAgentImpl }) => {
+  const detected = await detectAgentImpl("codex-cli");
+  const available = detected.available;
+  const authenticated = detected.authenticated;
   const passed = available && authenticated;
   return check(
     "codex-cli",
     "Codex CLI semantic provider",
     passed ? "passed" : requireCodex ? "failed" : "warning",
-    passed ? `${version.stdout}; authenticated` : available ? "Codex CLI is not authenticated" : "Codex CLI is missing",
-    { available, authenticated, version: version.stdout || version.stderr },
+    passed
+      ? `${detected.version}; authenticated`
+      : available
+        ? "Codex CLI is not authenticated"
+        : "Codex CLI is missing",
+    { available, authenticated, version: detected.version, executablePath: detected.executablePath },
     passed ? undefined : "Install Codex CLI and run codex login before semantic planning.",
   );
 };
 
-const claudeCheck = async ({ requireClaude }) => {
-  const [version, auth] = await Promise.all([command("claude", ["--version"]), command("claude", ["auth", "status"])]);
-  const available = version.ok;
-  const authenticated = auth.ok;
+const claudeCheck = async ({ requireClaude, detectAgentImpl }) => {
+  const detected = await detectAgentImpl("claude-code");
+  const available = detected.available;
+  const authenticated = detected.authenticated;
   const passed = available && authenticated;
   return check(
     "claude-code",
     "Claude Code semantic provider",
     passed ? "passed" : requireClaude ? "failed" : "warning",
     passed
-      ? `${version.stdout}; authenticated`
+      ? `${detected.version}; authenticated`
       : available
         ? "Claude Code is not authenticated"
         : "Claude Code is missing",
-    { available, authenticated, version: version.stdout || version.stderr },
+    { available, authenticated, version: detected.version, executablePath: detected.executablePath },
     passed ? undefined : "Install Claude Code and authenticate before semantic planning.",
   );
 };
@@ -351,6 +356,7 @@ export const runEnvironmentDoctor = async ({
   requireMimo = true,
   requireCodex = false,
   requireClaude = false,
+  detectAgentImpl = detectAgent,
 } = {}) => {
   const policy = await loadLocalProductPolicy();
   const checks = [];
@@ -362,8 +368,8 @@ export const runEnvironmentDoctor = async ({
     pythonCheck,
     fontCheck,
     () => mimoCheck({ requireMimo }),
-    () => codexCheck({ requireCodex }),
-    () => claudeCheck({ requireClaude }),
+    () => codexCheck({ requireCodex, detectAgentImpl }),
+    () => claudeCheck({ requireClaude, detectAgentImpl }),
     () => workspaceCheck(workspacePath),
     () => diskCheck(workspacePath, policy.minimumFreeBytes),
     () => sourceDecodeCheck(sourcePath),

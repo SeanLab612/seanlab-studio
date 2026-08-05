@@ -35,16 +35,17 @@ test("narration accepts at least one resolved source and forbids generic project
   assert.match(prompt, /真实工作流、核心能力、差异化优点和限制/);
   assert.match(prompt, /不得用常识补齐/);
   assert.match(prompt, /不得把 Star、下载量、用户数等指标推断/);
-  assert.match(prompt, /原始口播原话/);
   assert.match(prompt, /允许短句和现场感/);
   assert.match(prompt, /不能暗含新的产品能力、数据、评价或来源外结论/);
-  assert.match(prompt, /可用于组织口播内容的语义视觉形式/);
-  assert.match(prompt, /不得为了覆盖形式增加无关内容/);
+  assert.match(prompt, /写稿阶段不生成视觉方案/);
   assert.match(prompt, /不得出现“使用某某组件”/);
-  assert.match(prompt, /evidenceText 必须逐字摘自同一 section\.narration/);
-  assert.match(prompt, /section\.materialIds 最多记录一个首选素材/);
-  assert.match(prompt, /一组直接相关的截图可以由下游合并成一个图片节拍/);
-  assert.match(prompt, /录屏必须只覆盖它能够证明的短句/);
+  assert.match(prompt, /每个 required 素材 id 必须且只能写入一个语义最匹配的 section\.materialIds/);
+  assert.match(prompt, /一个 section 可以承接多份相关素材/);
+  assert.match(prompt, /不要决定时间码、布局、组件、动画、裁剪方式或素材出现顺序/);
+  assert.match(prompt, /具备 20 种已审批信息组件和 10 种数据图表形式/);
+  assert.match(prompt, /观点陈述/);
+  assert.match(prompt, /适合信息组件的表达触发条件/);
+  assert.match(prompt, /不是覆盖指标/);
   for (const componentId of Object.keys(approvedComponentRegistry)) assert.doesNotMatch(prompt, new RegExp(componentId));
 });
 

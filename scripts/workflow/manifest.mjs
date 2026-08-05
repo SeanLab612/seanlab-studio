@@ -280,6 +280,14 @@ export const validateManifest = (manifest) => {
       throw new Error(
         "policies.visualDirection.minimumVisualCoverageRatio must be between zero and the maximum coverage ratio",
       );
+    if (
+      manifest.policies.visualDirection.maximumAnimationCoverageRatio !== undefined &&
+      !(
+        manifest.policies.visualDirection.maximumAnimationCoverageRatio >= 0 &&
+        manifest.policies.visualDirection.maximumAnimationCoverageRatio <= 1
+      )
+    )
+      throw new Error("policies.visualDirection.maximumAnimationCoverageRatio must be between zero and one");
   }
   if (manifest.assetProfile) {
     assertObject(manifest.assetProfile, "assetProfile");
@@ -521,6 +529,7 @@ export const createManifest = ({
         repetitionWindowSeconds: 12,
         minimumHeroGapSeconds: 42,
         maximumVisualCoverageRatio: 0.95,
+        maximumAnimationCoverageRatio: 0.25,
         maximumChapterSeconds: 120,
         maximumChapterCandidates: 6,
         heroConfidence: 0.88,

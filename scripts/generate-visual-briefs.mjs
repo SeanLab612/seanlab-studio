@@ -24,7 +24,6 @@ import {
   materializeSemanticIntent,
   normalizeRoutingIntent,
   parseSemanticNarrativePlan,
-  resolveSpeakerRoughAnnotationPlan,
   semanticEvidenceStartSeconds,
   withConfirmedComparisonItems,
   withLocalRoughAnnotationPlan,
@@ -327,10 +326,7 @@ if (semanticConfig.provider === "fixture") {
             rhetoric: visualRhetoricByComponent[authoredConstraint.componentId],
           }
         : boundedIntent;
-    let locallyRoutedIntent =
-      authoredConstraint?.mode === "information"
-        ? creatorRoutedIntent
-        : normalizeRoutingIntent(creatorRoutedIntent, segment.text);
+    const locallyRoutedIntent = creatorRoutedIntent;
     if (authoredConstraint?.mode === "speaker") consumedVisualConstraints.add(authoredConstraint.sectionId);
     const referencedImage = boundedIntent.imageEvidence
       ? imageEvidence.find((asset) => asset.id === boundedIntent.imageEvidence.assetId)
@@ -358,7 +354,7 @@ if (semanticConfig.provider === "fixture") {
       )
         ? `${groundingIntent.items.length}项`
         : undefined);
-    let segmentGrounding = evaluateSourceGrounding({
+    const segmentGrounding = evaluateSourceGrounding({
       outputText: locallyRoutedIntent.roughAnnotation?.targets.length
         ? locallyRoutedIntent.roughAnnotation.targets.join("\n")
         : semanticSegmentClaimText(locallyRoutedIntent),
@@ -373,22 +369,6 @@ if (semanticConfig.provider === "fixture") {
         .filter((value) => typeof value === "string" && value.trim())
         .join("\n"),
     });
-    if (segmentGrounding.unsupportedSourceTerms.length && config.visualDirection?.minimumVisualCoverageRatio) {
-      const fallbackAnnotation = resolveSpeakerRoughAnnotationPlan(segment.text, locallyRoutedIntent, {
-        allowClauseFallback: true,
-      });
-      if (fallbackAnnotation) {
-        const fallbackIntent = withLocalRoughAnnotationPlan(locallyRoutedIntent, fallbackAnnotation);
-        const fallbackGrounding = evaluateSourceGrounding({
-          outputText: fallbackAnnotation.targets.join("\n"),
-          sourceText: segment.text,
-        });
-        if (!fallbackGrounding.unsupportedSourceTerms.length) {
-          locallyRoutedIntent = fallbackIntent;
-          segmentGrounding = fallbackGrounding;
-        }
-      }
-    }
     if (segmentGrounding.unsupportedSourceTerms.length) {
       directionCandidates.push({
         id: segment.id,
@@ -413,50 +393,25 @@ if (semanticConfig.provider === "fixture") {
     const inset = config.visualDirection?.minimumVisualCoverageRatio
       ? 0
       : Math.min(0.35, Math.max(0, (segment.end - segment.start - minimumVisibleSeconds) / 2));
-    const antecedentTargets = antecedentIntent?.items.map((item) => item.label).filter(Boolean) ?? [];
-    const crossOutAntecedent =
-      refersToAntecedent && /划掉/.test(segment.text) && antecedentTargets.length
-        ? {
-            ...creatorRoutedIntent,
-            rhetoric: "rough-annotation",
-            roughAnnotation: { intent: "negation", targets: antecedentTargets },
-          }
-        : creatorRoutedIntent;
-    locallyRoutedIntent =
-      authoredConstraint?.mode === "information"
-        ? creatorRoutedIntent
-        : authoredConstraint?.mode === "speaker"
-          ? locallyRoutedIntent
-          : normalizeRoutingIntent(crossOutAntecedent, segment.text);
     const evidenceStart = semanticEvidenceStartSeconds(locallyRoutedIntent, semanticCaptions, segment.start);
-    // Preserve evidence-timed structured components inside reviewed “人物” sections.
-    // Only a later fallback annotation starts at the segment boundary to fill an
-    // otherwise empty speaker interval.
-    let overlayStart =
+    // Preserve the Production Agent's evidence timing; local code only materializes
+    // an approved renderer for the selected semantic relationship.
+    const overlayStart =
       authoredConstraint?.mode === "information" || authoredConstraint?.mode === "speaker"
         ? segment.start + inset
         : Math.min(segment.end - inset, Math.max(segment.start + inset, evidenceStart));
-    let materialized = materializeSemanticIntent(segment, locallyRoutedIntent, terminologyProfile, imageEvidence, {
-      captions: semanticCaptions,
-      originSeconds: overlayStart,
-    });
-    if (
-      materialized.status === "skipped" &&
-      (!authoredConstraint || authoredConstraint.mode === "auto" || authoredConstraint.mode === "speaker")
-    ) {
-      const annotation = resolveSpeakerRoughAnnotationPlan(segment.text, locallyRoutedIntent, {
-        allowClauseFallback: Boolean(config.visualDirection?.minimumVisualCoverageRatio),
+    let materialized;
+    try {
+      materialized = materializeSemanticIntent(segment, locallyRoutedIntent, terminologyProfile, imageEvidence, {
+        captions: semanticCaptions,
+        originSeconds: overlayStart,
+        preserveExplicitRhetoric: true,
       });
-      if (annotation) {
-        overlayStart = segment.start + inset;
-        materialized = materializeSemanticIntent(
-          segment,
-          withLocalRoughAnnotationPlan(locallyRoutedIntent, annotation),
-          terminologyProfile,
-          imageEvidence,
-          { captions: semanticCaptions, originSeconds: overlayStart },
-        );
-      }
+    } catch (error) {
+      materialized = {
+        status: "skipped",
+        reason: `Production Agent visual could not be materialized: ${error instanceof Error ? error.message : String(error)}`,
+      };
     }
     const candidateBase = {
       id: segment.id,
@@ -576,7 +531,7 @@ if (semanticConfig.provider === "fixture") {
       });
     const owner =
       owners[0] ??
-      (beat.semanticForm === "text-emphasis"
+      (["text-emphasis", "plain-language-claim"].includes(beat.semanticForm)
         ? {
             semanticIndex: -1,
             intent: {

@@ -7,7 +7,12 @@ import {
   type TypographySelectionInput,
 } from "./types.ts";
 
-const narrativeComponents = new Set(["quote-source-card", "rough-annotation", "whole-video-title"]);
+const narrativeComponents = new Set([
+  "quote-source-card",
+  "rough-annotation",
+  "editorial-statement",
+  "whole-video-title",
+]);
 const systemLockedRoles = new Set(["caption", "body", "metric", "label", "source"]);
 const autoEligibleRoles = new Set(["display-title", "quote", "annotation"]);
 const emphasisEligibleRoles = new Set(["display-title", "component-title", "quote", "annotation"]);

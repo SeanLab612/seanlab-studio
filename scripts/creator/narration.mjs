@@ -2,14 +2,13 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { evaluateSourceGrounding, narrationClaimText } from "../../src/agents/conformance.ts";
 import { composeNarrationScript, validateNarrationScriptPackage } from "../../src/creator-workflow/contract.ts";
+import { narrationProductionCapabilityPrompt } from "../../src/creator-workflow/visual-authoring.ts";
 import { editorialBriefPrompt, missingEditorialAnswers } from "../../src/creator-workflow/editorial-brief.ts";
-import { narrationVisualFormsPrompt } from "../../src/creator-workflow/visual-authoring.ts";
 import { createStructuredAgentJsonAdapter } from "../workflow/agent-json-adapter.mjs";
-import { listNarrationAttempts, recordNarrationAttempt } from "./authoring-history.mjs";
+import { recordNarrationAttempt } from "./authoring-history.mjs";
 import { assertConfirmedMaterialUnderstanding, loadMaterialUnderstanding } from "./material-understanding.mjs";
 import { loadCreatorProject, projectDir, saveCreatorProject, writeJsonAtomic } from "./project-store.mjs";
 import { resolveAuthoringSources } from "./source-context.mjs";
-import { seedVisualStoryboard } from "./visual-storyboard.mjs";
 import { writingGuidanceFor } from "./writing-profile.mjs";
 
 const schemaPath = resolve("schemas/narration-script-package.schema.json");
@@ -56,18 +55,39 @@ export const buildNarrationPrompt = (
   const creatorEditorialDirection = project.brief.editorialBrief
     ? editorialBriefPrompt(project.brief.category, project.brief.editorialBrief)
     : [];
-  const materialPolicy = `\n\n${editorialMethodPrompt}\n\n候选素材规则：\n- materials 中的截图和录屏只是候选，不要求全部使用。只有与某一段口播内容直接对应时，才把最明确的一份首选素材 id 写入该 section.materialIds。\n- 草稿阶段 screenshot 或 screen-recording 段可以暂时不绑定素材；写稿完成后，本地视觉规划器会继续按实体、证据角色和精确口播句安排截图组、短录屏及其他视觉节拍，项目固定 Agent 再为已经确定的动画阶段选择共享图片素材，最后由创作者整体确认。\n- 共享图片素材只是动画内部原料，不是独立主视觉；没有合适图片时由本地图标兜底。\n- section.materialIds 最多记录一个首选素材；同一素材可以在不同口播段落重复出现。不要为迁就素材重复口播或编造内容。`;
+  const materialPolicy = `\n\n${editorialMethodPrompt}\n\n素材语义契约：\n- materials 中 required=true 的截图和录屏已经由创作者确认，必须在成片中真实呈现；required=false 的素材不得进入 section.materialIds。\n- 写稿时要自然考虑每份必用素材能够证明或展示的内容。每个 required 素材 id 必须且只能写入一个语义最匹配的 section.materialIds；一个 section 可以承接多份相关素材。\n- section.materialIds 只是不可见的语义交接，不是视觉方案。不要决定时间码、布局、组件、动画、裁剪方式或素材出现顺序。\n- visualOpportunities 一律输出空数组，visualIntent 一律使用 semantic-visual，recordingInstruction 一律为 null。正式视觉方案由口播稿锁定后的生产 Agent 根据全文、素材理解和实际音频独立生成。\n- 不要为迁就素材重复观点或编造事实；应当用素材能够支持的真实内容自然组织口播。`;
   const mode = `${materialPolicy}${
     currentNarration
       ? `\n\n这是需要重写的当前稿件：\n${JSON.stringify(currentNarration, null, 2)}\n\n创作者的修改意见：\n${rewriteInstructions}`
       : ""
   }`;
-  const learnedWritingPolicy = creatorWritingGuidance.length
-    ? `\n\n创作者已审核通过的长期写作偏好：\n${creatorWritingGuidance
-        .map((item) => `- ${item.guidance}`)
-        .join("\n")}\n这些偏好只决定表达方式和结构，不是本期事实来源；与本期写作方向或来源冲突时，以本期输入为准。`
-    : "";
-  return `你是创作者的中文口播稿助手。请严格输出 JSON，不要输出解释。\n\n固定要求：\n- opening 要直接进入本期问题，除非 creatorEditorialDirection 明确提供，不得自行添加频道名、创作者名、欢迎语或口号。\n- 不要输出 transitionAnchor；公开版不会插入固定片头。\n- 语言自然、口语化，允许短句和现场感，避免“首先其次最后”、夸张营销和 AI 套话。\n- 写稿阶段可以使用具体场景、类比、反问、悬念和节奏变化，但语气必须来自 creatorEditorialDirection，不得模仿未提供的特定创作者；这些表达只能帮助解释已有事实，不能暗含新的产品能力、数据、评价或来源外结论。\n- creatorEditorialDirection 是创作者亲自填写的写作方向和第一人称经历。它决定选题角度、受众、中心判断和表达边界，优先级高于资料目录顺序；不得擅自替换创作者选择的角度，也不得虚构 creatorEditorialDirection 中没有的第一人称体验。\n- “结尾是否需要观众做什么”为空时，不得自行添加关注、点赞、收藏、评论、下载或购买等行动号召。\n- fullScript 必须按 opening、overview、sections.narration、conclusion 的顺序完整组成。\n- 只使用 status=resolved 的 sourceContext 作为外部项目事实依据；不得使用失败资料，也不得用常识补齐资料中没有的项目能力。\n- materialUnderstanding 是创作者已经人工确认的图片、录屏和资料理解卡，可以作为写稿证据；理解卡中的 limitations 必须保留为边界，不能反向当作事实。\n- 如果主题是具体项目、产品或仓库，必须优先讲清资料中能验证的真实工作流、核心能力、差异化优点和限制，引用具体阶段、文件、命令或功能；不要退化成泛泛的行业科普。\n- 每一段涉及项目事实的描述，都必须能在 resolved sourceContext、creatorEditorialDirection 或人工确认的 materialUnderstanding 中找到直接依据。证据不足时缩小结论，不要猜。\n- 不得把 Star、下载量、用户数等指标推断成“受欢迎”“社区认可”“关注度高”，除非资料明确这样表述；不得根据项目名称或常识自行补充“开源”“免费”“工具”等分类。\n- 如果 sourceContext 明确包含“原始口播原话”或创作者指定的多个事实，必须逐项保留这些事实；可以改成自然口语，但不能只选择其中一项，也不能用额外推论替代。\n- 输出前逐句检查 title、overview、sections 和 conclusion：删除所有不能在选题、resolved sourceContext、creatorEditorialDirection 或人工确认素材理解中直接找到依据的项目事实。\n- 录屏和截图只在现有 materials 能支持时规划，不得虚构素材。\n- 每个录屏段的 recordingInstruction 要告诉创作者具体展示什么，不指定绝对时间码。\n- 口播稿不是成片视觉导演稿；semantic-visual 只表达内容意图，不指定 Remotion 组件。\n- ${categoryGuidance[project.brief.category] ?? categoryGuidance.other}\n\n可用于组织口播内容的语义视觉形式：\n${narrationVisualFormsPrompt()}\n\n视觉写作规则：\n- 只在内容本身适合时，把事实自然组织成对比、流程、因果、数字、分类、证据或短语强调等更容易理解的表达；不得为了覆盖形式增加无关内容、重复观点或编造事实。\n- 不规定每段必须有视觉机会，也不规定整篇必须覆盖多少种形式；丰富度服从内容质量和证据。\n- 每个正文 section 都必须输出 visualOpportunities 数组，可以为空，最多三项。form 只能使用上面的语义形式 id。为空时下游仍会自动安排人物画面。\n- evidenceText 必须逐字摘自同一 section.narration，且应覆盖足以识别关系的完整短句，不能只摘一个模糊词。\n- visualOpportunities 是不进入口播的结构化备注。opening、overview、sections.narration 和 conclusion 中不得出现“使用某某组件”“这里放一个图”“让下游选择”等制作指令，也不得出现这些语义形式 id。\n- opening、overview 和 conclusion 会由下游根据真实口播自动推断视觉关系；它们与正文一样必须进入逐段视觉确认，不能被省略。\n- 你不知道实际组件名称、布局、颜色、动效和出现时间，也不得猜测或指定它们；下游会根据真实口播、字幕和证据独立选择。${learnedWritingPolicy}\n\n项目：${JSON.stringify({ brief: { ...project.brief, editorialBrief: undefined }, creatorEditorialDirection, sourceContext, materialUnderstanding, materials: project.materials }, null, 2)}${mode}`;
+  const learnedWritingPolicy = `\n\n下游表达能力提示（只帮助你把事实讲完整，不生成视觉方案）：\n${narrationProductionCapabilityPrompt()}${
+    creatorWritingGuidance.length
+      ? `\n\n创作者已审核通过的长期写作偏好：\n${creatorWritingGuidance
+          .map((item) => `- ${item.guidance}`)
+          .join("\n")}\n这些偏好只决定表达方式和结构，不是本期事实来源；与本期写作方向或来源冲突时，以本期输入为准。`
+      : ""
+  }`;
+  return `你是创作者的中文口播稿助手。请严格输出 JSON，不要输出解释。\n\n固定要求：\n- opening 要直接进入本期问题，除非 creatorEditorialDirection 明确提供，不得自行添加频道名、创作者名、欢迎语或口号。\n- 不要输出 transitionAnchor；公开版不会插入固定片头。\n- 语言自然、口语化，允许短句和现场感，避免“首先其次最后”、夸张营销和 AI 套话。\n- 写稿阶段可以使用具体场景、类比、反问、悬念和节奏变化，但语气必须来自 creatorEditorialDirection，不得模仿未提供的特定创作者；这些表达只能帮助解释已有事实，不能暗含新的产品能力、数据、评价或来源外结论。\n- creatorEditorialDirection 是创作者亲自填写的写作方向和第一人称经历。它决定选题角度、受众、中心判断和表达边界，优先级高于资料目录顺序；不得擅自替换创作者选择的角度，也不得虚构 creatorEditorialDirection 中没有的第一人称体验。\n- “结尾是否需要观众做什么”为空时，不得自行添加关注、点赞、收藏、评论、下载或购买等行动号召。\n- fullScript 必须按 opening、overview、sections.narration、conclusion 的顺序完整组成。\n- 只使用 status=resolved 的 sourceContext 作为外部项目事实依据；不得使用失败资料，也不得用常识补齐资料中没有的项目能力。\n- materialUnderstanding 是创作者已经确认的资料与素材理解，可以作为写稿证据；limitations 不能反向当作事实。\n- 如果主题是具体项目、产品或仓库，必须优先讲清资料中能验证的真实工作流、核心能力、差异化优点和限制。\n- 每一段涉及项目事实的描述，都必须能在输入证据中找到直接依据；证据不足时缩小结论，不要猜。\n- 不得把 Star、下载量、用户数等指标推断成受欢迎、社区认可或全面领先，除非资料明确支持。\n- 输出前逐句检查并删除所有无依据的项目事实。\n- 写稿阶段不生成视觉方案，不选择组件、动画、布局、颜色、动效或时间点。\n- visualOpportunities 必须为空，materialIds 只保存必用素材与口播段落的语义关系，不进入用户界面。\n- opening、overview、sections.narration 和 conclusion 中不得出现“使用某某组件”“这里放一个图”“让下游选择”等制作指令。\n- ${categoryGuidance[project.brief.category] ?? categoryGuidance.other}${learnedWritingPolicy}\n\n项目：${JSON.stringify({ brief: { ...project.brief, editorialBrief: undefined }, creatorEditorialDirection, sourceContext, materialUnderstanding, materials: project.materials }, null, 2)}${mode}`;
+};
+
+export const assertNarrationMaterialCoverage = (narration, project) => {
+  const visualMaterials = project.materials.filter((item) => ["screenshot", "screen-recording"].includes(item.kind));
+  const knownIds = new Set(visualMaterials.map((item) => item.id));
+  const requiredIds = new Set(visualMaterials.filter((item) => item.required).map((item) => item.id));
+  const counts = new Map();
+  for (const section of narration.sections) {
+    for (const materialId of section.materialIds) {
+      if (!knownIds.has(materialId)) throw new Error(`口播稿引用了未知或非视觉素材：${materialId}`);
+      counts.set(materialId, (counts.get(materialId) ?? 0) + 1);
+    }
+  }
+  const missing = [...requiredIds].filter((id) => !counts.has(id));
+  if (missing.length) throw new Error(`口播稿没有为必用素材建立语义位置：${missing.join(", ")}`);
+  const repeated = [...counts].filter(([id, count]) => requiredIds.has(id) && count !== 1).map(([id]) => id);
+  if (repeated.length) throw new Error(`必用素材必须且只能绑定一个语义段落：${repeated.join(", ")}`);
+  const excluded = [...counts.keys()].filter((id) => !requiredIds.has(id));
+  if (excluded.length) throw new Error(`已排除素材不能进入口播交接：${excluded.join(", ")}`);
 };
 
 const narrationSourceText = (project, sourceContext, materialUnderstanding) =>
@@ -214,6 +234,7 @@ export const completeNarration = async ({
           if (!Array.isArray(output.sections)) throw new Error("Agent 返回的口播稿缺少 sections 段落数组");
           const narration = validateNarrationScriptPackage({ ...output, fullScript: composeNarrationScript(output) });
           assertNarrationDeterministicGrounding({ narration, project, sourceContext, materialUnderstanding });
+          assertNarrationMaterialCoverage(narration, project);
           return narration;
         } catch (error) {
           repairHistory.push({
@@ -278,6 +299,7 @@ export const completeNarration = async ({
   if (!Array.isArray(output.sections)) throw new Error("Agent 返回的口播稿缺少 sections 段落数组");
   const narration = validateNarrationScriptPackage({ ...output, fullScript: composeNarrationScript(output) });
   assertNarrationDeterministicGrounding({ narration, project, sourceContext, materialUnderstanding });
+  assertNarrationMaterialCoverage(narration, project);
   return {
     narration,
     report: { ...report, mode: currentNarration ? "rewrite" : "initial" },
@@ -346,34 +368,6 @@ const persistNarration = async ({ project, projectId, narration, report, kind, i
   await saveCreatorProject(project);
 };
 
-export const resumeNarrationVisualPlanning = async (projectId, { onProgress = () => {} } = {}) => {
-  const project = await loadCreatorProject(projectId);
-  const narration = await loadNarration(projectId);
-  if (project.authoring.state === "not-started") {
-    const attempt = (await listNarrationAttempts(projectId)).find(
-      (item) => item.status === "succeeded" && item.outputSha256,
-    );
-    if (!attempt) throw new Error("找不到可恢复的口播稿记录");
-    project.authoring = {
-      state: "drafted",
-      draftScript: "authoring/draft-script.md",
-      sourceContext: "authoring/source-context.json",
-      shootingGuide: "authoring/shooting-guide.md",
-      providerReport: "authoring/provider-report.json",
-      currentAttemptId: attempt.attemptId,
-      currentAttemptSha256: attempt.outputSha256,
-    };
-    project.project.status = "script-review";
-    await saveCreatorProject(project);
-  } else if (project.authoring.state !== "drafted") {
-    throw new Error("只有尚未锁定的审核稿可以继续生成视觉方案");
-  }
-  onProgress({ percent: 15, phase: "narration-ready", message: "已读取现有口播稿，不会重新写稿" });
-  const storyboard = await seedVisualStoryboard(projectId, narration);
-  onProgress({ percent: 100, phase: "completed", message: "逐段视觉方案已生成" });
-  return storyboard;
-};
-
 export const spokenTextFromInputScript = (value) =>
   value
     .replace(/^\uFEFF/, "")
@@ -437,6 +431,12 @@ export const prepareExistingNarration = async (projectId) => {
   const narration = createExistingNarrationPackage({
     title: project.project.title,
     inputScript: await readFile(inputPath, "utf8"),
+  });
+  const requiredMaterials = project.materials.filter(
+    (item) => item.required && ["screenshot", "screen-recording"].includes(item.kind),
+  );
+  requiredMaterials.forEach((material, index) => {
+    narration.sections[index % narration.sections.length].materialIds.push(material.id);
   });
   await persistNarration({
     project,
@@ -507,9 +507,7 @@ export const generateNarration = async (projectId, { fixture, onProgress = () =>
       kind: "initial",
     });
     narrationPersisted = true;
-    onProgress({ percent: 92, phase: "visual-planning", message: "口播稿已保存，正在生成逐段视觉方案" });
-    await seedVisualStoryboard(projectId, narration);
-    onProgress({ percent: 100, phase: "completed", message: "口播稿和拍摄指导已生成" });
+    onProgress({ percent: 100, phase: "completed", message: "口播稿已生成，等待文字审核" });
     return narration;
   } catch (error) {
     if (!narrationPersisted) {
@@ -584,9 +582,7 @@ export const rewriteNarration = async (projectId, { instructions, fixture, onPro
       instructions: normalizedInstructions,
     });
     narrationPersisted = true;
-    onProgress({ percent: 92, phase: "visual-planning", message: "新口播稿已保存，正在更新逐段视觉方案" });
-    await seedVisualStoryboard(projectId, narration);
-    onProgress({ percent: 100, phase: "completed", message: "口播稿已按修改意见重写，等待审核" });
+    onProgress({ percent: 100, phase: "completed", message: "口播稿已按修改意见重写，等待文字审核" });
     return narration;
   } catch (error) {
     if (!narrationPersisted) {

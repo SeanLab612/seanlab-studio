@@ -136,6 +136,11 @@ export const componentMotionProfiles: ComponentMotionProfile[] = [
     emphasize: "conclusion-emphasis",
     transform: "state-transition",
   }),
+  profile("editorial-statement", "conclusion-emphasis", {
+    introduce: "quiet-introduction",
+    emphasize: "conclusion-emphasis",
+    transform: "state-transition",
+  }),
 ];
 
 if (componentMotionProfiles.length !== APPROVED_COMPONENT_IDS.length)

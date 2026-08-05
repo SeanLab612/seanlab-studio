@@ -45,7 +45,7 @@ for item in manifest["frames"]:
         "title-continuity",
     ):
         # These visual groups are validated by their dedicated QA passes below.
-        # They do not use one of the 19 semantic-component content contracts, so
+        # They do not use one of the 20 semantic-component content contracts, so
         # image metrics must cover the rendered canvas instead of requiring a
         # component crop that cannot exist.
         crop = image
@@ -77,7 +77,15 @@ for item in manifest["frames"]:
         title_label = f'{item["cueId"]} | {item["phase"]} | t={item["timeSeconds"]:.2f}s'
         cv2.putText(title_canvas, title_label, (14, 386), cv2.FONT_HERSHEY_SIMPLEX, 0.58, (124, 247, 212), 1, cv2.LINE_AA)
         title_thumbs.append(title_canvas)
-    if item["phase"] in ("stable", "screen-stable", "title-stable", "speaker-only"):
+    if item["phase"] in (
+        "stable",
+        "screen-stable",
+        "image-stable",
+        "animation-stable",
+        "annotation-stable",
+        "title-stable",
+        "speaker-only",
+    ):
         thumb = cv2.resize(image, (480, 270), interpolation=cv2.INTER_AREA)
         canvas = np.zeros((306, 480, 3), dtype=np.uint8)
         canvas[:270] = thumb
@@ -86,6 +94,9 @@ for item in manifest["frames"]:
         color = {
             "SEMANTIC COMPONENT": (255, 189, 69),
             "AUTHORED SCREEN": (110, 168, 255),
+            "AUTHORED IMAGE": (110, 168, 255),
+            "ANIMATION": (213, 174, 255),
+            "ANNOTATION": (255, 189, 69),
             "TITLE CONTINUITY": (124, 247, 212),
             "SPEAKER ONLY": (150, 150, 150),
         }.get(category, (235, 235, 235))

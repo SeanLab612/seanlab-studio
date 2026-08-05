@@ -60,6 +60,7 @@ const rhetoricIds = new Set<VisualRhetoric>([
   "capability-surface",
   "tradeoff",
   "rough-annotation",
+  "editorial-statement",
 ]);
 
 const motionIntents = new Set<MotionIntent>(["introduce", "compare", "progress", "reorder", "transform", "emphasize"]);
@@ -85,7 +86,7 @@ const defaultMotionIntent = (rhetoric: VisualRhetoric): MotionIntent => {
     return "progress";
   if (["comparison", "ranking", "distribution", "key-stat", "tradeoff", "capability-surface"].includes(rhetoric))
     return "compare";
-  if (rhetoric === "rough-annotation") return "emphasize";
+  if (["rough-annotation", "editorial-statement"].includes(rhetoric)) return "emphasize";
   return "introduce";
 };
 
@@ -107,7 +108,12 @@ export const selectVisualComponent = (
 
   let decision: { id: ApprovedVisualComponentId; reason: string };
 
-  if (analysis.rhetoric === "rough-annotation" && entities >= 1 && entities <= 3) {
+  if (analysis.rhetoric === "editorial-statement") {
+    decision = {
+      id: "editorial-statement",
+      reason: "One complete plain-language claim has no stronger structured or material-backed visual form.",
+    };
+  } else if (analysis.rhetoric === "rough-annotation" && entities >= 1 && entities <= 3) {
     decision = {
       id: "rough-annotation",
       reason: "One to three short evidence-bound phrases carry explicit emphasis, negation, correction, or grouping.",
@@ -282,6 +288,11 @@ const componentTextLimits: Record<string, number> = {
   title: 22,
   takeaway: 36,
   sourceName: 28,
+  leadIn: 12,
+  denied: 18,
+  prefix: 8,
+  emphasis: 18,
+  support: 30,
 };
 const visitComponentText = (
   value: unknown,
@@ -320,6 +331,13 @@ export const compactComponentProps = (componentId: VisualComponentId, input: Rec
       };
     });
     props.takeaway = compactText(props.takeaway, 36);
+  }
+  if (componentId === "editorial-statement") {
+    props.leadIn = compactText(props.leadIn, 12);
+    props.denied = compactText(props.denied, 18);
+    props.prefix = compactText(props.prefix, 8);
+    props.emphasis = compactText(props.emphasis, 18);
+    props.support = compactText(props.support, 30);
   }
   return props;
 };
@@ -444,6 +462,14 @@ export const validateComponentProps = (componentId: VisualComponentId, props: Re
           throw new Error(`rough-annotation.items[${index}].effect is unsupported.`);
       }
       break;
+    case "editorial-statement":
+      assertString(props.emphasis, "editorial-statement.emphasis");
+      assertTextCapacity(props.leadIn, 12, "editorial-statement.leadIn");
+      assertTextCapacity(props.denied, 18, "editorial-statement.denied");
+      assertTextCapacity(props.prefix, 8, "editorial-statement.prefix");
+      assertTextCapacity(props.emphasis, 18, "editorial-statement.emphasis");
+      assertTextCapacity(props.support, 30, "editorial-statement.support");
+      break;
   }
 };
 
@@ -495,13 +521,13 @@ export const createVisualBriefPrompt = (
     "When a named person, company, institution, country, exchange, university, research group, or publication materially supports the visual, emit analysis.mediaIntents=[{kind,entityId,preferredVariant?}]. Use a stable lowercase snake_case person id or namespaced identity id. Never output an image URL, path, screenshot, or invented asset; deterministic local resolution supplies an approved asset or fallback.",
     "Treat generic local-model labels (本地模型, local model, local LLM) as the approved brand.ollama identity pairing unless the narration explicitly names another local runtime.",
     "Write only viewer-facing content derived from the narration. Never mention internal component ids, layout-template selection, animation behavior, tests, review artifacts, MVPs, or design-system terminology. Product templates, components, and review actions may be mentioned when the narration itself discusses them.",
-    "Use rhetoric: scenario, comparison, trend, distribution, person-evidence, factor-sequence, process, process-steps, ranking, key-stat, media-comparison, image-evidence, causal-chain, quote-source, historical-timeline, decision-matrix, model-classification, core-positioning, capability-surface, or tradeoff.",
+    "Use rhetoric: scenario, comparison, trend, distribution, person-evidence, factor-sequence, process, process-steps, ranking, key-stat, media-comparison, image-evidence, causal-chain, quote-source, historical-timeline, decision-matrix, model-classification, core-positioning, capability-surface, tradeoff, rough-annotation, or editorial-statement.",
     "Counts and data shape must match the narration. Keep titles short and subtitles bilingual.",
     "Text roles are strict: the segment text is verbatim caption truth; narrative fields are concise display-copy; item labels are design-labels. Never copy a visual summary back into captions.",
     "Keep the Chinese title at 18 characters or fewer, display-copy at 72 characters or fewer, and design labels at 28 characters or fewer.",
     terminologyProfile ? `Canonical terminology: ${glossaryForPrompt(terminologyProfile)}` : "",
     "Set analysis.visualPriority to skip when the segment is transitional, repetitive, purely conversational, or would not benefit from a visual. Use normal for a useful explanation and high only for a major claim, comparison, process, or conclusion.",
-    "Make props match the rhetoric: scenario={branches:[...]}; distribution={bars:[...]}; trend={series:[...]}; person-evidence={name,role}; factor-sequence/process={items:[3-5]}; process-steps={items:[3-6]}; ranking={items:[3-8]}; comparison with two entities={items:[2]}; key-stat={items:[1-3]}; media-comparison={items:[1-3]}; causal-chain={nodes:[3-5]}; quote-source={quote,sourceName}; historical-timeline={items:[3-6],mode:'historical'|'progression'}; decision-matrix={points:[2-8],xLabel,yLabel,mode:'numeric'|'qualitative'}; model-classification={items:[2-6]}; core-positioning={nodes:[2-6],centerLabel}; capability-surface={rows:[2-6],columns:[2-6],mode:'numeric'|'qualitative'}; tradeoff={items:[2-3],mode:'numeric'|'directional'}. Never invent numeric values for a qualitative mode.",
+    "Make props match the rhetoric: scenario={branches:[...]}; distribution={bars:[...]}; trend={series:[...]}; person-evidence={name,role}; factor-sequence/process={items:[3-5]}; process-steps={items:[3-6]}; ranking={items:[3-8]}; comparison with two entities={items:[2]}; key-stat={items:[1-3]}; media-comparison={items:[1-3]}; causal-chain={nodes:[3-5]}; quote-source={quote,sourceName}; historical-timeline={items:[3-6],mode:'historical'|'progression'}; decision-matrix={points:[2-8],xLabel,yLabel,mode:'numeric'|'qualitative'}; model-classification={items:[2-6]}; core-positioning={nodes:[2-6],centerLabel}; capability-surface={rows:[2-6],columns:[2-6],mode:'numeric'|'qualitative'}; tradeoff={items:[2-3],mode:'numeric'|'directional'}; editorial-statement={emphasis,leadIn?,denied?,prefix?,support?}. Never invent numeric values for a qualitative mode.",
     "Every array item must be an object with short viewer-facing labels and any numeric value explicitly supported by the narration.",
     `Generation mode: ${mode}.`,
   ]

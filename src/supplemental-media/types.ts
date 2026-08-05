@@ -26,6 +26,7 @@ export type SupplementalMediaAsset = {
   audioPolicy: "mute";
   clip?: { in: number; out: number };
   description?: string;
+  productionTreatment?: "direct" | "merge" | "trim";
 };
 
 export type SupplementalMediaProbe = {
@@ -44,6 +45,8 @@ export type SupplementalMediaProbe = {
   required: boolean;
   executionPolicy?: "locked" | "reference";
   visualBeatId?: string;
+  description?: string;
+  productionTreatment?: "direct" | "merge" | "trim";
   clip: { in: number; out: number };
 };
 

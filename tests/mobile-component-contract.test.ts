@@ -40,6 +40,7 @@ const finalMobileBatch = {
   "image-evidence-inset": 22,
   "quote-source-card": 22,
   "rough-annotation": 24,
+  "editorial-statement": 24,
 } as const;
 
 const mobileContracts = {
@@ -50,7 +51,7 @@ const mobileContracts = {
   ...finalMobileBatch,
 } satisfies Record<ApprovedVisualComponentId, number>;
 
-test("mobile readability contracts cover all 19 approved components", () => {
+test("mobile readability contracts cover all 20 approved components", () => {
   assert.deepEqual(Object.keys(mobileContracts).sort(), [...APPROVED_COMPONENT_IDS].sort());
 });
 

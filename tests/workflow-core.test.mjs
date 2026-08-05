@@ -66,6 +66,7 @@ test("creates a portable manifest and resolves project-relative paths", async ()
   assert.equal(stored.policies.visualDirection.minimumVisibleSeconds, 2.2);
   assert.equal(stored.policies.visualDirection.repetitionWindowSeconds, 12);
   assert.equal(stored.policies.visualDirection.maximumVisualCoverageRatio, 0.95);
+  assert.equal(stored.policies.visualDirection.maximumAnimationCoverageRatio, 0.25);
   assert.equal(stored.providers.recutPlanning.provider, "codex-cli");
   assert.equal(paths.recutPreview, resolve(root, "project", "workspace/recut-preview-720p.mp4"));
   assert.equal(paths.visualPacingReview, resolve(root, "project", "workspace/visual-pacing-review-720p.mp4"));

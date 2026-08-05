@@ -49,8 +49,8 @@ const english = new Map(
     "制作方式": "Workflow",
     "从头创作（先写口播稿）": "Start from scratch (write the script first)",
     "已有口播视频（只做后期）": "Existing talking-head video (post-production only)",
-    "已有视频模式会保留你的字幕稿原文，直接进入视觉方案设计。":
-      "Existing-video mode keeps your transcript unchanged and proceeds directly to visual planning.",
+    "已有视频模式会保留你的字幕稿原文，先审核文字，再由生产 Agent 统一规划画面。":
+      "Existing-video mode keeps your transcript unchanged for text review, then lets the Production Agent plan the visuals.",
     "内容分类": "Content category",
     "通用": "General",
     "GitHub 项目介绍": "GitHub project",
@@ -282,6 +282,7 @@ const english = new Map(
     "能力网格": "Capability grid",
     "取舍天平": "Trade-off scale",
     "手绘标注": "Rough annotation",
+    "观点陈述": "Editorial statement",
     "暂无白名单组件": "No approved component",
     "长停顿": "Long pause",
     "口头语": "Filler",
@@ -435,6 +436,15 @@ const english = new Map(
     "重新理解": "Analyze again",
     "素材已理解": "Media analyzed",
     "确认素材理解": "Confirm media analysis",
+    "确认素材安排并继续": "Confirm media decisions and continue",
+    "必须呈现": "Must appear",
+    "不进入成片": "Exclude from video",
+    "补充说明": "Notes",
+    "这里只审核口播文字": "Review narration text only",
+    "素材语义关系会随最终稿一起交给生产 Agent。组件、动画、时间线和呈现方式将在锁稿后统一规划。":
+      "Semantic media bindings travel with the final script. The Production Agent plans components, animation, timing, and presentation after script lock.",
+    "保存文字修改": "Save text changes",
+    "确认最终口播稿": "Confirm final narration",
     "创作方向": "Creative direction",
     "已理解": "Understood",
     "修改": "Edit",
@@ -571,6 +581,20 @@ const english = new Map(
     "运行一段时间后估算": "Estimate after progress begins",
     "检查完成": "Check complete",
     "检查并继续": "Check and continue",
+    "重新安全检查": "Run safety check again",
+    "等待重新检查": "Waiting for another check",
+    "生成制作方向": "Generate production direction",
+    "制作方向": "Production direction",
+    "等待确认": "Awaiting confirmation",
+    "内容章节": "Content chapters",
+    "计划视觉段": "Planned visual segments",
+    "动画覆盖": "Animation coverage",
+    "预计视觉覆盖": "Estimated visual coverage",
+    "章节方向": "Chapter direction",
+    "必须呈现的素材": "Required media",
+    "确认制作方向": "Confirm production direction",
+    "我已查看制作方向，确认由 Agent 自主完成后续制作":
+      "I reviewed the direction and authorize the Agent to complete production autonomously",
     "重新校验已有进度": "Revalidate existing progress",
     "粗剪 Agent": "Recut Agent",
     "语义 Agent": "Semantic Agent",
@@ -592,6 +616,8 @@ const english = new Map(
       "Recording anchors or protected ranges changed. Studio will regenerate only the recut preview without repeating transcription or Agent understanding.",
     "开始前还有一项需要处理，打开故障恢复查看解决办法。":
       "One issue must be resolved first. Open Recovery for details.",
+    "开始条件已更新，请重新安全检查后继续。":
+      "Startup conditions changed. Run the safety check again to continue.",
     "制作 Agent 会读取保留产物并从安全断点处理；只有需要你决定时才会提示。":
       "The production Agent reads preserved artifacts and resumes from a safe checkpoint. It asks only when your decision is required.",
     "制作 Agent 会先校验现有产物，不会覆盖有效结果。":

@@ -30,6 +30,8 @@ const sourceKinds = ["url", "file", "note"] as const;
 const materialKinds = ["screenshot", "screen-recording", "reference", "speaker-video"] as const;
 const evidenceRoles = ["interface", "result", "source", "comparison", "document", "other"] as const;
 const materialFits = ["contain", "cover"] as const;
+const productionTreatments = ["direct", "merge", "trim"] as const;
+const materialDecisionSources = ["agent", "user"] as const;
 const authoringPathFields = [
   "inputScript",
   "draftScript",
@@ -149,6 +151,15 @@ export const validateCreatorProject = (input: unknown): CreatorProject => {
     assertNonEmptyString(material.label, `material ${material.id} label`);
     if (typeof material.required !== "boolean")
       throw new Error(`Creator project material required flag is invalid: ${material.id}`);
+    if (material.productionTreatment !== undefined && !productionTreatments.includes(material.productionTreatment))
+      throw new Error(`Creator project material production treatment is invalid: ${material.id}`);
+    if (material.decisionSource !== undefined && !materialDecisionSources.includes(material.decisionSource))
+      throw new Error(`Creator project material decision source is invalid: ${material.id}`);
+    if (material.productionNote !== undefined) {
+      assertOptionalString(material.productionNote, `material ${material.id} productionNote`);
+      if (material.productionNote.length > 1000)
+        throw new Error(`Creator project material productionNote is too long: ${material.id}`);
+    }
     if (material.assetId !== undefined) {
       if (!isId(material.assetId) || assetIds.has(material.assetId))
         throw new Error(`Creator project material asset id is invalid or duplicated: ${material.id}`);
@@ -229,8 +240,10 @@ export const validateNarrationScriptPackage = (input: unknown): NarrationScriptP
       throw new Error(`Invalid or duplicate section id: ${section.id}`);
     sectionIds.add(section.id);
     if (!section.title?.trim() || !section.narration?.trim()) throw new Error(`Section ${section.id} is incomplete`);
-    if (!Array.isArray(section.materialIds) || section.materialIds.length > 1)
-      throw new Error(`Section ${section.id} may reference at most one material`);
+    if (!Array.isArray(section.materialIds) || section.materialIds.length > 12)
+      throw new Error(`Section ${section.id} may reference at most twelve materials`);
+    if (new Set(section.materialIds).size !== section.materialIds.length)
+      throw new Error(`Section ${section.id} contains duplicate material references`);
     if (!Array.isArray(section.visualOpportunities) || section.visualOpportunities.length > 3)
       throw new Error(`Section ${section.id} visualOpportunities must contain zero to three items`);
     for (const opportunity of section.visualOpportunities) {

@@ -80,7 +80,7 @@
         <div class="dialog-head"><div><h2>创建创作项目</h2><p>告诉 Studio 这期想做什么，后续只补充真正缺少的信息。</p></div><button type="button" class="icon-button" data-close-project-dialog>关闭</button></div>
         <label>项目名称<input name="title" required placeholder="例如：html-video 项目介绍" /></label>
         <label>这一期想怎么做<textarea name="creatorNotes" required maxlength="8000" rows="5" placeholder="写下主题、想讲的重点、已有素材和期望效果。"></textarea></label>
-        <label>制作方式<select name="workflowMode"><option value="script-first">从头创作（先写口播稿）</option><option value="visual-post-production">已有口播视频（只做后期）</option></select><small>已有视频模式会保留你的字幕稿原文，直接进入视觉方案设计。</small></label>
+        <label>制作方式<select name="workflowMode"><option value="script-first">从头创作（先写口播稿）</option><option value="visual-post-production">已有口播视频（只做后期）</option></select><small>已有视频模式会保留你的字幕稿原文，先审核文字，再由生产 Agent 统一规划画面。</small></label>
         <label>内容分类<select name="category"><option value="general">通用</option><option value="github-project">GitHub 项目介绍</option><option value="news-analysis">新闻介绍</option><option value="tutorial">教程类介绍</option></select></label>
         <label class="project-agent-field">创作助手<span class="project-agent-control"><img id="project-agent-icon" class="agent-logo" src="/assets/agent-icons/codex.svg" alt="" /><select id="agent-options" name="agentId"></select></span><small>创建后将用于整个项目；详细状态可在设置中查看。</small></label>
         <label id="agent-model-field" hidden>创作模型<select id="agent-model" name="model"></select></label>

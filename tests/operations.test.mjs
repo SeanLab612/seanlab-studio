@@ -14,7 +14,7 @@ import {
   summarizeStageLog,
 } from "../scripts/operations/errors.mjs";
 import { exportPortableBundle, verifyPortableBundle } from "../scripts/operations/portable-bundle.mjs";
-import { runProjectPreflight } from "../scripts/operations/preflight.mjs";
+import { providerCheck, runProjectPreflight } from "../scripts/operations/preflight.mjs";
 import { CURRENT_ASSET_PROFILE, createManifest, readManifest, writeManifest } from "../scripts/workflow/manifest.mjs";
 import { createStages } from "../scripts/workflow/stages.mjs";
 
@@ -78,6 +78,28 @@ test("new projects select the authenticated Codex CLI semantic provider by defau
   });
   assert.equal(manifest.providers.semanticPlanning.provider, "codex-cli");
   assert.equal(manifest.providers.translation.provider, "mimo");
+});
+
+test("provider preflight reuses Agent discovery instead of relying on the service PATH", async () => {
+  const manifest = createManifest({
+    id: "provider-discovery",
+    title: "Provider discovery",
+    source: "/tmp/source.mp4",
+    outputPath: "/tmp/provider-discovery/project.json",
+  });
+  manifest.providers.translation.provider = "codex-cli";
+  const check = await providerCheck(manifest, {
+    detectAgentImpl: async (id) => ({
+      id,
+      available: true,
+      authenticated: true,
+      executablePath: "/Users/test/.npm-global/bin/codex",
+      version: "codex-cli 1.0",
+      remediation: null,
+    }),
+  });
+  assert.equal(check.status, "passed");
+  assert.equal(check.details.agent.executablePath, "/Users/test/.npm-global/bin/codex");
 });
 
 test("project preflight validates source, providers, assets, outputs, and resume state", async () => {

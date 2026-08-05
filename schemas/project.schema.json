@@ -60,6 +60,7 @@
               "required": {"type": "boolean"},
               "audioPolicy": {"const": "mute"},
               "description": {"type": "string"},
+              "productionTreatment": {"enum": ["direct", "merge", "trim"]},
               "clip": {
                 "type": "object",
                 "required": ["in", "out"],
@@ -352,6 +353,7 @@
             "minimumHeroGapSeconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 300},
             "maximumVisualCoverageRatio": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
             "minimumVisualCoverageRatio": {"type": "number", "minimum": 0, "maximum": 1},
+            "maximumAnimationCoverageRatio": {"type": "number", "minimum": 0, "maximum": 1},
             "maximumChapterSeconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 600},
             "maximumChapterCandidates": {"type": "integer", "minimum": 1, "maximum": 24},
             "heroConfidence": {"type": "number", "minimum": 0, "maximum": 1},

@@ -20,6 +20,7 @@ import {
   ScenarioBranches,
   TradeoffScale,
   RoughAnnotation,
+  EditorialStatement,
 } from "../components/review";
 import type { GeneratedVisualBrief } from "./generator";
 import { resolveMediaEntityId, resolveMediaEntityReference } from "../media-assets";
@@ -253,6 +254,15 @@ export const GeneratedVisual: React.FC<RuntimeProps & { brief: GeneratedVisualBr
           frame={frame}
           fps={fps}
           {...(props as WithoutRuntime<React.ComponentProps<typeof RoughAnnotation>>)}
+        />
+      );
+    case "editorial-statement":
+      return (
+        <EditorialStatement
+          frame={frame}
+          fps={fps}
+          compact={compact}
+          {...(props as WithoutRuntime<React.ComponentProps<typeof EditorialStatement>>)}
         />
       );
   }

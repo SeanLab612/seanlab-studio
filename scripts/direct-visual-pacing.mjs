@@ -12,6 +12,7 @@ import {
   planWholeVideoTitleCues,
   summarizeVisualDirection,
 } from "../src/visual-direction/index.ts";
+import { applyEditorialStatementPolicy } from "../src/visual-direction/editorial-statement-policy.ts";
 import {
   animationPrototypeRegistry,
   applyAnimationStyleProfile,
@@ -43,6 +44,31 @@ const captions = JSON.parse(await readFile(resolve(config.semanticCaptionsFile),
 const authoredVisualPlan = config.authoredVisualPlanFile
   ? JSON.parse(await readFile(resolve(config.authoredVisualPlanFile), "utf8"))
   : { sections: [], annotations: [] };
+const semanticNarrativePlan = JSON.parse(await readFile(resolve(config.semanticNarrativePlanFile), "utf8"));
+const materialAssignmentSlots = (() => {
+  const groups = new Map();
+  for (const assignment of semanticNarrativePlan.materialAssignments ?? []) {
+    const key = `${assignment.startCue}-${assignment.endCue}`;
+    groups.set(key, [...(groups.get(key) ?? []), assignment]);
+  }
+  const slots = new Map();
+  for (const assignments of groups.values()) {
+    const ordered = [...assignments].sort((left, right) => left.order - right.order);
+    const start = captions[ordered[0].startCue]?.start;
+    const end = captions[ordered[0].endCue]?.end;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start)
+      throw new Error(`Production Agent material assignment ${ordered[0].assetId} has invalid timing`);
+    const slotSeconds = (end - start) / ordered.length;
+    ordered.forEach((assignment, index) => {
+      slots.set(assignment.assetId, {
+        ...assignment,
+        start: start + slotSeconds * index,
+        end: index === ordered.length - 1 ? end : start + slotSeconds * (index + 1),
+      });
+    });
+  }
+  return slots;
+})();
 const visualDecisions = bundle.plan.visualDecisions ?? [];
 const usedReferenceBeatIds = new Set(
   visualDecisions.filter((decision) => decision.action === "use").map((decision) => decision.beatId),
@@ -67,6 +93,28 @@ const legacyVisualBeatIntervals = resolveLockedVisualBeatTimeline({
 const plannedAnimationCues = [
   ...resolveLockedSectionAnimationTimeline({ plan: authoredVisualPlan, captions }),
   ...resolvedAnimationCues(legacyVisualBeatIntervals),
+  ...(semanticNarrativePlan.segments ?? []).flatMap((segment, index) => {
+    if (!segment.animationIntent) return [];
+    const start = captions[segment.startCue]?.start;
+    const end = captions[segment.endCue]?.end;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start)
+      throw new Error(`Production Agent animation segment ${index} has invalid timing`);
+    return [
+      {
+        id: `agent-animation-${index + 1}`,
+        sectionId: `semantic-segment-${index + 1}`,
+        startCue: segment.startCue,
+        endCue: segment.endCue,
+        start,
+        end,
+        primaryVisualType: "animation",
+        takeover: "full",
+        speakerPresence: "circle-pip",
+        animationIntent: segment.animationIntent,
+        styleProfileId: segment.animationIntent.styleProfileId,
+      },
+    ];
+  }),
 ];
 const styledAnimationCues = (
   config.animationTemplateId
@@ -76,15 +124,11 @@ const styledAnimationCues = (
 const imageEvidenceAssets = await readImageEvidenceAssets();
 const animationCues = bindFrozenAnimationImageAssets(styledAnimationCues, imageEvidenceAssets);
 const annotationCues = resolveLockedTextAnnotationTimeline({ plan: authoredVisualPlan, captions });
-const primaryVisualIntervals = [
-  ...legacyVisualBeatIntervals.filter((interval) => interval.primaryVisualType !== "animation"),
-  ...animationCues,
-].sort((left, right) => left.start - right.start || left.end - right.end);
 const unapprovedAnimationCues = animationCues.filter(
   (cue) => animationPrototypeRegistry[cue.animationIntent.prototypeId].rendererStatus !== "approved",
 );
 const approvedAnimationCues = animationCues.filter((cue) => !unapprovedAnimationCues.includes(cue));
-const imageCues = legacyVisualBeatIntervals.flatMap((interval) => {
+const legacyImageCues = legacyVisualBeatIntervals.flatMap((interval) => {
   if (interval.primaryVisualType !== "image") return [];
   const assetIds = interval.materialAssetIds?.length
     ? interval.materialAssetIds
@@ -115,13 +159,82 @@ const imageCues = legacyVisualBeatIntervals.flatMap((interval) => {
     },
   ];
 });
+const assignedImageCues = [...materialAssignmentSlots.values()].flatMap((assignment) => {
+  if (assignment.kind !== "image") return [];
+  const asset = imageEvidenceAssets.find((item) => item.id === assignment.assetId);
+  if (!asset?.publicSrc) throw new Error(`Production Agent image assignment ${assignment.assetId} is not registered`);
+  return [
+    {
+      id: `agent-image-${assignment.order}`,
+      start: assignment.start,
+      end: assignment.end,
+      assetId: asset.id,
+      src: asset.publicSrc,
+      sources: [
+        {
+          assetId: asset.id,
+          src: asset.publicSrc,
+          fit: asset.fit ?? "contain",
+          label: asset.description ?? asset.sourceLabel ?? asset.id,
+        },
+      ],
+      fit: asset.fit ?? "contain",
+      label: asset.description ?? asset.sourceLabel ?? asset.id,
+      speakerPresence: "circle-pip",
+    },
+  ];
+});
+const imageCues = [...legacyImageCues, ...assignedImageCues].sort(
+  (left, right) => left.start - right.start || left.end - right.end,
+);
+const primaryVisualIntervals = [
+  ...legacyVisualBeatIntervals.filter(
+    (interval) => interval.primaryVisualType !== "animation" && interval.primaryVisualType !== "image",
+  ),
+  ...animationCues,
+  ...imageCues.map((cue) => ({
+    ...cue,
+    primaryVisualType: "image",
+    takeover: "full",
+  })),
+].sort((left, right) => left.start - right.start || left.end - right.end);
 const authoredTimeline = JSON.parse(await readFile(resolve(config.resolvedSceneTimelineFile), "utf8"));
 if (authoredTimeline.status === "blocked") throw new Error("Required authored recording scenes remain unresolved");
-const screenScenes = (authoredTimeline.scenes ?? []).filter(
-  (scene) =>
-    scene.executionPolicy !== "reference" ||
-    usedReferenceBeatIds.has(scene.visualBeatId ?? scene.id.replace(/^scene-/, "")),
+const screenScenes = (authoredTimeline.scenes ?? [])
+  .filter(
+    (scene) =>
+      scene.executionPolicy !== "reference" ||
+      usedReferenceBeatIds.has(scene.visualBeatId ?? scene.id.replace(/^scene-/, "")),
+  )
+  .map((scene) => {
+    const assignment = materialAssignmentSlots.get(scene.assetId);
+    if (assignment?.kind !== "screen-demo") return scene;
+    const availableSourceSeconds = Math.max(0, Number(scene.sourceEnd ?? 0) - Number(scene.sourceStart ?? 0));
+    const duration = Math.min(
+      assignment.end - assignment.start,
+      availableSourceSeconds || assignment.end - assignment.start,
+    );
+    return {
+      ...scene,
+      start: assignment.start,
+      end: assignment.start + duration,
+      startCue: assignment.startCue,
+      endCue: assignment.endCue,
+      sourceEnd: Number(scene.sourceStart ?? 0) + duration,
+      placementSource: "production-agent-material-assignment",
+    };
+  })
+  .sort((left, right) => left.start - right.start || left.end - right.end);
+const unresolvedScreenAssignments = [...materialAssignmentSlots.values()].filter(
+  (assignment) =>
+    assignment.kind === "screen-demo" && !screenScenes.some((scene) => scene.assetId === assignment.assetId),
 );
+if (unresolvedScreenAssignments.length)
+  throw new Error(
+    `Production Agent screen assignments have no registered scene: ${unresolvedScreenAssignments
+      .map((assignment) => assignment.assetId)
+      .join(", ")}`,
+  );
 const brandTimeline = config.brandEnabled
   ? JSON.parse(await readFile(resolve(config.brandTimelineFile), "utf8"))
   : { schemaVersion: "1.0", status: "disabled", totalInsertedSeconds: 0 };
@@ -185,8 +298,9 @@ const selectedOverlayCues = bundle.candidates.flatMap((candidate) => {
     },
   ];
 });
+const editorialStatementPolicy = applyEditorialStatementPolicy(selectedOverlayCues, durationSeconds);
 const annotationDedupe = dedupeAgentRoughAnnotations({
-  overlayCues: selectedOverlayCues,
+  overlayCues: editorialStatementPolicy.cues,
   userAnnotations: annotationCues,
 });
 const overlayCues = annotationDedupe.overlayCues;
@@ -194,6 +308,13 @@ directionReport.annotationDedupe = {
   userAnnotationCount: annotationCues.length,
   removedAgentItemCount: annotationDedupe.removedItemCount,
   removedAgentCueCount: annotationDedupe.removedCueCount,
+};
+directionReport.editorialStatement = {
+  maximumCoverageRatio: 0.25,
+  maximumConsecutive: 2,
+  coverageSeconds: editorialStatementPolicy.coverageSeconds,
+  coverageRatio: editorialStatementPolicy.coverageRatio,
+  suppressedCueIds: editorialStatementPolicy.suppressedCueIds,
 };
 directionReport.requiredImageEvidence = evaluateRequiredImageEvidenceCoverage(
   imageEvidenceAssets,
@@ -263,6 +384,7 @@ directionReport.executionDecisions = {
   usedReferenceBeatIds: [...usedReferenceBeatIds],
 };
 const minimumVisualCoverageRatio = Number(config.visualDirection?.minimumVisualCoverageRatio ?? 0);
+const maximumAnimationCoverageRatio = Number(config.visualDirection?.maximumAnimationCoverageRatio ?? 0.25);
 if (
   minimumVisualCoverageRatio > 0 &&
   directionReport.summary.visualCoverageRatio + 0.0001 < minimumVisualCoverageRatio
@@ -273,6 +395,15 @@ if (
   );
   throw new Error(
     `Effective visual coverage ${(directionReport.summary.visualCoverageRatio * 100).toFixed(1)}% is below the required ${(minimumVisualCoverageRatio * 100).toFixed(1)}%`,
+  );
+}
+if (directionReport.visualTypeCoverage.ratioByType.animation > maximumAnimationCoverageRatio + 0.0001) {
+  await writeFile(
+    `${resolve(config.visualDirectionReportFile)}.animation-balance-failed.json`,
+    `${JSON.stringify(directionReport, null, 2)}\n`,
+  );
+  throw new Error(
+    `Effective animation coverage ${(directionReport.visualTypeCoverage.ratioByType.animation * 100).toFixed(1)}% exceeds the auxiliary limit ${(maximumAnimationCoverageRatio * 100).toFixed(1)}%`,
   );
 }
 directionReport.animationRenderer = {

@@ -36,6 +36,7 @@ const componentCases = [
   ["capability-surface-grid", "ReviewCapabilitySurfaceGrid", 180],
   ["tradeoff-scale", "ReviewTradeoffScale", 180],
   ["rough-annotation", "ReviewRoughAnnotationSequence", 90],
+  ["editorial-statement", "ReviewEditorialStatement", 120],
 ].map(([id, composition, frame]) => ({
   kind: "component",
   id,

@@ -55,6 +55,9 @@ const adapter = createStructuredAgentJsonAdapter({
 const supplementalMediaInventory = supplementalMedia.map((asset) => ({
   id: asset.id,
   role: asset.role,
+  required: Boolean(asset.required),
+  ...(asset.description ? { description: asset.description } : {}),
+  ...(asset.productionTreatment ? { productionTreatment: asset.productionTreatment } : {}),
   ...(Number.isFinite(asset.durationSeconds) ? { durationSeconds: asset.durationSeconds } : {}),
 }));
 const prompt = createSemanticNarrativePrompt(
@@ -63,10 +66,15 @@ const prompt = createSemanticNarrativePrompt(
   imageEvidence,
   referenceVisualBeats,
   supplementalMediaInventory,
+  Number(config.visualDirection?.maximumAnimationCoverageRatio ?? 0.25),
 );
 const availableMaterialIds = new Set([
   ...imageEvidence.map((asset) => asset.id),
   ...supplementalMediaInventory.map((asset) => asset.id),
+]);
+const requiredMaterialIds = new Set([
+  ...imageEvidence.filter((asset) => asset.required).map((asset) => asset.id),
+  ...supplementalMediaInventory.filter((asset) => asset.required).map((asset) => asset.id),
 ]);
 let narrativePlan;
 let validationError;
@@ -90,6 +98,8 @@ for (let attempt = 0; attempt < 3; attempt += 1) {
       referenceVisualBeats,
       Number(config.visualDirection?.minimumVisualCoverageRatio ?? 0),
       availableMaterialIds,
+      requiredMaterialIds,
+      Number(config.visualDirection?.maximumAnimationCoverageRatio ?? 0.25),
     );
     break;
   } catch (error) {

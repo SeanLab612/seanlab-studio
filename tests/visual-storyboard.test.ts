@@ -113,8 +113,8 @@ test("overview is reviewable and all production components have distinct UI prev
     narration,
   );
   assert.equal(value.sections.overview.componentId, "rough-annotation");
-  assert.equal(visualComponentCatalog.length, 19);
-  assert.equal(new Set(visualComponentCatalog.map((item) => item.previewVariant)).size, 19);
+  assert.equal(visualComponentCatalog.length, 20);
+  assert.equal(new Set(visualComponentCatalog.map((item) => item.previewVariant)).size, 20);
 });
 
 test("every spoken structural block participates in the visual storyboard", () => {
@@ -174,7 +174,7 @@ test("every spoken structural block participates in the visual storyboard", () =
 });
 
 test("generic Chinese classifiers do not become unsupported key statistics", () => {
-  assert.equal(inferStructuralVisualForm("一位创作者怎样从一个选题开始制作。"), "text-emphasis");
+  assert.equal(inferStructuralVisualForm("一位创作者怎样从一个选题开始制作。"), "plain-language-claim");
   assert.equal(inferStructuralVisualForm("完成三步后交付。"), "number-focus");
 });
 

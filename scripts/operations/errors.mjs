@@ -271,6 +271,8 @@ export const summarizeStageLog = (value) => {
 };
 
 const inferCode = (message, stage) => {
+  if (/Effective visual coverage .* below the required|Required image evidence is not shown/i.test(message))
+    return "SEMANTIC_PLAN_INVALID";
   if (/explicit --replan-semantic/i.test(message)) return "SEMANTIC_REPLAN_REQUIRED";
   if (/stalled after|no progress/i.test(message)) return "RENDER_STALLED";
   if (/timed?\s*out|timeout|ETIMEDOUT/i.test(message) && /provider|agent|semantic|translation|request/i.test(message))

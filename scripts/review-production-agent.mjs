@@ -31,6 +31,8 @@ const prompt = {
   system: [
     "You are the independent final self-review pass for an open-source video production Agent.",
     "Review only the supplied rendered contact sheet and frozen evidence. Do not invent defects from absent information.",
+    "The first sheet covers every stable visual type; the second is the dedicated title continuity sheet. Inspect both.",
+    "Duplicated titles, overlapping text layers, cropped titles, text outside the safe area, or title/subtitle collisions are blocking QA failures and must never be passed.",
     "Return passed when the rendered result is coherent, readable, source-grounded, and has no obvious broken or misleading confirmed component.",
     "Return revise only for one blocking confirmed component that should safely fall back to the speaker shot.",
     "targetBeatId must be one id from allowedComponentBeats. Never request changes to narration, captions, source footage, user decisions, approvals, or repository configuration.",
@@ -51,7 +53,10 @@ const prompt = {
     ),
     "若没有一个明确且阻断审核的组件问题，status 必须为 passed、targetBeatId 必须为 null、action 必须为 none。",
   ].join("\n\n"),
-  imagePaths: [resolve(config.editDir, "visual-qa/contact-sheet.png")],
+  imagePaths: [
+    resolve(config.editDir, "visual-qa/contact-sheet.png"),
+    resolve(config.editDir, "visual-qa/title-continuity-contact-sheet.png"),
+  ],
 };
 const response = await adapter.completeJson(prompt);
 if (response.status === "passed") {

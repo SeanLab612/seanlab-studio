@@ -20,7 +20,7 @@
               "progressive-explanation", "cause-to-result", "conditional-outcomes",
               "number-focus", "ranking-or-distribution", "change-over-time", "dated-milestones",
               "category-map", "core-and-supports", "tradeoff-or-positioning",
-              "source-backed-evidence", "text-emphasis"
+              "source-backed-evidence", "text-emphasis", "plain-language-claim"
             ]
           },
           "materialDisplay": {"enum": ["full", "crop", "annotate"]},
@@ -31,7 +31,7 @@
               "factor-sequence", "ranked-metric-list", "binary-versus", "key-stat-summary",
               "media-comparison", "image-evidence-inset", "process-steps", "causal-chain",
               "quote-source-card", "historical-timeline", "decision-matrix", "model-classification-map",
-              "core-positioning-node", "capability-surface-grid", "tradeoff-scale", "rough-annotation"
+              "core-positioning-node", "capability-surface-grid", "tradeoff-scale", "rough-annotation", "editorial-statement"
             ]
           },
           "materialId": {"type": "string", "minLength": 1},

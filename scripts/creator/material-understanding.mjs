@@ -4,7 +4,14 @@ import { mkdir, readFile, stat } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 import { promisify } from "node:util";
 import { createStructuredAgentJsonAdapter } from "../workflow/agent-json-adapter.mjs";
-import { hashFile, loadCreatorProject, projectDir, resolveCreatorAsset, writeJsonAtomic } from "./project-store.mjs";
+import {
+  hashFile,
+  loadCreatorProject,
+  projectDir,
+  resolveCreatorAsset,
+  saveCreatorProject,
+  writeJsonAtomic,
+} from "./project-store.mjs";
 import { resolveAuthoringSources } from "./source-context.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -55,6 +62,25 @@ const applyVisibleTextCorrections = (output, project) => {
 
 const authoringEvidenceMaterials = (project) =>
   project.materials.filter((material) => material.kind !== "speaker-video");
+
+const normalizeMaterialRecommendations = (output, project) => ({
+  ...output,
+  materials: output.materials.map((material) => {
+    const source = project.materials.find((item) => item.id === material.materialId);
+    const recommendation = material.productionRecommendation;
+    if (recommendation) return material;
+    return {
+      ...material,
+      productionRecommendation: {
+        action: source?.kind === "reference" ? "exclude" : "keep",
+        reason:
+          source?.kind === "reference"
+            ? "这是一份写稿参考资料，不是默认进入视频画面的图片或录屏。"
+            : "用户主动上传的视频素材默认建议保留并在成片中实际呈现。",
+      },
+    };
+  }),
+});
 
 const materialInventory = async (projectId, project, { includeContentHash = true } = {}) =>
   Promise.all(
@@ -232,6 +258,19 @@ const assertUnderstandingOutput = (output, project) => {
       throw new Error(
         `素材 ${material.materialId} 的 visibleText 混入了 OCR 判断或解释：${JSON.stringify(contaminatedText)}`,
       );
+    const recommendation = material.productionRecommendation;
+    if (!recommendation || !new Set(["keep", "exclude", "merge", "trim"]).has(recommendation.action))
+      throw new Error(`素材 ${material.materialId} 缺少有效的制作建议`);
+    if (typeof recommendation.reason !== "string" || !recommendation.reason.trim())
+      throw new Error(`素材 ${material.materialId} 的制作建议缺少原因`);
+    const relatedIds = recommendation.relatedMaterialIds ?? [];
+    if (relatedIds.some((id) => id === material.materialId || !materialIds.has(id)))
+      throw new Error(`素材 ${material.materialId} 的合并建议引用了无效素材`);
+    if (recommendation.action === "merge" && relatedIds.length === 0)
+      throw new Error(`素材 ${material.materialId} 的合并建议必须指出相关素材`);
+    const source = project.materials.find((item) => item.id === material.materialId);
+    if (recommendation.action === "trim" && source?.kind !== "screen-recording")
+      throw new Error(`只有录屏素材可以建议裁剪：${material.materialId}`);
   }
   return output;
 };
@@ -252,6 +291,8 @@ export const materialUnderstandingPrompt = ({
 - sourceContext 中只有 status=resolved 的内容可作为资料事实；失败项只能说明读取失败。
 - 每一个 sourceId 和 materialId 都必须且只能输出一次，顺序与输入一致。
 - suggestedUse 只描述它适合支持哪类口播内容，不指定具体组件、动画、布局或时间点。
+- 每份素材都必须给出 productionRecommendation。用户上传的图片和录屏默认应 keep；只有重复、明显无关、无法辨认或存在大段无效内容时，才建议 exclude、merge 或 trim，并写清具体原因。
+- merge 必须在 relatedMaterialIds 中列出可合并的其他素材；trim 只用于录屏，并用 clipGuidance 描述应保留的可见动作，不得凭六帧联系图伪造精确时间码。
 - 无法确认时明确写入 limitations，不要猜。
 
 项目描述：
@@ -302,7 +343,7 @@ export const analyzeMaterialUnderstanding = async (
   let output;
   let provider;
   if (fixture) {
-    output = JSON.parse(await readFile(resolve(fixture), "utf8"));
+    output = normalizeMaterialRecommendations(JSON.parse(await readFile(resolve(fixture), "utf8")), project);
     output = applyVisibleTextCorrections(output, project);
     provider = { provider: "fixture", fixture: resolve(fixture) };
   } else {
@@ -313,19 +354,22 @@ export const analyzeMaterialUnderstanding = async (
     const basePrompt = materialUnderstandingPrompt({ project, sourceContext, prepared });
     let semanticError;
     for (let attempt = 1; attempt <= 2; attempt += 1) {
-      output = applyVisibleTextCorrections(
-        await adapter.completeJson({
-          system: "You inspect creator-provided sources and visual media, then return strict Chinese JSON cards.",
-          user:
-            attempt === 1
-              ? basePrompt
-              : `${basePrompt}
+      output = normalizeMaterialRecommendations(
+        applyVisibleTextCorrections(
+          await adapter.completeJson({
+            system: "You inspect creator-provided sources and visual media, then return strict Chinese JSON cards.",
+            user:
+              attempt === 1
+                ? basePrompt
+                : `${basePrompt}
 
 上一次输出未通过确定性校验：
 ${semanticError.message}
 请重新生成完整结果。尤其要把 visibleText 当作纯 OCR 字符串数组；任何判断、说明和纠错过程都只能写入 limitations。`,
-          imagePaths,
-        }),
+            imagePaths,
+          }),
+          project,
+        ),
         project,
       );
       try {
@@ -371,15 +415,55 @@ export const loadMaterialUnderstanding = async (projectId, project = undefined, 
   return report;
 };
 
-export const confirmMaterialUnderstanding = async (projectId, inputSha256) => {
+export const confirmMaterialUnderstanding = async (projectId, inputSha256, decisions = []) => {
   const report = await loadMaterialUnderstanding(projectId, undefined, { verifyContentHash: true });
   if (report.status === "missing") throw new Error("请先让 Studio 分析资料和素材");
   if (report.status === "stale") throw new Error("资料或素材已变化，请重新生成理解卡");
   if (inputSha256 !== report.inputSha256) throw new Error("理解卡确认目标已变化，请刷新后重试");
+  const project = await loadCreatorProject(projectId);
+  const visualMaterials = project.materials.filter((item) => ["screenshot", "screen-recording"].includes(item.kind));
+  const supplied = new Map();
+  for (const decision of decisions) {
+    if (!decision || typeof decision !== "object" || typeof decision.materialId !== "string")
+      throw new Error("素材确认决定格式无效");
+    if (supplied.has(decision.materialId)) throw new Error(`素材 ${decision.materialId} 的确认决定重复`);
+    if (!visualMaterials.some((item) => item.id === decision.materialId))
+      throw new Error(`素材确认决定引用了未知图片或录屏：${decision.materialId}`);
+    if (!new Set(["required", "excluded"]).has(decision.disposition))
+      throw new Error(`素材 ${decision.materialId} 的确认决定无效`);
+    if (!new Set(["direct", "merge", "trim"]).has(decision.treatment ?? "direct"))
+      throw new Error(`素材 ${decision.materialId} 的处理建议无效`);
+    if ((decision.note ?? "").length > 1000) throw new Error(`素材 ${decision.materialId} 的补充说明不能超过 1000 字`);
+    supplied.set(decision.materialId, decision);
+  }
+  const recommendations = new Map(report.materials.map((item) => [item.materialId, item.productionRecommendation]));
+  const productionDecisions = visualMaterials.map((material) => {
+    const recommendation = recommendations.get(material.id) ?? { action: "keep", reason: "用户上传素材" };
+    const explicit = supplied.get(material.id);
+    const disposition = explicit?.disposition ?? (recommendation.action === "exclude" ? "excluded" : "required");
+    const treatment =
+      explicit?.treatment ??
+      (recommendation.action === "merge" || recommendation.action === "trim" ? recommendation.action : "direct");
+    const note = typeof explicit?.note === "string" ? explicit.note.trim() : "";
+    material.required = disposition === "required";
+    material.productionTreatment = treatment;
+    material.decisionSource = explicit ? "user" : "agent";
+    if (note) material.productionNote = note;
+    else delete material.productionNote;
+    return {
+      materialId: material.id,
+      disposition,
+      treatment,
+      decisionSource: material.decisionSource,
+      ...(note ? { note } : {}),
+    };
+  });
+  await saveCreatorProject(project);
   const confirmed = {
     ...report,
     status: "confirmed",
     confirmedAt: new Date().toISOString(),
+    productionDecisions,
   };
   await writeJsonAtomic(materialUnderstandingFile(projectId), confirmed);
   return confirmed;

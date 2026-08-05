@@ -21,4 +21,5 @@ export const visualRhetoricByComponent: Record<VisualComponentId, VisualRhetoric
   "capability-surface-grid": "capability-surface",
   "tradeoff-scale": "tradeoff",
   "rough-annotation": "rough-annotation",
+  "editorial-statement": "editorial-statement",
 };

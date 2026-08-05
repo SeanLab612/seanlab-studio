@@ -190,12 +190,26 @@ const fixtureProps: Record<ApprovedVisualComponentId, Record<string, unknown>> =
     ],
     activeIndex: 1,
   },
+  "editorial-statement": {
+    leadIn: "它不是从图片里",
+    denied: "提取现成网格",
+    prefix: "而是",
+    emphasis: "用代码重新搭建",
+    support: "模型仍可继续编辑、交互和动画",
+  },
 };
 
 const briefFor = (componentId: ApprovedVisualComponentId): GeneratedVisualBrief => ({
   schemaVersion: "1.0",
   segment: { id: `production-mobile-${componentId}`, start: 0, end: 10, text: "移动端生产路径验收" },
-  analysis: { rhetoric: componentId === "rough-annotation" ? "rough-annotation" : "comparison" },
+  analysis: {
+    rhetoric:
+      componentId === "rough-annotation"
+        ? "rough-annotation"
+        : componentId === "editorial-statement"
+          ? "editorial-statement"
+          : "comparison",
+  },
   component: { id: componentId, status: "approved", selectionReason: "Production mobile regression fixture" },
   narrative: {
     eyebrow: "MOBILE PRODUCTION QA",
@@ -231,7 +245,7 @@ export const ProductionMobileComponentReview: React.FC<ProductionMobileComponent
     speaker: "CREATOR",
     subtitle: "组件必须在手机屏幕上保持清晰",
     subtitleEn: "Components must remain readable on mobile screens.",
-    timelineLabel: "19 COMPONENTS",
+    timelineLabel: "20 COMPONENTS",
     cards: [],
     keywords: [],
     overlayCues: [cue],

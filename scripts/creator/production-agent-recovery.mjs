@@ -22,8 +22,8 @@ const deterministicRepairStrategies = new Map([
  */
 export const deterministicProductionRepair = (failure) => {
   const strategy = deterministicRepairStrategies.get(failure?.code);
-  if (!strategy || failure?.retryable === false || (failure?.stage && failure.stage !== strategy.stage))
-    return undefined;
+  const eligibleStage = ["semantic-plan", "component-props", "visual-direction", "validate"].includes(failure?.stage);
+  if (!strategy || failure?.retryable === false || !eligibleStage) return undefined;
   return { ...strategy, success: true };
 };
 
@@ -49,9 +49,10 @@ export const decideAutomaticProductionRecovery = ({
   repair,
   maxAttempts = MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS,
 }) => {
+  const semanticRepair = repair?.kind === "validated-semantic-plan-repair" && repair.success;
   const resume = {
-    action: recovery.resume?.action ?? repair?.workflowAction,
-    stage: recovery.resume?.stage ?? repair?.stage,
+    action: semanticRepair ? repair.workflowAction : (recovery.resume?.action ?? repair?.workflowAction),
+    stage: semanticRepair ? repair.stage : (recovery.resume?.stage ?? repair?.stage),
   };
   if (attempts >= maxAttempts)
     return {
@@ -71,7 +72,7 @@ export const decideAutomaticProductionRecovery = ({
     diagnosis.recommendedAction === "repair-visual" &&
     repair?.kind === "validated-visual-contract-repair" &&
     repair.success;
-  const repairedSemantic = repair?.kind === "validated-semantic-plan-repair" && repair.success;
+  const repairedSemantic = semanticRepair;
   if (
     (recovery.status !== "recoverable" || !recovery.resume?.enabled) &&
     !repairedSource &&
@@ -133,6 +134,7 @@ export const decideAutomaticProductionRecovery = ({
     message: `从 ${resume.stage} 安全恢复`,
     workflowAction: resume.action,
     stage: resume.stage,
+    ...(repairedSemantic ? { replanSemantic: true } : {}),
     attempt: attempts + 1,
   };
 };

@@ -8,7 +8,7 @@ import {
 } from "../src/regression-fixtures/topic-suite.ts";
 import { MULTI_TOPIC_REGRESSION_SUITE } from "../src/regression-fixtures/topic-fixtures.ts";
 
-test("multi-topic suite covers all component-backed visual forms and all 19 approved components with frozen real sources", () => {
+test("multi-topic suite covers all component-backed visual forms and all 20 approved components with frozen real sources", () => {
   assert.equal(validateTopicRegressionSuite(MULTI_TOPIC_REGRESSION_SUITE, { verifyMaterials: true }), true);
   const covered = new Set(
     MULTI_TOPIC_REGRESSION_SUITE.fixtures.flatMap((fixture) =>

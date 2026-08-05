@@ -30,6 +30,7 @@ export type VisualDirectionPolicy = {
   minimumHeroGapSeconds: number;
   maximumVisualCoverageRatio: number;
   minimumVisualCoverageRatio?: number;
+  maximumAnimationCoverageRatio?: number;
   maximumChapterSeconds: number;
   maximumChapterCandidates: number;
   heroConfidence: number;

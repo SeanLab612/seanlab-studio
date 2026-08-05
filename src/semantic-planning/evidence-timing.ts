@@ -9,6 +9,7 @@ const orderedRhetorics = new Set([
   "causal-chain",
   "historical-timeline",
   "rough-annotation",
+  "editorial-statement",
 ]);
 
 const boundedCue = (value: number | undefined, fallback: number, minimum: number, maximum: number) =>

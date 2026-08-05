@@ -25,6 +25,7 @@ import { PIP_BOTTOM_SAFE_OFFSET } from "../supplemental-media/types";
 import { TypographyPolicyProvider } from "../typography-policy";
 import { GeneratedVisual } from "../visual-brief/GeneratedVisual";
 import { PAPER_EDITORIAL_STYLE } from "../visual-production/animation-registry.ts";
+import { shouldRenderLegacyFallback } from "./talking-head-layer-policy.ts";
 
 const panelText: React.CSSProperties = {
   fontFamily: typographyTokens.family,
@@ -104,7 +105,10 @@ const TalkingHeadOverlayContent: React.FC<OverlayProps> = ({
   const visibleCards = activeCue ? [activeCue] : cards;
   const visibleKeywords = activeCue?.keywords ?? keywords;
   const hasVisualBrief = Boolean(activeCue?.visualBrief || activeCue?.generatedVisual);
-  const showFallback = !hasVisualBrief && !overlayCues?.length;
+  const showFallback = shouldRenderLegacyFallback(
+    { overlayCues, subtitleCues, screenScenes, titleCues, animationCues, annotationCues, imageCues },
+    hasVisualBrief,
+  );
   const activeSubtitle = subtitleCues?.find((cue) => seconds >= cue.start && seconds <= cue.end);
   const subtitleText = activeSubtitle?.zh ?? activeCue?.subtitle ?? subtitle;
   const subtitleEnglish = activeSubtitle?.en ?? activeCue?.subtitleEn ?? subtitleEn;

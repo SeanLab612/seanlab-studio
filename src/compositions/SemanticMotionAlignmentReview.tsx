@@ -27,6 +27,7 @@ const rhetoric: Record<VisualComponentId, VisualRhetoric> = {
   "capability-surface-grid": "capability-surface",
   "tradeoff-scale": "tradeoff",
   "rough-annotation": "rough-annotation",
+  "editorial-statement": "editorial-statement",
 };
 
 const brief = (id: string, componentId: VisualComponentId, title: string, props: Record<string, unknown>) =>

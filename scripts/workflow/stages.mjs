@@ -727,9 +727,14 @@ export const signatureConfigForStage = (manifest, stageName) => {
     return { implementationVersion: "1.2", authoredScenePlan: manifest.paths.authoredScenePlan ?? null };
   if (["semantic-plan", "component-props", "validate"].includes(stageName))
     return {
-      ...(stageName === "validate"
-        ? { implementationVersion: imageEvidenceContractEnabledFor(manifest) ? "1.2" : "1.1" }
-        : {}),
+      implementationVersion:
+        stageName === "semantic-plan"
+          ? "1.2"
+          : stageName === "component-props"
+            ? "1.2"
+            : imageEvidenceContractEnabledFor(manifest)
+              ? "1.3"
+              : "1.2",
       semanticPlanning: manifest.providers.semanticPlanning,
       terminology: manifest.terminology,
       assetProfile: manifest.assetProfile,
@@ -740,11 +745,11 @@ export const signatureConfigForStage = (manifest, stageName) => {
     return {
       implementationVersion: imageEvidenceContractEnabledFor(manifest)
         ? brandFoundationEnabled(manifest)
-          ? "1.4"
-          : "1.3"
+          ? "1.5"
+          : "1.4"
         : brandFoundationEnabled(manifest)
-          ? "1.2"
-          : "1.1",
+          ? "1.3"
+          : "1.2",
       policy: manifest.policies.visualDirection ?? null,
       brand: manifest.brand ?? null,
     };

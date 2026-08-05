@@ -9,9 +9,9 @@ import {
 } from "../src/visual-qa/contracts.ts";
 import { createQaFramePlan } from "../src/visual-qa/frame-plan.ts";
 
-test("visual QA contracts cover 19 components and six landscape layouts", () => {
-  assert.equal(componentQaContracts.length, 19);
-  assert.equal(new Set(componentQaContracts.map((item) => item.componentId)).size, 19);
+test("visual QA contracts cover 20 components and six landscape layouts", () => {
+  assert.equal(componentQaContracts.length, 20);
+  assert.equal(new Set(componentQaContracts.map((item) => item.componentId)).size, 20);
   assert.ok(componentQaContracts.every((item) => item.minimumFontPx >= 12));
   assert.equal(layoutQaContracts.length, 6);
   assert.ok(layoutQaContracts.every((item) => item.canvas.width === 1920 && item.canvas.height === 1080));
