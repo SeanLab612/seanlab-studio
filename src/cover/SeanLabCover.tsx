@@ -181,6 +181,8 @@ export const SeanLabCover: React.FC<CoverContract> = (rawCover) => {
               objectFit: "contain",
               objectPosition: "right bottom",
               filter: "drop-shadow(-18px 20px 36px rgba(0,0,0,0.34))",
+              transform: `translate(${(portraitCrop.x - 64) * 0.8}%, ${(portraitCrop.y - 42) * 0.8}%) scale(${portraitCrop.zoom})`,
+              transformOrigin: "right bottom",
               zIndex: 2,
             }}
           />

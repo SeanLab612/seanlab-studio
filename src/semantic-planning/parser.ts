@@ -1,22 +1,10 @@
 import type { SemanticNarrativePlan } from "./types.ts";
 import { deriveVideoIdentity } from "./video-identity.ts";
+import { SemanticPlanValidationError } from "./validation.ts";
 
 const assertObject: (value: unknown, label: string) => asserts value is Record<string, unknown> = (value, label) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`);
 };
-
-const visualRelations = (text: string) =>
-  (
-    [
-      [
-        "process",
-        /(?:(?:步骤|阶段).{0,24}(?:依次|逐个|顺序|展开|出现)|(?:依次|逐个).{0,24}(?:步骤|阶段|展开|出现)|先.{1,30}(?:再|然后|最后))/,
-      ],
-      ["comparison", /(?:左右(?:两边)?|对比|两种做法|优缺点|(?:把|将|拿|和|与).{1,20}(?:比较|对照))/],
-      ["checklist", /(?:检查项|逐项|清单|检查是否|检查是不是)/],
-      ["annotation", /(?:划掉|高亮|圈出|下划线|标注)/],
-    ] satisfies ReadonlyArray<readonly [string, RegExp]>
-  ).flatMap(([relation, pattern]) => (pattern.test(text) ? [relation] : []));
 
 export const parseSemanticNarrativePlan = (
   value: unknown,
@@ -40,19 +28,16 @@ export const parseSemanticNarrativePlan = (
     previousEnd = Number(raw.endCue);
     const cueCount = Number(raw.endCue) - Number(raw.startCue) + 1;
     const duration = captions[Number(raw.endCue)].end - captions[Number(raw.startCue)].start;
-    if (cueCount > 10 || duration > maximumSegmentSeconds)
-      throw new Error(
-        `segments[${index}] exceeds the semantic density limit (${cueCount} cues, ${duration.toFixed(2)}s)`,
-      );
-    const sourceText = captions
-      .slice(Number(raw.startCue), Number(raw.endCue) + 1)
-      .map((caption) => caption.zh ?? "")
-      .join("");
-    const relations = visualRelations(sourceText);
-    if (relations.length > 1)
-      throw new Error(
-        `segments[${index}] mixes multiple visual relationships and must be split by evidence (cues ${raw.startCue}-${raw.endCue}: ${relations.join(", ")})`,
-      );
+    if (cueCount > 10 || duration > maximumSegmentSeconds) {
+      const message = `segments[${index}] exceeds the semantic density limit (${cueCount} cues, ${duration.toFixed(2)}s)`;
+      throw new SemanticPlanValidationError({
+        kind: "semantic-density",
+        segmentIndex: index,
+        startCue: Number(raw.startCue),
+        endCue: Number(raw.endCue),
+        message,
+      });
+    }
     if (!Array.isArray(raw.items)) throw new Error(`segments[${index}].items must be an array`);
     let previousItemStart = Number(raw.startCue) - 1;
     for (const [itemIndex, item] of raw.items.entries()) {

@@ -25,7 +25,7 @@ export const ANIMATION_PROTOTYPE_IDS = [
 ] as const;
 export type AnimationPrototypeId = (typeof ANIMATION_PROTOTYPE_IDS)[number];
 
-export const ANIMATION_STYLE_PROFILE_IDS = ["paper-editorial", "stop-motion-machine", "research-archive"] as const;
+export const ANIMATION_STYLE_PROFILE_IDS = ["paper-editorial"] as const;
 export type AnimationStyleProfileId = (typeof ANIMATION_STYLE_PROFILE_IDS)[number];
 
 export type AnimationStageIntent = {

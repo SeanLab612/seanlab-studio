@@ -936,8 +936,8 @@ const renderSteps = (status, viewedStep) => {
     ["写稿", "口播稿"],
     ["拍摄", "拍摄与素材"],
     ["制作", "视频制作"],
-    ["审核", "静态审核"],
-    ["交付", "成片与交付"],
+    ["自检", "Agent 自动审核"],
+    ["审核", "最终成片"],
   ];
   const current = stepIndex(status);
   $("#steps").innerHTML = labels.map(([label, description], index) => {
@@ -946,7 +946,6 @@ const renderSteps = (status, viewedStep) => {
       (index === 1 && current >= 1 && state.detail?.narration) ||
       (index === 2 && current >= 2) ||
       (index === 3 && Boolean(state.detail?.project.video.manifest)) ||
-      (index === 4 && Boolean(state.staticReview?.available || state.workflow?.productionBaseline)) ||
       (index === 5 && Boolean(state.delivery?.approval?.approved));
     const className = `${index < current ? "done" : ""} ${index === viewedStep ? "active" : ""} ${canView ? "clickable" : ""}`;
     const content = `<span class="step-number">${index < current ? "✓" : index + 1}</span><span class="step-copy"><b>${label}</b><small>${description}</small></span>`;
@@ -960,7 +959,7 @@ const projectContext = (project) => {
   const running = task && (!task.completedAt || task.completedAt >= project.project.updatedAt) ? task : null;
   return `
     <div class="panel"><h3>创作设置</h3><div class="metric-grid"><div class="metric"><b>${categoryLabel(project.brief.category)}</b><span>内容分类</span></div><div class="metric"><b>${project.agent.id === "codex-cli" ? "Codex" : "Claude"}</b><span>全局 Agent</span></div><div class="metric"><b>${project.sources.length}</b><span>参考资料</span></div><div class="metric"><b>${project.materials.length}</b><span>已登记素材</span></div></div></div>
-    <div class="panel"><h3>流程状态</h3><div class="timeline">${["项目创建", "口播稿审核", "稿件锁定", "视频工作流", "静态审核", "成片交付"].map((label,index) => `<div class="timeline-row ${index === stepIndex(project.project.status) ? "active" : ""}"><span class="timeline-dot"></span><div><b>${label}</b><span>${index < stepIndex(project.project.status) ? "已完成" : index === stepIndex(project.project.status) ? "当前阶段" : "等待上一步"}</span></div></div>`).join("")}</div></div>
+    <div class="panel"><h3>流程状态</h3><div class="timeline">${["项目创建", "口播稿审核", "稿件锁定", "Agent 制作与自检", "Agent 技术验收", "最终成片审核"].map((label,index) => `<div class="timeline-row ${index === stepIndex(project.project.status) ? "active" : ""}"><span class="timeline-dot"></span><div><b>${label}</b><span>${index < stepIndex(project.project.status) ? "已完成" : index === stepIndex(project.project.status) ? "当前阶段" : "等待上一步"}</span></div></div>`).join("")}</div></div>
     ${running ? `<div class="panel"><h3>最近任务</h3><p><span class="badge">${escapeHtml(running.status)}</span> ${escapeHtml(running.kind)}</p><p class="muted">${escapeHtml(running.error ?? running.logs?.at(-1) ?? "任务已进入队列")}</p></div>` : ""}
   `;
 };
@@ -1068,18 +1067,7 @@ const animationStructureFor = (prototypeId) =>
   state.metadata.animationStructures?.find((item) => item.id === prototypeId);
 const animationTemplateFor = (styleProfileId) =>
   state.metadata.animationTemplates?.find((item) => item.id === styleProfileId);
-const recommendedAnimationStyleId = (section, prototypeId) => {
-  const structure = animationStructureFor(prototypeId);
-  const evidence = `${section.title ?? ""} ${section.narration ?? ""} ${(section.visualOpportunities ?? []).map((item) => item.evidenceText ?? "").join(" ")}`;
-  const mechanical = /(?:流程|工作流|步骤|阶段|处理|生成|制作|渲染|交付|输入|输出|上传|下载|系统|模块|数据|审核|检查|验证|门槛|放行|链路|管线|自动化)/.test(evidence);
-  if (
-    mechanical &&
-    structure?.compatibleStyleIds?.includes("stop-motion-machine") &&
-    ["process-flow", "evidence-gate", "causal-chain", "layered-system"].includes(prototypeId)
-  )
-    return "stop-motion-machine";
-  return structure?.defaultStyleId ?? "paper-editorial";
-};
+const recommendedAnimationStyleId = () => "paper-editorial";
 const cleanAnimationStage = (value) => value.trim().replace(/^[：:，,。；;、\s]+|[：:，,。；;、\s]+$/g, "").replace(/^(然后|接着|再|最后|并且|以及|同时|会|要|让|把)/, "").trim();
 const recommendedAnimationIntent = (section, overrides = {}) => {
   const opportunity = section.visualOpportunities?.find((item) => animationPrototypeForForm[item.form]);
@@ -1400,8 +1388,6 @@ const animationReviewMarkup = (section, animation, mode, evidence, index) => {
   const backupCandidates = compatibleComponents(backupForm);
   const componentBackup = recommendedComponent(section, backupForm, backupCandidates);
   const structures = state.metadata.animationStructures ?? Object.entries(animationPrototypeLabels).map(([id, label]) => ({ id, label }));
-  const compatibleStyleIds = structure?.compatibleStyleIds ?? (state.metadata.animationTemplates ?? []).map((item) => item.id);
-  const templates = (state.metadata.animationTemplates ?? []).filter((item) => compatibleStyleIds.includes(item.id));
   return `<div class="visual-recommendation"><span>${mode === "auto" ? "首选动画 · 系统推荐" : "当前动画 · 人工选择"}</span><strong>${escapeHtml(animationPrototypeLabels[animation.prototypeId] ?? animation.prototypeId)}＋${escapeHtml(template?.label ?? animation.styleProfileId)}</strong></div>
     <div class="visual-recommendation-stack">
       ${alternatives.map((intent, alternativeIndex) => {
@@ -1412,7 +1398,7 @@ const animationReviewMarkup = (section, animation, mode, evidence, index) => {
     </div>
     <div class="animation-choice-grid">
       <label>语义结构<select data-animation-prototype="${index}">${structures.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === animation.prototypeId ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}</select><small>决定这段内容用流程、因果、状态或分层等哪种关系表达。</small></label>
-      <label>表现风格<select data-animation-style="${index}">${templates.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === animation.styleProfileId ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}</select><small>系统按口播语义推荐，可在整体确认前人工调整。</small></label>
+      <label>表现风格<div class="fixed-animation-style">手绘编辑风格</div><small>默认使用统一的手绘视觉语言，下游 Agent 仍可自主规划信息结构。</small></label>
     </div>
     <div class="animation-section-preview">
       <div><b>${escapeHtml(animation.takeaway)}</b><span>${escapeHtml(template?.label ?? animation.styleProfileId)} · 人物右上角圆形 PIP</span></div>
@@ -1778,8 +1764,8 @@ const mediaView = (project, narration) => `
 const workflowStageLabels = {
   preflight: "检查本机环境", ingest: "准备人物原片", probe: "读取视频信息", "supplemental-probe": "检查录屏素材", "image-probe": "检查图片证据", transcribe: "识别口播内容", "transcript-conformance": "对照定稿校对转录",
   terminology: "校对专有名词", layout: "分析人物位置", "recut-plan": "理解口播节奏", "edit-plan": "生成粗剪方案", "recut-review": "生成 720p 审核预览",
-  "recut-approval": "等待你审核粗剪", "edit-promote": "应用已通过的粗剪", "brand-align": "安排 SeanLab 品牌片头", captions: "生成中文字幕", "visual-input-preflight": "预检录屏与视觉锚点", translate: "翻译英文字幕", "scene-align": "对齐录屏和图片",
-  "semantic-plan": "理解内容重点", "component-props": "准备视觉组件", "visual-direction": "安排画面节奏", validate: "检查视觉方案", "review-base": "准备审核画面", "brand-review": "检查片头与音效", "qa-capture": "生成静态审核图", "visual-qa": "检查显示完整性", "visual-pacing-review": "按需生成动画片段预览", "review-evidence": "整理审核画廊", "regression-fixtures": "检查已批准风格", "agent-review": "制作 Agent 自主复核", "human-approval": "等待最终审核", "delivery-render": "渲染最终成片", "delivery-validate": "验收成片文件",
+  "recut-approval": "制作 Agent 审核粗剪", "edit-promote": "应用已通过的粗剪", "brand-align": "安排 SeanLab 品牌片头", captions: "生成中文字幕", "visual-input-preflight": "预检录屏与视觉锚点", translate: "翻译英文字幕", "scene-align": "对齐录屏和图片",
+  "semantic-plan": "理解内容重点", "component-props": "准备视觉组件", "visual-direction": "安排画面节奏", validate: "检查视觉方案", "review-base": "准备审核画面", "brand-review": "检查片头与音效", "qa-capture": "生成静态审核图", "visual-qa": "检查显示完整性", "visual-pacing-review": "按需生成动画片段预览", "review-evidence": "整理审核画廊", "regression-fixtures": "检查已批准风格", "agent-review": "制作 Agent 自主复核", "human-approval": "制作 Agent 锁定审核证据", "delivery-render": "渲染最终成片", "delivery-validate": "验收成片文件",
 };
 const friendlyWorkflowFailure = (failure) => {
   if (!failure) return "";
@@ -1841,12 +1827,12 @@ const recutReviewView = (project, workflow) => {
     <div class="panel review-header"><div><div class="eyebrow">INTELLIGENT RECUT 2.0</div><h2>粗剪审核</h2></div><span class="status-pill">${workflow.recutApproved ? "已批准" : rejected ? "已驳回" : "待审核"}</span></div>
     <div class="recut-metrics"><div><b>${Number(summary.originalDurationSeconds ?? 0).toFixed(1)}s</b><span>原始口播</span></div><div><b>${Number(summary.proposedDurationSeconds ?? 0).toFixed(1)}s</b><span>建议成片</span></div><div><b>${Number(summary.proposedSavingsSeconds ?? 0).toFixed(1)}s</b><span>预计节省</span></div><div><b>${summary.removalCount ?? 0}</b><span>建议删除</span></div></div>
     <div class="panel recut-player"><video id="recut-preview" controls preload="metadata" src="${escapeHtml(recut.previewUrl)}"></video><details class="technical-details"><summary>查看审核版本标识</summary><code>${escapeHtml(recut.screenSha256)}</code></details></div>
-    ${workflow.recutApproved ? `<div class="panel approval-success"><h3>${staticReviewReady ? "静态审核资料已生成" : "粗剪已通过"}</h3><p>${staticReviewReady ? "已完成字幕、录屏、视觉组件和显示完整性检查，不会再重复运行粗剪。" : workflow.editPromoted ? "已将你审核的版本用于后续字幕、录屏和视觉动效制作。请使用顶部按钮继续。" : "正在应用你审核的粗剪版本。"}</p></div>` : `<div class="panel recut-actions-panel"><label>如果不满意，请写下具体修改意见<textarea id="recut-feedback" maxlength="1000" placeholder="例如：保留第 3 处停顿；结尾的呼吸感不要压缩。">${escapeHtml(recut.decision?.note ?? "")}</textarea></label>${rejected ? `<p class="guide-note"><strong>已驳回当前方案。</strong>点击“按意见重新规划”后，系统会保留这一版历史，将修改意见交给当前 Agent，重新生成候选和 720p 预览。</p>` : `<label class="confirmation-row"><input type="checkbox" id="approve-confirm"/><span>我已完整播放 720p 预览，并确认所有建议删减都可以接受</span></label>`}<div class="actions">${rejected ? `<button class="secondary" id="reopen-recut">撤销驳回</button><button class="primary" id="replan-recut">按意见重新规划</button>` : `<button class="secondary" id="reject-recut">保存意见并驳回</button><button class="primary" id="approve-recut">通过粗剪</button>`}</div></div>`}
+    ${workflow.recutApproved ? `<div class="panel approval-success"><h3>${staticReviewReady ? "Agent 质检证据已生成" : "制作 Agent 已通过粗剪"}</h3><p>${staticReviewReady ? "已完成字幕、录屏、视觉组件和显示完整性检查。" : "Agent 会继续完成视觉制作、自检和渲染。"}</p></div>` : `<div class="panel recut-actions-panel"><h3>制作 Agent 正在审核粗剪</h3><p>安全删减、口播锚点和连续预览由 Agent 内部核对；未通过时会自动重新规划，不会把中间审批交给你。</p></div>`}
   </section>`;
 };
 const workflowProductionProgress = (workflow) => {
   const stages = workflow?.stages ?? [];
-  const reviewBoundary = stages.findIndex(({ name }) => name === "agent-review");
+  const reviewBoundary = stages.findIndex(({ name }) => name === "delivery-validate");
   const productionStages = reviewBoundary >= 0 ? stages.slice(0, reviewBoundary + 1) : stages;
   const completed = productionStages.filter(({ status }) => ["succeeded", "approved"].includes(status)).length;
   return {
@@ -1856,14 +1842,13 @@ const workflowProductionProgress = (workflow) => {
   };
 };
 const workflowNextRun = (workflow) => {
-  if (!workflow || workflow.reviewReady || workflow.semanticReplanRequired) return undefined;
-  if (workflow.recutApprovalStatus === "stale")
-    return { action: "recut", targetGate: "recut-approval", label: "重新生成粗剪预览" };
-  if (workflow.recutApproved && workflow.editPromoted)
-    return { action: "continue", targetGate: "human-approval", label: "继续到静态审核" };
-  if (!workflow.recutReady)
-    return { action: "recut", targetGate: "recut-approval", label: "开始生成粗剪" };
-  return undefined;
+  if (!workflow || workflow.reviewApproved) return undefined;
+  const started = workflow.stages.some((stage) => stage.status !== "pending");
+  return {
+    action: "production",
+    targetGate: "delivery-acceptance",
+    label: started ? "由 Agent 继续制作" : "开始制作并生成成片",
+  };
 };
 const latestWorkflowReadiness = (projectId, targetGate, profile) =>
   state.jobs
@@ -1918,7 +1903,7 @@ const workflowReadinessCard = (project, workflow) => {
     ? recovering
       ? "制作中"
       : "未生成结果"
-    : workflow?.reviewReady
+    : workflow?.reviewApproved
       ? "可以审核"
       : ["queued", "running"].includes(task?.status)
         ? "制作中"
@@ -1929,19 +1914,17 @@ const workflowReadinessCard = (project, workflow) => {
       : "本次暂未生成可审核版本，所有有效进度已保留。"
     : blocked
       ? "开始前还有一项需要处理，打开故障恢复查看解决办法。"
-      : workflow?.reviewReady
-      ? "审核资料已经准备好，可以进入下一步。"
+      : workflow?.reviewApproved
+      ? "制作、Agent 自检和成片技术验收已完成，请审核最终成片。"
       : task?.status === "queued"
         ? "任务已经进入队列，开始后会自动更新进度。"
         : task?.status === "running"
-          ? "正在制作本期视频，完成后会停在下一个人工审核点。"
-          : "先做一次快速检查，确认可以安全开始或继续。";
+          ? "正在制作、自检并渲染本期视频，完成后只需你审核最终成片。"
+          : "先做一次快速检查，之后制作 Agent 会连续完成制作、自检与渲染。";
   const action = failed
     ? '<p class="guide-note">无需处理技术错误；详细诊断仅保留在高级详情中。</p>'
-    : workflow?.reviewReady
-      ? `<button type="button" class="primary" id="open-static-review">${workflow.productionBaseline ? "进入基础版本审核" : "进入静态审核"}</button>`
-      : workflow?.semanticReplanRequired
-        ? '<button type="button" class="primary" id="replan-semantic-workflow">重新理解内容</button>'
+    : workflow?.reviewApproved
+      ? '<button type="button" class="primary" id="open-delivery">审核最终成片</button>'
         : next && !readiness
           ? '<button type="button" class="primary" id="workflow-readiness-check">检查并继续</button>'
           : blocked
@@ -1972,9 +1955,9 @@ const productionBaselineReviewView = (workflow) => {
   if (baseline.status === "approved")
     return `<section class="static-review"><div class="panel approval-success"><div class="eyebrow">SAFE BASELINE</div><h2>基础审核版本已通过</h2><p>增强视觉未能完成时，系统保留了人物主画面和已批准的剪辑结果。</p><div class="actions"><button type="button" class="primary" id="deliver-production-baseline">生成最终成片</button></div></div></section>`;
   return `<section class="static-review production-baseline-review">
-    <div class="panel review-header"><div><div class="eyebrow">SAFE BASELINE</div><h2>基础版本审核</h2><p>增强视觉已自动降级，但人物主画面和已批准的粗剪完整保留。</p></div><span class="status-pill">可以审核</span></div>
+    <div class="panel review-header"><div><div class="eyebrow">SAFE BASELINE</div><h2>增强制作未完成 · 保底预览</h2><p>Agent 已保留人物主画面和已批准的粗剪；这不是增强制作成功的结果，仅在自动修复达到上限后供你选择。</p></div><span class="status-pill">等待选择</span></div>
     <div class="panel recut-player"><video controls preload="metadata" src="${escapeHtml(baseline.reviewUrl)}"></video></div>
-    <div class="panel recut-actions-panel"><label class="confirmation-row"><input type="checkbox" id="production-baseline-confirm"/><span>我已完整播放基础版本，并确认可作为本次审核结果</span></label><div class="actions"><button type="button" class="primary" id="approve-production-baseline">通过基础版本</button></div></div>
+    <div class="panel recut-actions-panel"><label class="confirmation-row"><input type="checkbox" id="production-baseline-confirm"/><span>我接受放弃本次增强视觉，并确认保底版本可作为最终结果</span></label><div class="actions"><button type="button" class="secondary" id="approve-production-baseline">接受保底版本</button></div></div>
   </section>`;
 };
 const videoView = (project, workflow) => `
@@ -2142,15 +2125,9 @@ const galleryMarkup = (review) => {
   </div>` : `<div class="review-empty"><b>当前分组没有画面</b><p>切换其他画面类型后再查看。</p></div>`}`;
 };
 const reviewDecisionPanel = (review) => {
-  if (review.approval.approved) return `<div class="panel approval-success"><h3>静态审核已通过</h3><p>你批准的是当前这组静态审核证据。批准时间：${escapeHtml(review.approval.approvedAt ?? "已记录")}</p><div class="actions"><button type="button" class="primary" id="open-delivery">进入成片与交付</button></div></div>`;
-  if (!review.evidenceValid) return `<div class="panel review-stale"><h3>这组审核图已经过期</h3><p>${escapeHtml(review.staleReason)}</p><p>你仍可以查看历史画面，但不能批准。请返回“视频制作”重新生成静态审核图。</p><button type="button" class="secondary" id="back-to-video-workflow">返回视频制作</button></div>`;
-  const rejected = review.approval.status === "rejected";
-  const blockers = review.qa.findings.filter((item) => review.approval.blockingFindingIds.includes(item.id));
-  return `<div class="panel static-approval-panel"><div class="eyebrow">HUMAN REVIEW</div><h3>${rejected ? "当前版本已驳回" : blockers.length ? "有条件批准" : "提交你的审核决定"}</h3>
-    ${rejected ? `<p class="decision-record">驳回原因：${escapeHtml(review.decision?.reason ?? "已记录")}</p><p class="muted">当前版本不会再被批准。后续自动按意见返修将在 0.2.4 接入；本版本请返回视频制作重新生成。</p>` : `<label>如果不通过，请写明具体问题<textarea id="static-review-feedback" maxlength="2000" placeholder="例如：第 3 章录屏文字太小；总结标题遮挡人物；组件退出时内容被裁切。"></textarea></label>
-      ${blockers.length ? `<fieldset class="waiver-findings"><legend>如需有条件批准，必须逐项确认以下问题</legend>${blockers.map((item) => `<label><input type="checkbox" data-waiver-finding="${escapeHtml(item.id)}"/><span><b>${escapeHtml(item.ruleLabel)}</b>${escapeHtml(item.message)}</span></label>`).join("")}<label>接受原因<textarea id="static-waiver-reason" maxlength="1000" placeholder="说明为什么当前问题可以接受，以及后续如何处理。"></textarea></label></fieldset>` : `<label class="confirmation-row"><input type="checkbox" id="static-approve-confirm"/><span>我已查看审核画廊、画面节奏与质量检查，并确认当前版本可以进入成片阶段</span></label>`}
-      <div class="actions"><button type="button" class="secondary" id="reject-static-review">保存意见并驳回</button><button type="button" class="primary" id="approve-static-review">${blockers.length ? "有条件批准" : "通过静态审核"}</button></div>`}
-  </div>`;
+  if (review.approval.approved)
+    return `<div class="panel approval-success"><h3>制作 Agent 自检已通过</h3><p>当前证据包已锁定，批准时间：${escapeHtml(review.approval.approvedAt ?? "已记录")}。这里仅供查看审计证据，不是用户必经审批点。</p><div class="actions"><button type="button" class="primary" id="open-delivery">审核最终成片</button></div></div>`;
+  return `<div class="panel static-approval-panel"><div class="eyebrow">AGENT SELF REVIEW</div><h3>制作 Agent 正在自检</h3><p>${review.evidenceValid ? "审核画廊、动画节奏、视觉 QA 和回归证据会在内部自动核对。" : escapeHtml(review.staleReason ?? "审核证据已变化，Agent 会重新生成。")}</p></div>`;
 };
 const staticReviewView = (project, review) => {
   if (!review?.available) return `<div class="panel"><h2>静态审核资料尚未生成</h2><p class="muted">返回视频制作，完成字幕、画面节奏和显示完整性检查后，这里会自动出现审核画廊。</p><button type="button" class="primary" id="back-to-video-workflow">返回视频制作</button></div>`;
@@ -2242,13 +2219,16 @@ const deliveryDecisionView = (delivery) => {
 };
 const coverIconPreview = (icon) =>
   icon.category === "brand"
-    ? `<img src="/local-assets/${escapeHtml(icon.assetPath)}" alt="" style="background:${escapeHtml(icon.tileBackground ?? "#f0f4f2")}"/>`
+    ? `<svg viewBox="0 0 24 24" role="img" aria-label="${escapeHtml(icon.label)}" style="background:${escapeHtml(icon.tileBackground ?? "#f0f4f2")}"><path d="${escapeHtml(icon.svgPath)}" fill="#${escapeHtml(icon.hex)}"></path></svg>`
     : `<svg viewBox="0 0 24 24" aria-hidden="true"><use href="/local-assets/icons/system/sprite.svg#${escapeHtml(icon.id.replace("system.", ""))}"></use></svg>`;
 const coverIconPickerView = (cover) => {
   const icons = cover.catalog.icons ?? [];
   const selectedIds = state.coverIconIds;
   const selected = selectedIds.map((iconId) => icons.find((item) => item.id === iconId)).filter(Boolean);
-  const groups = [{ id: "system", label: "功能图标" }];
+  const groups = [
+    { id: "brand", label: "公司与平台" },
+    { id: "system", label: "功能图标" },
+  ];
   return `<section class="cover-icon-picker">
     <div class="cover-icon-picker-head"><h4>封面主题图标</h4><span>已选择 ${selected.length}/4 个</span></div>
     <div class="cover-icon-select">
@@ -2287,10 +2267,10 @@ const coverStudioView = (project, cover) => {
     : "";
   return `<div class="panel cover-studio-panel">
     <div class="review-section-head"><div><div class="eyebrow">COVER STUDIO</div><h3>视频封面</h3></div><span class="status-pill">${cover.status === "generated" ? "已生成" : "待生成"}</span></div>
-    <p class="cover-studio-intro">导入你自己的正面或半身照片，调整人物位置与缩放，再由本地 Remotion 生成 4:3 横版和 3:4 竖版封面。照片只复制到当前本地项目，不会提交到代码仓库，也不会调用 Agent 或生图模型。</p>
+    <p class="cover-studio-intro">从三套已入库背景中选一套，再导入你自己的透明人物抠图，由本地 Remotion 生成 4:3 横版和 3:4 竖版封面。人物素材只复制到当前本地项目，不会提交到代码仓库，也不会调用 Agent 或生图模型。</p>
     <section class="cover-portrait-setup">
-      <div class="cover-portrait-guide"><h4>1. 导入自己的照片</h4><p>建议脸部清晰、光线均匀；背景无需提前抠图。填写图片绝对路径，支持 PNG、JPG、JPEG、WebP。</p></div>
-      <label class="cover-portrait-path">照片路径<input id="cover-portrait-path" placeholder="/Users/you/Pictures/portrait.jpg"/></label>
+      <div class="cover-portrait-guide"><h4>1. 导入自己的人物抠图</h4><p>请先准备透明背景的 PNG 或 WebP；Studio 只负责本地排版，不会替你上传或生成人像。</p></div>
+      <label class="cover-portrait-path">抠图路径<input id="cover-portrait-path" placeholder="/Users/you/Pictures/portrait-cutout.png"/></label>
       <div class="cover-crop-controls">
         <label>水平位置 <input id="cover-crop-x" type="range" min="0" max="100" step="1" value="${Number(selection.portraitCrop?.x ?? 64)}"/></label>
         <label>垂直位置 <input id="cover-crop-y" type="range" min="0" max="100" step="1" value="${Number(selection.portraitCrop?.y ?? 42)}"/></label>
@@ -2303,8 +2283,8 @@ const coverStudioView = (project, cover) => {
       <label>背景主题<select id="cover-background">${cover.catalog.backgrounds.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === selection.backgroundId ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}</select></label>
     </div>
     <div class="cover-source-preview">
-      <div><span>人物照片</span>${cover.portraitConfigured ? `<img id="cover-person-thumb" src="/api/projects/${encodeURIComponent(project.project.id)}/cover/catalog-asset/person/user-portrait?v=${cache}" alt="用户导入的人物照片"/>` : `<div class="cover-empty-preview"><b>待导入</b><span>使用你自己的照片</span></div>`}</div>
-      <div><span>背景主题</span><div class="cover-theme-swatch" style="--cover-accent-a:${escapeHtml(background.accents[0])};--cover-accent-b:${escapeHtml(background.accents[1])}"><b>${escapeHtml(background.label)}</b><span>由本地样式生成</span></div></div>
+      <div><span>人物抠图</span>${cover.portraitConfigured ? `<img id="cover-person-thumb" src="/api/projects/${encodeURIComponent(project.project.id)}/cover/catalog-asset/person/user-portrait?v=${cache}" alt="用户导入的透明人物抠图"/>` : `<div class="cover-empty-preview"><b>待导入</b><span>使用你自己的透明抠图</span></div>`}</div>
+      <div><span>背景模板</span><img src="/local-assets/${escapeHtml(background.landscape)}" alt="${escapeHtml(background.label)} 背景预览"/></div>
     </div>
     ${coverIconPickerView(cover)}
     <div class="cover-copy-grid">
@@ -2336,14 +2316,15 @@ const deliveryView = (project, delivery) => {
 };
 
 const deliveryStartView = (delivery) => {
-  const selected = state.deliveryProfileDraft ?? delivery.export?.selectedProfile ?? { resolution:"1080p", frameRate:60 };
+  const selected = state.deliveryProfileDraft ?? delivery.export?.selectedProfile ?? { resolution:"source", frameRate:"source" };
   const readiness = latestWorkflowReadiness(state.selected, "delivery-acceptance", selected);
   const blocked = readiness?.readinessStatus === "blocked";
+  const profileLabel = `${selected.resolution === "source" ? "跟随原片" : String(selected.resolution).toUpperCase()} / ${selected.frameRate === "source" ? "跟随原片帧率" : `${selected.frameRate} fps`}`;
   const readinessView = !readiness
     ? '<div class="delivery-readiness"><p>开始前先快速确认成片规格和可用空间。</p><button type="button" class="primary" id="delivery-readiness-check">检查并继续</button></div>'
-    : `<div class="delivery-readiness ${escapeHtml(readiness.readinessStatus)}">${blocked ? `<p>${escapeHtml(readiness.issues?.[0]?.message ?? "当前规格暂时不能开始渲染。")} 制作 Agent 会检查可恢复范围。</p>` : `<p class="readiness-clear">当前规格可以安全生成成片。</p><label class="confirmation-row"><input type="checkbox" id="delivery-start-confirm"/><span>确认生成 ${escapeHtml(String(selected.resolution).toUpperCase())} / ${escapeHtml(String(selected.frameRate))} fps 成片</span></label><div class="actions"><button type="button" class="primary" id="start-delivery" data-readiness-sha="${escapeHtml(readiness.readinessSha256)}">开始渲染</button></div>`}</div>`;
+    : `<div class="delivery-readiness ${escapeHtml(readiness.readinessStatus)}">${blocked ? `<p>${escapeHtml(readiness.issues?.[0]?.message ?? "当前规格暂时不能开始渲染。")} 制作 Agent 会检查可恢复范围。</p>` : `<p class="readiness-clear">当前规格可以安全生成成片。</p><label class="confirmation-row"><input type="checkbox" id="delivery-start-confirm"/><span>确认生成 ${escapeHtml(profileLabel)} 成片</span></label><div class="actions"><button type="button" class="primary" id="start-delivery" data-readiness-sha="${escapeHtml(readiness.readinessSha256)}">开始渲染</button></div>`}</div>`;
   return `<div class="panel delivery-start-panel"><h3>${delivery.status === "failed" ? "从已保存进度继续" : "开始最终成片渲染"}</h3><p>只运行最终渲染和技术验收，不会重新调用 Agent、翻译或语义理解。高于原片的规格会自动回退，避免无意义放大或补帧。</p>
-    <div class="delivery-profile-grid"><label>清晰度<select id="delivery-resolution"><option value="1080p" ${selected.resolution === "1080p" ? "selected" : ""}>1080p</option><option value="2k" ${selected.resolution === "2k" ? "selected" : ""}>2K</option><option value="4k" ${selected.resolution === "4k" ? "selected" : ""}>4K</option><option value="source" ${selected.resolution === "source" ? "selected" : ""}>原片</option></select></label><label>帧率<select id="delivery-frame-rate"><option value="30" ${selected.frameRate === 30 ? "selected" : ""}>30 fps</option><option value="60" ${selected.frameRate === 60 ? "selected" : ""}>60 fps</option><option value="source" ${selected.frameRate === "source" ? "selected" : ""}>跟随原片</option></select></label></div>
+    <div class="delivery-profile-grid"><label>清晰度<select id="delivery-resolution"><option value="source" ${selected.resolution === "source" ? "selected" : ""}>跟随原片</option><option value="1080p" ${selected.resolution === "1080p" ? "selected" : ""}>1080p</option><option value="2k" ${selected.resolution === "2k" ? "selected" : ""}>2K</option><option value="4k" ${selected.resolution === "4k" ? "selected" : ""}>4K</option></select></label><label>帧率<select id="delivery-frame-rate"><option value="source" ${selected.frameRate === "source" ? "selected" : ""}>跟随原片</option><option value="30" ${selected.frameRate === 30 ? "selected" : ""}>30 fps</option><option value="60" ${selected.frameRate === 60 ? "selected" : ""}>60 fps</option></select></label></div>
     <div id="delivery-estimate" class="delivery-estimate"></div>
     ${readinessView}</div>`;
 };
@@ -2355,7 +2336,7 @@ const updateDeliveryEstimate = () => {
   const match = state.delivery?.export?.estimates?.find((item) => item.key === `${resolution}-${frameRate}`);
   if (!match) { target.textContent = "读取原片信息后显示预估时间和空间"; return; }
   const value = match.estimate;
-  target.innerHTML = `<b>预计 ${value.renderMinutes.low}–${value.renderMinutes.high} 分钟</b> · 成片约 ${formatBytes(value.finalBytes.low)}–${formatBytes(value.finalBytes.high)} · 中间文件约 ${formatBytes(value.intermediateBytes)}${value.effective.warnings.length ? `<br><span>${escapeHtml(value.effective.warnings.join(" "))}</span>` : ""}`;
+  target.innerHTML = `<b>实际输出 ${value.effective.width}×${value.effective.height} · ${value.effective.fps} fps</b><br>预计 ${value.renderMinutes.low}–${value.renderMinutes.high} 分钟 · 成片约 ${formatBytes(value.finalBytes.low)}–${formatBytes(value.finalBytes.high)} · 中间文件约 ${formatBytes(value.intermediateBytes)}${value.effective.warnings.length ? `<br><span>${escapeHtml(value.effective.warnings.join(" "))}</span>` : ""}`;
 };
 const artifactStatus = (artifact) => artifact.available
   ? `<span class="current-badge">当前有效</span>`
@@ -3307,23 +3288,6 @@ const bindWorkspaceActions = () => {
       toast("已切换为组件备选，整体确认后才会锁定");
     });
   }));
-  document.querySelectorAll("[data-animation-style]").forEach((select) => select.addEventListener("change", () => {
-    const index = Number(select.dataset.animationStyle);
-    updateNarrationSection(index, (section) => {
-      const review = storyboardReview(section) ?? { mode:"animation", status:"suggested" };
-      const current = review.animationIntent ?? recommendedAnimationIntent(section);
-      if (!current) return toast("当前口播暂时没有可调整的动画建议");
-      const structure = animationStructureFor(current.prototypeId);
-      if (structure?.compatibleStyleIds && !structure.compatibleStyleIds.includes(select.value))
-        return toast("当前动画结构不支持这个表现风格");
-      const animationIntent = recommendedAnimationIntent(section, {
-        prototypeId:current.prototypeId,
-        styleProfileId:select.value,
-      });
-      if (!animationIntent) return toast("当前口播无法生成这个动画风格所需的有效阶段");
-      setStoryboardReview(section, { ...review, mode:"animation", status:"suggested", animationIntent });
-    });
-  }));
   document.querySelectorAll("[data-material-display]").forEach((select) => select.addEventListener("change", () => {
     const index = Number(select.dataset.materialDisplay);
     updateNarrationSection(index, (section) => {
@@ -3548,7 +3512,7 @@ const bindWorkspaceActions = () => {
     if (!speaker) return toast("请先登记人物口播原片");
     try { await api(`/api/projects/${id}/handoff`, { method:"POST", body:{ speakerAssetId:speaker.assetId } }); toast("交接包已生成"); await refresh(); } catch(error){ toast(error.message); }
   });
-  document.querySelectorAll("#workflow-readiness-check").forEach((button) => button.addEventListener("click", async () => { try { button.disabled = true; const task = await api(`/api/projects/${id}/workflow`, { method:"POST", body:{ action:"readiness" } }); state.jobs.push(task); toast("正在检查原片、服务、视觉规则和下一审核门"); pollUntilDone(id); } catch(error){ button.disabled = false; toast(error.message); } }));
+  document.querySelectorAll("#workflow-readiness-check").forEach((button) => button.addEventListener("click", async () => { try { button.disabled = true; const task = await api(`/api/projects/${id}/workflow`, { method:"POST", body:{ action:"readiness" } }); state.jobs.push(task); toast("正在检查原片、服务、视觉规则和完整制作路径"); pollUntilDone(id); } catch(error){ button.disabled = false; toast(error.message); } }));
   $("#workflow-readiness-start")?.addEventListener("click", async (event) => {
     if (!$("#workflow-readiness-confirm")?.checked) return toast("请先确认本次运行与复用范围");
     const button = event.currentTarget;
@@ -3559,7 +3523,7 @@ const bindWorkspaceActions = () => {
         body:{ action:button.dataset.action, readinessSha256:button.dataset.readinessSha },
       });
       state.jobs.push(task);
-      toast(button.dataset.action === "recut" ? "已开始生成粗剪审核包" : "已继续执行到静态审核");
+      toast(button.dataset.action === "production" ? "制作 Agent 已开始连续制作、自检与渲染" : "已开始处理");
       pollUntilDone(id);
     } catch(error) {
       button.disabled = false;

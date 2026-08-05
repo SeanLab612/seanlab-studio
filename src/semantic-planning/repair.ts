@@ -1,6 +1,8 @@
 type CaptionTiming = { start: number; end: number };
+type SemanticCaption = CaptionTiming & { zh?: string };
 type SegmentBounds = { startCue?: unknown; endCue?: unknown };
 type ItemBounds = { startCue?: unknown; endCue?: unknown };
+import { semanticVisualRelations, type SemanticPlanValidationIssue } from "./validation.ts";
 
 /**
  * Provider output occasionally contains valid evidence bounds in presentation
@@ -92,4 +94,61 @@ export const semanticDensityRepairInstruction = (
     );
   }
   return instructions.join("\n");
+};
+
+export const splitSemanticRelationshipRange = ({
+  startCue,
+  endCue,
+  captions,
+}: {
+  startCue: number;
+  endCue: number;
+  captions: SemanticCaption[];
+}) => {
+  const marked: Array<{ cue: number; relation: string }> = [];
+  const seen = new Set<string>();
+  let cumulativeText = "";
+  for (let cue = startCue; cue <= endCue; cue += 1) {
+    cumulativeText += captions[cue].zh ?? "";
+    const newlyDetected = semanticVisualRelations(cumulativeText).filter((relation) => !seen.has(relation));
+    if (newlyDetected.length > 1) return [];
+    if (newlyDetected.length === 1) {
+      seen.add(newlyDetected[0]);
+      marked.push({ cue, relation: newlyDetected[0] });
+    }
+  }
+  if (new Set(marked.map((entry) => entry.relation)).size < 2) return [];
+
+  const ranges: Array<{ startCue: number; endCue: number }> = [];
+  let rangeStart = startCue;
+  let activeRelation = marked[0].relation;
+  for (const marker of marked.slice(1)) {
+    if (marker.relation === activeRelation) continue;
+    ranges.push({ startCue: rangeStart, endCue: marker.cue - 1 });
+    rangeStart = marker.cue;
+    activeRelation = marker.relation;
+  }
+  ranges.push({ startCue: rangeStart, endCue });
+  return ranges.filter((range) => range.startCue <= range.endCue);
+};
+
+export const semanticValidationRepairInstruction = (
+  value: unknown,
+  captions: SemanticCaption[],
+  maximumSegmentSeconds = 24,
+  issue?: SemanticPlanValidationIssue,
+) => {
+  if (!issue) return semanticDensityRepairInstruction(value, captions, maximumSegmentSeconds);
+  if (issue.kind === "semantic-density")
+    return semanticDensityRepairInstruction(value, captions, maximumSegmentSeconds);
+
+  const ranges = splitSemanticRelationshipRange({
+    startCue: issue.startCue,
+    endCue: issue.endCue,
+    captions,
+  });
+  if (ranges.length > 1)
+    return `Replace segments[${issue.segmentIndex}] (${issue.startCue}-${issue.endCue}) with ${ranges.length} separate complete segment objects using exactly these inclusive cue ranges: ${ranges.map((range) => `${range.startCue}-${range.endCue}`).join(", ")}. Each replacement must express only one visual relationship and must have its own evidence-supported rhetoric, narrative, items and reason based only on captions inside that range.`;
+
+  return `Rewrite segments[${issue.segmentIndex}] (${issue.startCue}-${issue.endCue}) so it expresses exactly one evidence-backed visual relationship (${issue.relations?.join(", ") ?? "unknown"}). A single caption cue is atomic: if one cue itself suggests multiple relationships, choose the one most directly supported by its wording or omit that segment instead of inventing evidence or overlapping cue ranges.`;
 };

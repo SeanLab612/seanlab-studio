@@ -4,14 +4,16 @@ import { createReadStream } from "node:fs";
 import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { basename, extname, isAbsolute, resolve } from "node:path";
 import { promisify } from "node:util";
+import { brandIconGraphics } from "../../src/icons/brand-graphics.ts";
 import { iconRegistry } from "../../src/icons/registry.ts";
 import { studioSecureHeaders } from "../operations/http-security.mjs";
 import { loadCreatorProject, projectDir, writeJsonAtomic } from "./project-store.mjs";
 
 const run = promisify(execFile);
 const systemIconSpritePath = resolve("public/icons/system/sprite.svg");
+const coverRegistryPath = resolve("public/assets/covers/registry.json");
 const coverFormatProfile = "creator-cover-3x4-portrait-4x3-landscape-v1";
-const allowedPhotoExtensions = new Set([".png", ".jpg", ".jpeg", ".webp"]);
+const allowedPhotoExtensions = new Set([".png", ".webp"]);
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
 const exists = async (path) => Boolean(await stat(path).catch(() => undefined));
 const coverRoot = (projectId) => resolve(projectDir(projectId), "cover");
@@ -50,21 +52,40 @@ const assertLine = (value, label) => {
 
 const coverIconCatalog = async () => {
   const systemSprite = await readFile(systemIconSpritePath, "utf8");
-  return Object.values(iconRegistry)
-    .filter((item) => item.category === "system")
-    .filter((item) => systemSprite.includes(`id="${item.id.replace("system.", "")}"`))
-    .map((item) => ({ id: item.id, category: item.category, label: item.label, assetKind: "vector" }));
+  return Object.values(iconRegistry).flatMap((item) => {
+    if (item.category === "brand") {
+      const graphic = brandIconGraphics[item.id];
+      return graphic
+        ? [
+            {
+              id: item.id,
+              category: item.category,
+              label: item.label,
+              assetKind: "brand-vector",
+              svgPath: graphic.path,
+              hex: graphic.hex,
+              tileBackground: item.tileBackground,
+              upstream: graphic.upstream,
+            },
+          ]
+        : [];
+    }
+    return systemSprite.includes(`id="${item.id.replace("system.", "")}"`)
+      ? [{ id: item.id, category: item.category, label: item.label, assetKind: "vector" }]
+      : [];
+  });
 };
-const catalog = async (portraitConfigured) => ({
-  templates: [{ id: "creator-editorial-1.0", label: "创作者编辑封面" }],
-  people: portraitConfigured ? [{ id: "user-portrait", label: "我的照片" }] : [],
-  backgrounds: [
-    { id: "signal", label: "深色信号", theme: "signal", accents: ["#6EA8FF", "#FF626B"] },
-    { id: "paper", label: "浅色纸张", theme: "paper", accents: ["#F4B860", "#FF626B"] },
-    { id: "studio", label: "中性工作室", theme: "studio", accents: ["#9E77ED", "#68D6B3"] },
-  ],
-  icons: await coverIconCatalog(),
-});
+const catalog = async (portraitConfigured) => {
+  const coverRegistry = await readJson(coverRegistryPath);
+  if (coverRegistry.schemaVersion !== "1.0" || !Array.isArray(coverRegistry.backgrounds))
+    throw new Error("封面背景目录无效");
+  return {
+    templates: coverRegistry.templates,
+    people: portraitConfigured ? [{ id: "user-portrait", label: "我的照片" }] : [],
+    backgrounds: coverRegistry.backgrounds,
+    icons: await coverIconCatalog(),
+  };
+};
 const readSavedState = async (projectId) => readJson(statePath(projectId)).catch(() => undefined);
 
 const currentSelection = async (projectId, registry, saved) => {
@@ -72,16 +93,21 @@ const currentSelection = async (projectId, registry, saved) => {
   const titleLines = defaultTitleLines(project.project.title);
   const eligibleIconIds = new Set(registry.icons.map((item) => item.id));
   const iconIds = (saved?.selection?.iconIds ?? []).filter((iconId) => eligibleIconIds.has(iconId)).slice(0, 4);
+  const prior = saved?.selection ?? {};
   return {
-    templateId: "creator-editorial-1.0",
+    ...prior,
+    templateId: registry.templates.some((item) => item.id === prior.templateId)
+      ? prior.templateId
+      : registry.templates[0].id,
     personId: saved?.portrait ? "user-portrait" : undefined,
-    backgroundId: "signal",
+    backgroundId: registry.backgrounds.some((item) => item.id === prior.backgroundId)
+      ? prior.backgroundId
+      : registry.backgrounds[0].id,
     titleLines,
     kicker: "LOCAL CREATOR VIDEO",
     badge: "CREATOR VIDEO",
     brandName: "",
     portraitCrop: normalizeCrop(saved?.portrait?.crop),
-    ...saved?.selection,
     iconIds,
   };
 };
@@ -94,7 +120,7 @@ export const registerStudioCoverPortrait = async ({ projectId, sourcePath, crop 
     if (!isAbsolute(requestedSource)) throw new Error("请填写人物照片的绝对路径");
     const source = resolve(requestedSource);
     const extension = extname(source).toLowerCase();
-    if (!allowedPhotoExtensions.has(extension)) throw new Error("人物照片仅支持 PNG、JPG、JPEG 或 WebP");
+    if (!allowedPhotoExtensions.has(extension)) throw new Error("人物抠图仅支持透明背景 PNG 或 WebP");
     const info = await stat(source).catch(() => undefined);
     if (!info?.isFile()) throw new Error("人物照片不存在或不是文件");
     const destinationDirectory = publicCoverRoot(projectId);
@@ -167,7 +193,7 @@ export const renderStudioCover = async ({ projectId, selection: input }) => {
     throw new Error("封面最多选择 4 个不重复图标");
   const eligibleIconIds = new Set(registry.icons.map((item) => item.id));
   if (requestedIconIds.some((iconId) => !eligibleIconIds.has(iconId)))
-    throw new Error("封面图标必须来自本地系统图标库");
+    throw new Error("封面图标必须来自已核对的本地图标目录");
   const titleLines = [assertLine(input.titleLines?.[0], "封面第一行"), assertLine(input.titleLines?.[1], "封面第二行")];
   if (input.titleLines?.[2]?.trim()) titleLines.push(assertLine(input.titleLines[2], "封面第三行"));
   const portraitCrop = normalizeCrop(input.portraitCrop ?? saved.portrait.crop);
@@ -193,6 +219,11 @@ export const renderStudioCover = async ({ projectId, selection: input }) => {
   };
   await mkdir(coverRoot(projectId), { recursive: true });
   for (const format of ["landscape", "portrait"]) {
+    const backgroundAsset = String(background[format] ?? "");
+    if (!/^assets\/covers\/backgrounds\/[a-z0-9-]+\.png$/.test(backgroundAsset))
+      throw new Error("封面背景路径未通过安全校验");
+    const backgroundHash = await hashFile(resolve("public", backgroundAsset));
+    if (backgroundHash !== background[`${format}Sha256`]) throw new Error("封面背景文件与入库记录不一致");
     const props = {
       schemaVersion: "1.0",
       templateId: template.id,
@@ -203,7 +234,8 @@ export const renderStudioCover = async ({ projectId, selection: input }) => {
       iconIds: selection.iconIds,
       supportingFacts: selection.supportingFacts,
       portraitSrc: saved.portrait.assetPath,
-      portraitTreatment: "photo-crop",
+      generatedBackgroundSrc: backgroundAsset,
+      portraitTreatment: "transparent-cutout",
       portraitCrop,
       theme: background.theme,
       accents: background.accents,

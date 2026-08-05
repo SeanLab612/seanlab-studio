@@ -20,6 +20,7 @@ const automaticResumeReasons = new Set([
   "automatic-source-repair",
   "automatic-binding-repair",
   "automatic-visual-contract-repair",
+  "automatic-semantic-plan-repair",
 ]);
 
 export const productionAgentStateFile = (projectId) =>

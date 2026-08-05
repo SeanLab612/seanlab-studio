@@ -14,8 +14,10 @@ import {
   resolveSpeakerRoughAnnotationPlan,
   type SemanticNarrativeSegment,
   semanticDensityRepairInstruction,
+  semanticValidationRepairInstruction,
   semanticEvidenceStartSeconds,
   splitSemanticRange,
+  splitSemanticRelationshipRange,
   withConfirmedComparisonItems,
 } from "../src/semantic-planning/index.ts";
 
@@ -137,23 +139,20 @@ test("normalizes fully bounded semantic items into spoken evidence order", () =>
   );
 });
 
-test("global semantic plan rejects a mixed process, comparison, and checklist paragraph", () => {
-  assert.throws(
-    () =>
-      parseSemanticNarrativePlan(
-        {
-          schemaVersion: "1.0",
-          analyzedThroughCue: 2,
-          segments: [intent({ startCue: 0, endCue: 2 })],
-        },
-        [
-          { start: 0, end: 2, zh: "先写稿，再拍摄，然后进入制作流程。" },
-          { start: 2, end: 4, zh: "比如两种做法各有优缺点，可以左右对比。" },
-          { start: 4, end: 6, zh: "最后逐项检查是不是自然。" },
-        ],
-      ),
-    /mixes multiple visual relationships/i,
+test("global semantic plan lets the downstream Agent choose one dominant relationship for mixed source wording", () => {
+  const result = parseSemanticNarrativePlan(
+    {
+      schemaVersion: "1.0",
+      analyzedThroughCue: 2,
+      segments: [intent({ startCue: 0, endCue: 2, rhetoric: "factor-sequence" })],
+    },
+    [
+      { start: 0, end: 2, zh: "先写稿，再拍摄，然后进入制作流程。" },
+      { start: 2, end: 4, zh: "比如两种做法各有优缺点，可以左右对比。" },
+      { start: 4, end: 6, zh: "最后逐项检查是不是自然。" },
+    ],
   );
+  assert.equal(result.segments[0].rhetoric, "factor-sequence");
 });
 
 test("semantic relationship validation does not treat 比较慢 as a comparison", () => {
@@ -185,6 +184,58 @@ test("semantic density repair proposes exact bounded caption ranges", () => {
   assert.match(instruction, /Replace segments\[0\]/);
   assert.match(instruction, /exactly these inclusive cue ranges: 0-6, 7-10/);
   assert.match(instruction, /based only on captions inside that range/);
+});
+
+test("semantic relationship repair proposes evidence-bounded ranges without fixture-specific cue numbers", () => {
+  const captions = [
+    { start: 0, end: 2, zh: "先上传图片，再完成模型生成。" },
+    { start: 2, end: 4, zh: "中间这句补充产品背景。" },
+    { start: 4, end: 6, zh: "左右两边可以对比原图与三维结果。" },
+    { start: 6, end: 8, zh: "最后逐项检查是不是完整。" },
+  ];
+  assert.deepEqual(splitSemanticRelationshipRange({ startCue: 0, endCue: 3, captions }), [
+    { startCue: 0, endCue: 1 },
+    { startCue: 2, endCue: 2 },
+    { startCue: 3, endCue: 3 },
+  ]);
+  const instruction = semanticValidationRepairInstruction({ segments: [{ startCue: 0, endCue: 3 }] }, captions, 24, {
+    kind: "mixed-visual-relations",
+    segmentIndex: 0,
+    startCue: 0,
+    endCue: 3,
+    relations: ["process", "comparison", "checklist"],
+    message: "mixed",
+  });
+  assert.match(instruction, /exactly these inclusive cue ranges: 0-1, 2-2, 3-3/);
+  assert.match(instruction, /only one visual relationship/);
+});
+
+test("semantic relationship repair does not invent a split inside one atomic caption cue", () => {
+  const captions = [{ start: 0, end: 3, zh: "先生成，再把两种做法左右对比。" }];
+  assert.deepEqual(splitSemanticRelationshipRange({ startCue: 0, endCue: 0, captions }), []);
+  const instruction = semanticValidationRepairInstruction({ segments: [{ startCue: 0, endCue: 0 }] }, captions, 24, {
+    kind: "mixed-visual-relations",
+    segmentIndex: 0,
+    startCue: 0,
+    endCue: 0,
+    relations: ["process", "comparison"],
+    message: "mixed",
+  });
+  assert.match(instruction, /single caption cue is atomic/i);
+  assert.match(instruction, /choose the one most directly supported/i);
+});
+
+test("semantic relationship repair detects a process relationship spanning caption boundaries", () => {
+  const captions = [
+    { start: 0, end: 2, zh: "生成代码之前先把物体看清楚，" },
+    { start: 2, end: 4, zh: "写成规格，再把建模拆成八个阶段，" },
+    { start: 4, end: 6, zh: "每走一步都渲染对照复核，" },
+    { start: 6, end: 8, zh: "不匹配就回去修改。" },
+  ];
+  assert.deepEqual(splitSemanticRelationshipRange({ startCue: 0, endCue: 3, captions }), [
+    { startCue: 0, endCue: 1 },
+    { startCue: 2, endCue: 3 },
+  ]);
 });
 
 test("materializer refuses an empty capability matrix instead of rendering placeholders", () => {

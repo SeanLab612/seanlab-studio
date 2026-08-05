@@ -5,7 +5,7 @@ export const PROJECT_SCHEMA_VERSION = "1.0";
 export const REVIEW_MODES = Object.freeze(["static", "full-video"]);
 export const MOTION_REVIEW_MODES = Object.freeze(["conditional-excerpts", "full-pacing"]);
 export const TYPOGRAPHY_MODES = Object.freeze(["auto", "system-only", "wenkai-emphasis"]);
-export const ANIMATION_TEMPLATE_IDS = Object.freeze(["paper-editorial", "stop-motion-machine", "research-archive"]);
+export const ANIMATION_TEMPLATE_IDS = Object.freeze(["paper-editorial"]);
 export const typographyPolicyFor = (manifest) =>
   manifest.policies?.typography ?? { version: "system-1.0", mode: "system-only" };
 
@@ -215,15 +215,22 @@ export const validateManifest = (manifest) => {
   }
   if (manifest.policies?.animation) {
     assertObject(manifest.policies.animation, "policies.animation");
+    const normalizeLegacyTemplateId = (id) =>
+      id === "stop-motion-machine" || id === "research-archive" ? "paper-editorial" : id;
     if (manifest.policies.animation.mode === "per-cue") {
+      manifest.policies.animation.allowedTemplateIds = [
+        ...new Set((manifest.policies.animation.allowedTemplateIds ?? []).map(normalizeLegacyTemplateId)),
+      ];
       if (
         !Array.isArray(manifest.policies.animation.allowedTemplateIds) ||
         manifest.policies.animation.allowedTemplateIds.length === 0 ||
         manifest.policies.animation.allowedTemplateIds.some((id) => !ANIMATION_TEMPLATE_IDS.includes(id))
       )
         throw new Error("policies.animation.allowedTemplateIds is invalid");
-    } else if (!ANIMATION_TEMPLATE_IDS.includes(manifest.policies.animation.templateId)) {
-      throw new Error("policies.animation.templateId is invalid");
+    } else {
+      manifest.policies.animation.templateId = normalizeLegacyTemplateId(manifest.policies.animation.templateId);
+      if (!ANIMATION_TEMPLATE_IDS.includes(manifest.policies.animation.templateId))
+        throw new Error("policies.animation.templateId is invalid");
     }
   }
   if (manifest.policies?.visualDirection) {

@@ -57,13 +57,14 @@ const option = (name) => {
 const manifestArg = option("--project");
 if (!manifestArg)
   throw new Error(
-    "Usage: npm run workflow -- --project <project.json> [--until recut|plan|review|delivery] [--from stage] [--force] [--replan-recut] [--replan-semantic] [--resume-semantic-attempt <id>] [--dry-run] [--approve-recut] [--approve] [--waive-qa <reason>] [--delivery-resolution 1080p|2k|4k|source --delivery-frame-rate 30|60|source]",
+    "Usage: npm run workflow -- --project <project.json> [--until recut|plan|review|delivery] [--from stage] [--force] [--replan-recut] [--replan-semantic] [--resume-semantic-attempt <id>] [--dry-run] [--approve-recut] [--approve] [--production-agent-auto-approve] [--waive-qa <reason>] [--delivery-resolution 1080p|2k|4k|source --delivery-frame-rate 30|60|source]",
   );
 const dryRun = flag("--dry-run");
 const replanSemantic = flag("--replan-semantic");
 const resumeSemanticAttemptId = option("--resume-semantic-attempt");
 const replanRecut = flag("--replan-recut");
 const approveRecut = flag("--approve-recut");
+const productionAgentAutoApprove = flag("--production-agent-auto-approve");
 
 const baseContext = await readManifest(manifestArg);
 const requestedUntilValue = option("--until") ?? baseContext.manifest.workflow.defaultTarget;
@@ -90,7 +91,7 @@ const state = await loadState({
 });
 const emit = (event) => console.log(JSON.stringify({ projectId: manifest.project.id, ...event }));
 
-if (approveRecut) {
+const approveRecutStage = async (authority = "human") => {
   const approval = state.stages["recut-approval"];
   const reviewStage = stages.find(({ name }) => name === "recut-review");
   const approvalStage = stages.find(({ name }) => name === "recut-approval");
@@ -104,6 +105,7 @@ if (approveRecut) {
   for (const input of approvalStage.inputs) await access(input);
   approval.status = "approved";
   approval.approvedAt = new Date().toISOString();
+  approval.authority = authority;
   approval.reviewSha256 = await signatureFor(approvalStage.inputs);
   approval.inputSignature = await signatureFor([
     manifest.schemaVersion,
@@ -113,13 +115,13 @@ if (approveRecut) {
     signatureConfigForStage(manifest, approvalStage.name),
   ]);
   approval.outputSignature = await signatureFor([]);
-  recordEvent(state, { event: "recut.approved", stage: "recut-approval" });
+  recordEvent(state, { event: "recut.approved", stage: "recut-approval", authority });
   await saveState(paths.state, state);
   await writeArtifactLedger(paths.artifacts, state);
-  emit({ event: "recut.approved", statePath: paths.state, reviewSha256: approval.reviewSha256 });
-}
+  emit({ event: "recut.approved", statePath: paths.state, reviewSha256: approval.reviewSha256, authority });
+};
 
-if (flag("--approve")) {
+const approveReviewStage = async ({ authority = "human", qaWaiverReason } = {}) => {
   const approval = state.stages["human-approval"];
   if (state.stages["review-evidence"].status !== "succeeded")
     throw new Error("A complete review evidence package is required before approval");
@@ -159,10 +161,10 @@ if (flag("--approve")) {
     artifact: qaReport,
     label: "Visual QA report",
   });
-  const qaWaiverReason = option("--waive-qa");
   assertQaApprovalAllowed(qaReport, qaWaiverReason);
   approval.status = "approved";
   approval.approvedAt = new Date().toISOString();
+  approval.authority = authority;
   approval.reviewSha256 = currentReviewSignature;
   approval.reviewEvidenceSha256 = reviewEvidence.approvalBindingSha256;
   approval.reviewMode = reviewEvidence.reviewMode;
@@ -172,10 +174,16 @@ if (flag("--approve")) {
   approval.qaReportSha256 = qaReport.reportSha256;
   approval.snapshot = await createApprovalSnapshot({ paths, reviewEvidence });
   if (qaWaiverReason) approval.qaWaiver = { reason: qaWaiverReason, recordedAt: new Date().toISOString() };
-  recordEvent(state, { event: "review.approved", stage: "human-approval" });
+  recordEvent(state, { event: "review.approved", stage: "human-approval", authority });
   await saveState(paths.state, state);
   await writeArtifactLedger(paths.artifacts, state);
-  emit({ event: "review.approved", statePath: paths.state, snapshot: approval.snapshot });
+  emit({ event: "review.approved", statePath: paths.state, snapshot: approval.snapshot, authority });
+};
+
+if (approveRecut) await approveRecutStage();
+
+if (flag("--approve")) {
+  await approveReviewStage({ qaWaiverReason: option("--waive-qa") });
   process.exit(0);
 }
 
@@ -302,6 +310,11 @@ if (
 const runCommand = async (stage, runtimeConfigPath = paths.runtimeConfig, onProgress = () => {}) => {
   if (stage.verifyOnly) {
     for (const input of stage.inputs) await access(input);
+    return;
+  }
+  if (stage.approval && productionAgentAutoApprove) {
+    if (stage.approvalKind === "recut") await approveRecutStage("production-agent");
+    else await approveReviewStage({ authority: "production-agent" });
     return;
   }
   if (stage.approval)

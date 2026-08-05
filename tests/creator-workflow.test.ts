@@ -137,7 +137,7 @@ test("creator projects pin one Agent without fallback", () => {
       ...project,
       animation: { templateId: "stop-motion-machine", lockedAt: now },
     }).animation?.templateId,
-    "stop-motion-machine",
+    "paper-editorial",
   );
   assert.equal(validateCreatorProject(project).typography?.mode, "auto");
   assert.throws(

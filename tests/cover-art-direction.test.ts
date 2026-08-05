@@ -83,11 +83,20 @@ test("cover asset pack accepts a user-managed local portrait without a bundled b
   assert.equal(cover.generatedBackgroundSrc, undefined);
 });
 
-test("public cover flow requires a user photo and does not expose a bundled people catalog", async () => {
+test("public cover flow ships only background templates and requires a user cutout", async () => {
   const source = await readFile("scripts/creator/studio-covers.mjs", "utf8");
+  const registry = JSON.parse(await readFile("public/assets/covers/registry.json", "utf8"));
   assert.match(source, /请先导入自己的封面人物照片/);
   assert.match(source, /people: portraitConfigured \?/);
+  assert.match(source, /transparent-cutout/);
   assert.doesNotMatch(source, /sean-pose|user-provided-private/);
+  assert.equal(registry.backgrounds.length, 3);
+  assert.equal(registry.people, undefined);
+  assert.ok(
+    registry.backgrounds.every(
+      (item: { generationContract: string }) => item.generationContract === "background-only-no-people-no-text-v1",
+    ),
+  );
 });
 
 test("Douyin cover compositions render at 4:3 landscape and 3:4 portrait ratios", async () => {

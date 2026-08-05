@@ -7,12 +7,14 @@ here before a release.
 | --- | --- | --- | --- |
 | `studio/assets/seanlab-logo.png`, `studio/assets/seanlab-logo-white.svg` | SeanLab-authored identity | MIT | May be used, modified, and redistributed under the root MIT License. |
 | `public/icons/system/sprite.svg` | SeanLab-authored functional icon set | MIT | No third-party brand artwork is embedded. |
+| Runtime brand paths from `simple-icons` 16.28.0 | Simple Icons contributors | CC0-1.0 package; third-party trademarks remain reserved | Only explicitly admitted paths are rendered; unavailable marks use local text badges. |
 | `studio/assets/icons/*.svg` | SeanLab-authored Studio controls | MIT | The settings icon was redrawn as a sliders control in 2026-08. |
 | `studio/assets/agent-icons/codex.svg` | Official OpenAI logo package: unmodified black Blossom | OpenAI brand usage terms | Identifies Codex CLI compatibility only; excluded from MIT; no endorsement. |
 | `studio/assets/agent-icons/claude.svg` | Official Anthropic press kit: unmodified `ClaudeIcon-Rounded.svg` | Anthropic trademark/media terms | Identifies Claude Code compatibility only; excluded from MIT; no endorsement. |
 | `public/review-assets/*.svg` | SeanLab-authored mock interfaces and placeholders | MIT | Mock interfaces do not reproduce vendor logos. |
 | `docs/assets/*` | Screenshots and renders of SeanLab Studio | MIT | Generated from this repository; imported user projects are excluded. |
 | `public/assets/animation-templates/*.mp4` | SeanLab-authored template renders | MIT | Rendered from repository animation source. |
+| `public/assets/covers/backgrounds/*.png` | SeanLab-generated background-only cover templates | MIT | No people, logos, or text; exact hashes are frozen in `public/assets/covers/registry.json`. |
 | `regression-fixtures/golden/**` | SeanLab-authored component renders | MIT | Generated from repository components and local fixtures. |
 | `regression-fixtures/topics/assets/deepswe-score-card.svg` | SeanLab-authored factual test card | MIT | Source facts are attributed in `src/regression-fixtures/topic-fixtures.ts`. |
 | `regression-fixtures/topics/assets/kimi-k3-fact-card.svg` | SeanLab-authored factual test card | MIT | Source facts are attributed in `src/regression-fixtures/topic-fixtures.ts`. |

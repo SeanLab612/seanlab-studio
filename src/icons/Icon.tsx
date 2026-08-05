@@ -1,4 +1,5 @@
 import type React from "react";
+import { resolveBrandIconGraphic } from "./brand-graphics";
 import { type IconId, iconRegistry, isIconId, type SystemIconId } from "./registry";
 import { resolveFunctionalIconId } from "./resolve-functional-icon";
 
@@ -250,6 +251,30 @@ export const Icon: React.FC<IconProps> = ({
         : color;
 
   if (definition?.category === "brand") {
+    const graphic = resolveBrandIconGraphic(definition.id);
+    if (graphic) {
+      return (
+        <svg
+          aria-label={definition.label}
+          role="img"
+          viewBox="0 0 24 24"
+          width={size}
+          height={size}
+          style={{
+            width: size,
+            height: size,
+            flexShrink: 0,
+            padding: Math.max(3, Math.round(size * 0.14)),
+            borderRadius: Math.max(6, Math.round(size * 0.24)),
+            background: definition.tileBackground,
+            border: "1px solid rgba(17,19,24,.12)",
+            ...style,
+          }}
+        >
+          <path d={graphic.path} fill={`#${graphic.hex}`} />
+        </svg>
+      );
+    }
     return (
       <div
         title={definition.label}

@@ -47,6 +47,13 @@ Code only and do not imply sponsorship, partnership, certification, or endorseme
 subject to the owners' current brand and trademark terms. Exact retrieval dates and checksums are recorded in
 `studio/assets/agent-icons/NOTICE.md`.
 
+## Simple Icons brand paths
+
+The pinned `simple-icons` 16.28.0 dependency supplies vector geometry for an explicitly admitted subset of
+company and platform icons. Simple Icons is released under CC0-1.0, but its license does not grant trademark rights
+in the represented brands. These icons identify products or platforms only and do not imply sponsorship,
+certification, or endorsement. A registered brand without an admitted upstream path uses a local text badge instead.
+
 ## NASA regression fixtures
 
 Two photographs are bundled only as source-grounding regression fixtures:
@@ -81,8 +88,8 @@ SeanLab Studio stores them in ignored local project directories and does not gra
 
 ## Names and trademarks
 
-SeanLab Studio does not bundle the private creator portrait library or a general third-party brand artwork library.
-Apart from the two documented Agent compatibility marks above, brand metadata falls back to local text badges when
-the user has not supplied an authorized asset. OpenAI, Codex, Anthropic, Claude, NASA, Remotion, and all other
+SeanLab Studio does not bundle the private creator portrait library. The explicitly admitted Simple Icons paths and
+the two documented Agent compatibility marks above are the only bundled third-party brand artwork; other brand
+metadata falls back to local text badges. OpenAI, Codex, Anthropic, Claude, NASA, Remotion, and all other
 third-party names and trademarks remain the property of their respective owners. Their mention describes
 compatibility or source provenance only.

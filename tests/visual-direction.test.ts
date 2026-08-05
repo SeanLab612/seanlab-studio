@@ -418,10 +418,11 @@ test("quality blocks a silently skipped creator-confirmed component", () => {
   assert.ok(report.findings.some((item) => item.rule === "visual-direction.creator-confirmed-component"));
 });
 
-test("quality blocks unexplained long speaker-only gaps but honors explicitly confirmed pure speaker passages", () => {
+test("quality advises on long speaker-only gaps without blocking downstream speaker fallback", () => {
   const plan = directVisualPacing({ candidates: [candidate("candidate-1", 0, 5)], durationSeconds: 30 });
   let report = evaluateVisualDirectionQuality({ plan, minimumEligibleCoverageRatio: 0 });
-  assert.ok(report.findings.some((item) => item.rule === "visual-direction.unexplained-speaker-gap"));
+  assert.equal(report.status, "passed");
+  assert.ok(report.advisories.some((item) => item.rule === "visual-direction.unexplained-speaker-gap"));
   plan.decisions.push({
     ...plan.decisions[0],
     candidateId: "strict-speaker",
@@ -439,7 +440,7 @@ test("quality blocks unexplained long speaker-only gaps but honors explicitly co
   });
   report = evaluateVisualDirectionQuality({ plan, minimumEligibleCoverageRatio: 0 });
   assert.equal(
-    report.findings.some((item) => item.rule === "visual-direction.unexplained-speaker-gap"),
+    report.advisories.some((item) => item.rule === "visual-direction.unexplained-speaker-gap"),
     false,
   );
 });

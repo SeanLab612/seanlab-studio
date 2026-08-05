@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "1.0",
+  "templates": [
+    {
+      "id": "creator-editorial-1.0",
+      "label": "创作者编辑封面"
+    }
+  ],
+  "backgrounds": [
+    {
+      "id": "signal-tech",
+      "label": "信号科技",
+      "theme": "signal",
+      "accents": ["#6EA8FF", "#FF626B"],
+      "landscape": "assets/covers/backgrounds/signal-tech-landscape-v1.png",
+      "portrait": "assets/covers/backgrounds/signal-tech-portrait-v1.png",
+      "landscapeSha256": "0f4a0d99613a619f23c8990c0c830ea0d8b380ad5b8adff5590830c29add5db6",
+      "portraitSha256": "52f1a82e3b0d13efb6c4affd8701f05e5bc5926944a039013bb3878943c2deb2",
+      "generator": "codex-client-imagegen",
+      "generationContract": "background-only-no-people-no-text-v1"
+    },
+    {
+      "id": "studio-product",
+      "label": "产品工作室",
+      "theme": "studio",
+      "accents": ["#B59CFF", "#59D98E"],
+      "landscape": "assets/covers/backgrounds/studio-product-landscape-v1.png",
+      "portrait": "assets/covers/backgrounds/studio-product-portrait-v1.png",
+      "landscapeSha256": "be3c03cc861b3b51f6f15a67ccc86ebf43cda37bd77ded9a28533f8155f7ff05",
+      "portraitSha256": "6fe53223baef61beec1979b1f85de75edc1ef95ffe8a93f907aecd59fd3ca4b3",
+      "generator": "codex-client-imagegen",
+      "generationContract": "background-only-no-people-no-text-v1"
+    },
+    {
+      "id": "paper-tutorial",
+      "label": "纸张教程",
+      "theme": "paper",
+      "accents": ["#F3B545", "#FF626B"],
+      "landscape": "assets/covers/backgrounds/paper-tutorial-landscape-v1.png",
+      "portrait": "assets/covers/backgrounds/paper-tutorial-portrait-v1.png",
+      "landscapeSha256": "3b927188b58096ff40ac4471e323d3009152be71fc1fd35992d10729c2d51c82",
+      "portraitSha256": "4f5346d4bea69c774fd1182cb0fcebd3a892d5d6a090f7e61c537d8e562e8401",
+      "generator": "codex-client-imagegen",
+      "generationContract": "background-only-no-people-no-text-v1"
+    }
+  ]
+}

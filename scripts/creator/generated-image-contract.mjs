@@ -17,20 +17,6 @@ export const GENERATED_IMAGE_TEMPLATE_CONTRACTS = Object.freeze({
     negative: "photorealistic, glossy 3d render, gradients, readable text, logo, watermark, UI screenshot",
     background: "transparent",
   }),
-  "stop-motion-machine": Object.freeze({
-    label: "定格机械台",
-    promptPrefix:
-      "hand-built stop motion prop, miniature practical materials, painted wood and metal, frontal readable silhouette, studio craft lighting",
-    negative: "photorealistic full scene, text, logo, watermark, UI screenshot, busy background",
-    background: "transparent",
-  }),
-  "research-archive": Object.freeze({
-    label: "研究档案馆",
-    promptPrefix:
-      "archival technical illustration, cream paper, graphite and ink, numbered specimen aesthetic, muted cyan annotations without text",
-    negative: "photorealistic, neon cyberpunk, readable text, logo, watermark, UI screenshot",
-    background: "transparent",
-  }),
 });
 
 export const imageGenerationCapability = ({ agentId, brokerCommand = configuredBrokerCommand() }) => {

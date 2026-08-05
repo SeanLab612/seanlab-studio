@@ -1,7 +1,6 @@
 import { AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import type { ResolvedAnimationCue } from "../visual-production/timeline.ts";
 import { PaperEditorialAnimation } from "./PaperEditorialAnimation.tsx";
-import { StopMotionMachineAnimation } from "./StopMotionMachineAnimation.tsx";
 
 const sceneFrames = 180;
 const cue = (
@@ -117,44 +116,6 @@ export const AnimationSystemReview = () => {
       >
         {String(sceneIndex + 1).padStart(2, "0")} / {String(reviewCues.length).padStart(2, "0")} ·{" "}
         {reviewCue.animationIntent.prototypeId}
-      </div>
-    </AbsoluteFill>
-  );
-};
-
-export const StopMotionSystemReview = () => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const sceneIndex = Math.min(reviewCues.length - 1, Math.floor(frame / sceneFrames));
-  const sceneFrame = frame - sceneIndex * sceneFrames;
-  const sourceCue = reviewCues[sceneIndex];
-  const reviewCue: ResolvedAnimationCue = {
-    ...sourceCue,
-    styleProfileId: "stop-motion-machine",
-    animationIntent: {
-      ...sourceCue.animationIntent,
-      styleProfileId: "stop-motion-machine",
-    },
-  };
-  return (
-    <AbsoluteFill>
-      <StopMotionMachineAnimation cue={reviewCue} frame={sceneFrame} fps={fps} />
-      <div
-        style={{
-          position: "absolute",
-          right: 78,
-          bottom: 48,
-          padding: "7px 12px",
-          border: "1px solid rgba(240,223,192,.3)",
-          borderRadius: 999,
-          background: "rgba(41,34,28,.82)",
-          color: "rgba(240,223,192,.74)",
-          fontFamily: '"PingFang SC", sans-serif',
-          fontSize: 16,
-          fontWeight: 700,
-        }}
-      >
-        定格机械模板 · {String(sceneIndex + 1).padStart(2, "0")} / {String(reviewCues.length).padStart(2, "0")}
       </div>
     </AbsoluteFill>
   );

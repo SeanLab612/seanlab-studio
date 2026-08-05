@@ -3,13 +3,7 @@ import { Composition, staticFile } from "remotion";
 import { reviewCompositions } from "./compositions/review-registry";
 import { coverAssetPackFixture, coverReviewFixture, generatedCoverReviewFixture, SeanLabCover } from "./cover/index.ts";
 import { TalkingHeadOverlay } from "./compositions/TalkingHeadOverlay";
-import {
-  AnimationSystemReview,
-  AnimationTemplatePreview,
-  ResearchArchiveTemplatePreview,
-  StopMotionSystemReview,
-  StopMotionTemplatePreview,
-} from "./animation-system/index.ts";
+import { AnimationSystemReview, AnimationTemplatePreview } from "./animation-system/index.ts";
 import { ProductionMobileComponentReview } from "./compositions/ProductionMobileComponentReview";
 
 const REVIEW_FPS = 30;
@@ -113,30 +107,6 @@ export const RemotionRoot = () => (
       width={REVIEW_WIDTH}
       height={REVIEW_HEIGHT}
     />
-    <Composition
-      id="StopMotionSystemReview"
-      component={StopMotionSystemReview}
-      durationInFrames={1080}
-      fps={REVIEW_FPS}
-      width={REVIEW_WIDTH}
-      height={REVIEW_HEIGHT}
-    />
-    <Composition
-      id="StopMotionTemplatePreview"
-      component={StopMotionTemplatePreview}
-      durationInFrames={300}
-      fps={REVIEW_FPS}
-      width={REVIEW_WIDTH}
-      height={REVIEW_HEIGHT}
-    />
-    <Composition
-      id="ResearchArchiveTemplatePreview"
-      component={ResearchArchiveTemplatePreview}
-      durationInFrames={300}
-      fps={REVIEW_FPS}
-      width={REVIEW_WIDTH}
-      height={REVIEW_HEIGHT}
-    />
     {coverReviewCompositions.map(({ id, width, height, theme }) => (
       <Composition
         key={id}
@@ -177,6 +147,7 @@ export const RemotionRoot = () => (
       defaultProps={coverAssetPackFixture({
         format: "landscape",
         personSrc: "review-assets/creator-placeholder.svg",
+        backgroundSrc: "assets/covers/backgrounds/signal-tech-landscape-v1.png",
         theme: "signal",
         accents: ["#6EA8FF", "#FF626B"],
         titleLines: ["把写稿、素材", "制作与交付连起来"],
@@ -193,6 +164,7 @@ export const RemotionRoot = () => (
       defaultProps={coverAssetPackFixture({
         format: "portrait",
         personSrc: "review-assets/creator-placeholder.svg",
+        backgroundSrc: "assets/covers/backgrounds/signal-tech-portrait-v1.png",
         theme: "signal",
         accents: ["#6EA8FF", "#FF626B"],
         titleLines: ["把写稿、素材", "制作与交付连起来"],

@@ -34,6 +34,9 @@ const occurrenceRange = (source: string, quote: string, occurrence: number) => {
 
 export const validateAnimationIntent = (input: unknown, spokenRange?: string): AnimationIntent => {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Animation intent is required");
+  const legacyStyle = (input as { styleProfileId?: unknown }).styleProfileId;
+  if (legacyStyle === "stop-motion-machine" || legacyStyle === "research-archive")
+    (input as { styleProfileId: "paper-editorial" }).styleProfileId = "paper-editorial";
   const intent = input as AnimationIntent;
   if (!ANIMATION_PROTOTYPE_IDS.includes(intent.prototypeId)) throw new Error("Animation prototype is unsupported");
   if (!ANIMATION_STYLE_PROFILE_IDS.includes(intent.styleProfileId)) throw new Error("Animation style is unsupported");

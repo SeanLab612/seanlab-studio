@@ -11,12 +11,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import {
-  PaperEditorialAnimation,
-  ResearchArchiveAnimation,
-  StopMotionMachineAnimation,
-  resolveAnimationProductionSurface,
-} from "../animation-system";
+import { PaperEditorialAnimation, resolveAnimationProductionSurface } from "../animation-system";
 import { LiquidGlass } from "../components/LiquidGlass";
 import { RoughAnnotation } from "../components/review/RoughAnnotation";
 import { SectionTitle } from "../components/review/shared";
@@ -29,11 +24,7 @@ import { SoundEventLayer } from "../sound-design/SoundEventLayer";
 import { PIP_BOTTOM_SAFE_OFFSET } from "../supplemental-media/types";
 import { TypographyPolicyProvider } from "../typography-policy";
 import { GeneratedVisual } from "../visual-brief/GeneratedVisual";
-import {
-  PAPER_EDITORIAL_STYLE,
-  RESEARCH_ARCHIVE_STYLE,
-  STOP_MOTION_MACHINE_STYLE,
-} from "../visual-production/animation-registry.ts";
+import { PAPER_EDITORIAL_STYLE } from "../visual-production/animation-registry.ts";
 
 const panelText: React.CSSProperties = {
   fontFamily: typographyTokens.family,
@@ -96,12 +87,7 @@ const TalkingHeadOverlayContent: React.FC<OverlayProps> = ({
   const activeAnimationCue = activeScreenScene
     ? undefined
     : animationCues?.find((cue) => seconds >= cue.start && seconds <= cue.end);
-  const activeAnimationStyle =
-    activeAnimationCue?.styleProfileId === "stop-motion-machine"
-      ? STOP_MOTION_MACHINE_STYLE
-      : activeAnimationCue?.styleProfileId === "research-archive"
-        ? RESEARCH_ARCHIVE_STYLE
-        : PAPER_EDITORIAL_STYLE;
+  const activeAnimationStyle = PAPER_EDITORIAL_STYLE;
   const activeImageCue =
     activeScreenScene || activeAnimationCue
       ? undefined
@@ -289,25 +275,11 @@ const TalkingHeadOverlayContent: React.FC<OverlayProps> = ({
               ...resolveAnimationProductionSurface(activeAnimationCue.styleProfileId),
             }}
           >
-            {activeAnimationCue.styleProfileId === "stop-motion-machine" ? (
-              <StopMotionMachineAnimation
-                cue={activeAnimationCue}
-                frame={Math.max(0, frame - Math.round(activeAnimationCue.start * fps))}
-                fps={fps}
-              />
-            ) : activeAnimationCue.styleProfileId === "research-archive" ? (
-              <ResearchArchiveAnimation
-                cue={activeAnimationCue}
-                frame={Math.max(0, frame - Math.round(activeAnimationCue.start * fps))}
-                fps={fps}
-              />
-            ) : (
-              <PaperEditorialAnimation
-                cue={activeAnimationCue}
-                frame={Math.max(0, frame - Math.round(activeAnimationCue.start * fps))}
-                fps={fps}
-              />
-            )}
+            <PaperEditorialAnimation
+              cue={activeAnimationCue}
+              frame={Math.max(0, frame - Math.round(activeAnimationCue.start * fps))}
+              fps={fps}
+            />
           </div>
           {videoSrc ? (
             <div

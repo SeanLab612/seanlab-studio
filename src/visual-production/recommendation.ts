@@ -83,25 +83,10 @@ const actionFor = (prototypeId: AnimationPrototypeId, index: number, count: numb
   return index === 0 ? "写入起点" : index === count - 1 ? "到达终点" : "向前推进";
 };
 
-const mechanicalLanguage =
-  /(?:流程|工作流|步骤|阶段|处理|生成|制作|渲染|交付|输入|输出|上传|下载|系统|模块|数据|审核|检查|验证|门槛|放行|链路|管线|自动化)/;
-
 export const recommendAnimationStyleProfile = (
-  prototypeId: AnimationPrototypeId,
-  section: NarrationSection,
-): AnimationStyleProfileId => {
-  const registration = animationPrototypeRegistry[prototypeId];
-  const evidence = `${section.title ?? ""} ${section.narration ?? ""} ${(section.visualOpportunities ?? [])
-    .map((item) => item.evidenceText ?? "")
-    .join(" ")}`;
-  if (
-    registration.compatibleStyleIds.includes("stop-motion-machine") &&
-    mechanicalLanguage.test(evidence) &&
-    ["process-flow", "evidence-gate", "causal-chain", "layered-system"].includes(prototypeId)
-  )
-    return "stop-motion-machine";
-  return registration.defaultStyleId;
-};
+  _prototypeId: AnimationPrototypeId,
+  _section: NarrationSection,
+): AnimationStyleProfileId => "paper-editorial";
 
 export const recommendAnimationIntent = (
   section: NarrationSection,
