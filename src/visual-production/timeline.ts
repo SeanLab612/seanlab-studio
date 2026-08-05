@@ -1,4 +1,5 @@
 import { animationPrototypeRegistry } from "./animation-registry.ts";
+import { resolveAuthoredVisualAnchor } from "../creator-workflow/authored-visual-alignment.ts";
 import type {
   AnimationIntent,
   AnimationStyleProfileId,
@@ -104,35 +105,54 @@ export type ResolvedAnimationCue = VisualInterval & {
 export const resolveLockedVisualBeatTimeline = ({
   plan,
   captions,
+  visualDecisions = [],
 }: {
   plan: AuthoredVisualPlanVersion & { beats?: LockedVisualBeat[]; finalScriptSha256?: string };
   captions: SemanticCaption[];
+  visualDecisions?: Array<{ beatId: string; action: "use" | "skip" }>;
 }) => {
+  const decisions = new Map(visualDecisions.map((decision) => [decision.beatId, decision.action]));
   const intervals = (plan.beats ?? [])
-    .filter((beat) => beat.status === "confirmed" && authoredVisualEntryIsLocked(plan, beat))
-    .map((beat) => {
+    .filter(
+      (beat) =>
+        beat.status === "confirmed" &&
+        !(beat.executionPolicy === "reference" && beat.primaryVisualType === "component") &&
+        (authoredVisualEntryIsLocked(plan, beat) ||
+          (beat.executionPolicy === "reference" && decisions.get(beat.id) === "use")),
+    )
+    .flatMap((beat) => {
       if (plan.finalScriptSha256 && beat.finalScriptSha256 !== plan.finalScriptSha256)
         throw new Error(`Visual beat ${beat.id} final-script hash binding is stale`);
-      const resolved = resolveExactSpokenQuoteCaptionRange(beat.exactSpokenQuote, beat.quoteOccurrence ?? 1, captions);
-      if (!resolved) throw new Error(`Confirmed visual beat anchor was not found in semantic captions: ${beat.id}`);
+      const exact = resolveExactSpokenQuoteCaptionRange(beat.exactSpokenQuote, beat.quoteOccurrence ?? 1, captions);
+      const resolved =
+        exact ??
+        (beat.executionPolicy === "reference"
+          ? resolveAuthoredVisualAnchor(beat.exactSpokenQuote, captions)
+          : undefined);
+      if (!resolved) {
+        if (beat.executionPolicy === "reference") return [];
+        throw new Error(`Confirmed visual beat anchor was not found in semantic captions: ${beat.id}`);
+      }
       const start = captions[resolved.startCue]?.start;
       const end = captions[resolved.endCue]?.end;
       if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start)
         throw new Error(`Confirmed visual beat ${beat.id} resolved to invalid timing`);
-      return {
-        id: beat.id,
-        sectionId: beat.sectionId,
-        startCue: resolved.startCue,
-        endCue: resolved.endCue,
-        start,
-        end,
-        primaryVisualType: beat.primaryVisualType,
-        takeover: beat.takeover,
-        speakerPresence: beat.speakerPresence,
-        ...(beat.materialAssetId ? { materialAssetId: beat.materialAssetId } : {}),
-        ...(beat.materialAssetIds?.length ? { materialAssetIds: beat.materialAssetIds } : {}),
-        ...(beat.animationIntent ? { animationIntent: beat.animationIntent } : {}),
-      };
+      return [
+        {
+          id: beat.id,
+          sectionId: beat.sectionId,
+          startCue: resolved.startCue,
+          endCue: resolved.endCue,
+          start,
+          end,
+          primaryVisualType: beat.primaryVisualType,
+          takeover: beat.takeover,
+          speakerPresence: beat.speakerPresence,
+          ...(beat.materialAssetId ? { materialAssetId: beat.materialAssetId } : {}),
+          ...(beat.materialAssetIds?.length ? { materialAssetIds: beat.materialAssetIds } : {}),
+          ...(beat.animationIntent ? { animationIntent: beat.animationIntent } : {}),
+        },
+      ];
     })
     .sort((left, right) => left.start - right.start || left.end - right.end);
   for (let index = 1; index < intervals.length; index += 1) {

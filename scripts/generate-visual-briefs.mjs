@@ -187,6 +187,7 @@ const withLayoutTemplate = (cue) => {
 const semanticConfig = config.semanticPlanning ?? { provider: "fixture" };
 let overlayCues;
 let videoIdentity;
+let visualDecisions = [];
 const directionCandidates = [];
 if (semanticConfig.provider === "fixture") {
   overlayCues = workflowTestOverlayCues.map((cue) => {
@@ -211,7 +212,9 @@ if (semanticConfig.provider === "fixture") {
       continue;
     }
     const minimumVisibleSeconds = config.visualDirection?.minimumVisibleSeconds ?? 2.2;
-    const inset = Math.min(0.35, Math.max(0, (segment.end - segment.start - minimumVisibleSeconds) / 2));
+    const inset = config.visualDirection?.minimumVisualCoverageRatio
+      ? 0
+      : Math.min(0.35, Math.max(0, (segment.end - segment.start - minimumVisibleSeconds) / 2));
     overlayCues.push(
       withLayoutTemplate({
         start: segment.start + inset,
@@ -234,6 +237,7 @@ if (semanticConfig.provider === "fixture") {
     ),
   );
   const narrativePlan = parseSemanticNarrativePlan(rawPlan, semanticCaptions);
+  visualDecisions = narrativePlan.visualDecisions ?? [];
   informationConstraintOwners = selectInformationConstraintOwners({
     constraints: authoredVisualConstraints,
     intents: narrativePlan.segments,
@@ -354,7 +358,7 @@ if (semanticConfig.provider === "fixture") {
       )
         ? `${groundingIntent.items.length}项`
         : undefined);
-    const segmentGrounding = evaluateSourceGrounding({
+    let segmentGrounding = evaluateSourceGrounding({
       outputText: locallyRoutedIntent.roughAnnotation?.targets.length
         ? locallyRoutedIntent.roughAnnotation.targets.join("\n")
         : semanticSegmentClaimText(locallyRoutedIntent),
@@ -369,6 +373,22 @@ if (semanticConfig.provider === "fixture") {
         .filter((value) => typeof value === "string" && value.trim())
         .join("\n"),
     });
+    if (segmentGrounding.unsupportedSourceTerms.length && config.visualDirection?.minimumVisualCoverageRatio) {
+      const fallbackAnnotation = resolveSpeakerRoughAnnotationPlan(segment.text, locallyRoutedIntent, {
+        allowClauseFallback: true,
+      });
+      if (fallbackAnnotation) {
+        const fallbackIntent = withLocalRoughAnnotationPlan(locallyRoutedIntent, fallbackAnnotation);
+        const fallbackGrounding = evaluateSourceGrounding({
+          outputText: fallbackAnnotation.targets.join("\n"),
+          sourceText: segment.text,
+        });
+        if (!fallbackGrounding.unsupportedSourceTerms.length) {
+          locallyRoutedIntent = fallbackIntent;
+          segmentGrounding = fallbackGrounding;
+        }
+      }
+    }
     if (segmentGrounding.unsupportedSourceTerms.length) {
       directionCandidates.push({
         id: segment.id,
@@ -390,7 +410,9 @@ if (semanticConfig.provider === "fixture") {
       continue;
     }
     const minimumVisibleSeconds = config.visualDirection?.minimumVisibleSeconds ?? 2.2;
-    const inset = Math.min(0.35, Math.max(0, (segment.end - segment.start - minimumVisibleSeconds) / 2));
+    const inset = config.visualDirection?.minimumVisualCoverageRatio
+      ? 0
+      : Math.min(0.35, Math.max(0, (segment.end - segment.start - minimumVisibleSeconds) / 2));
     const antecedentTargets = antecedentIntent?.items.map((item) => item.label).filter(Boolean) ?? [];
     const crossOutAntecedent =
       refersToAntecedent && /划掉/.test(segment.text) && antecedentTargets.length
@@ -422,7 +444,9 @@ if (semanticConfig.provider === "fixture") {
       materialized.status === "skipped" &&
       (!authoredConstraint || authoredConstraint.mode === "auto" || authoredConstraint.mode === "speaker")
     ) {
-      const annotation = resolveSpeakerRoughAnnotationPlan(segment.text, locallyRoutedIntent);
+      const annotation = resolveSpeakerRoughAnnotationPlan(segment.text, locallyRoutedIntent, {
+        allowClauseFallback: Boolean(config.visualDirection?.minimumVisualCoverageRatio),
+      });
       if (annotation) {
         overlayStart = segment.start + inset;
         materialized = materializeSemanticIntent(
@@ -738,6 +762,7 @@ const plan = {
       }
     : undefined,
   videoIdentity,
+  visualDecisions,
   overlayCues,
 };
 const planPath = resolve(config.planningFile ?? "planning/visual-brief.json");

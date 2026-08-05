@@ -78,6 +78,24 @@ test("blocks workflow metadata from viewer-facing copy", () => {
     }),
   );
   assert.doesNotThrow(() =>
+    validateViewerFacingNarrative({
+      eyebrow: "MODEL STRUCTURE",
+      title: "组件层级写入规格",
+      subtitleZh: "每个组件都对应真实结构",
+      subtitleEn: "Each component maps to a real structure.",
+    }),
+  );
+  assert.throws(
+    () =>
+      validateViewerFacingNarrative({
+        eyebrow: "WORKFLOW",
+        title: "选择组件",
+        subtitleZh: "使用组件完成画面",
+        subtitleEn: "Choose a visual component",
+      }),
+    /production terminology/,
+  );
+  assert.doesNotThrow(() =>
     validateViewerFacingNarrative(
       {
         eyebrow: "RESOURCE LIBRARY",

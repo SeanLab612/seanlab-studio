@@ -21,6 +21,8 @@ export type SupplementalMediaAsset = {
   role: SupplementalMediaRole;
   orientation: "landscape" | "portrait" | "square" | "any";
   required: boolean;
+  executionPolicy?: "locked" | "reference";
+  visualBeatId?: string;
   audioPolicy: "mute";
   clip?: { in: number; out: number };
   description?: string;
@@ -40,6 +42,8 @@ export type SupplementalMediaProbe = {
   hasAudio: boolean;
   audioPolicy: "mute";
   required: boolean;
+  executionPolicy?: "locked" | "reference";
+  visualBeatId?: string;
   clip: { in: number; out: number };
 };
 
@@ -55,6 +59,8 @@ export type AuthoredScreenScene = {
   startAnchor: TextAnchor;
   endAnchor: TextAnchor;
   required: boolean;
+  executionPolicy?: "locked" | "reference";
+  visualBeatId?: string;
   speakerPip: {
     shape: PipShape;
     preferredPosition: PipPosition;

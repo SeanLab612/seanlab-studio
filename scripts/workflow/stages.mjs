@@ -231,6 +231,7 @@ export const createStages = ({ manifest, paths }) => {
         paths.captions,
         resolve(paths.workspace, "layout-manifest.json"),
         paths.terminologyProfile,
+        ...(paths.authoredVisualPlan ? [paths.authoredVisualPlan] : []),
         ...(imageEvidenceContractEnabled ? [paths.imageEvidenceManifest] : []),
       ],
       outputs: structuredSemantic
@@ -255,6 +256,7 @@ export const createStages = ({ manifest, paths }) => {
             paths.captions,
             resolve(paths.workspace, "layout-manifest.json"),
             paths.terminologyProfile,
+            ...(paths.authoredVisualPlan ? [paths.authoredVisualPlan] : []),
             ...(imageEvidenceContractEnabled ? [paths.imageEvidenceManifest] : []),
           ],
           outputs: [paths.componentCandidates],
@@ -281,6 +283,7 @@ export const createStages = ({ manifest, paths }) => {
             paths.semanticNarrativePlan,
             paths.semanticCaptions,
             paths.resolvedSceneTimeline,
+            ...(paths.authoredVisualPlan ? [paths.authoredVisualPlan] : []),
             ...(imageEvidenceContractEnabled ? [paths.imageEvidenceManifest] : []),
             ...(brandEnabled ? [paths.brandTimeline] : []),
           ],
@@ -730,6 +733,7 @@ export const signatureConfigForStage = (manifest, stageName) => {
       semanticPlanning: manifest.providers.semanticPlanning,
       terminology: manifest.terminology,
       assetProfile: manifest.assetProfile,
+      authoredVisualPlanContract: manifest.paths.authoredVisualPlan ? "reference-v4" : null,
       ...(stageName === "semantic-plan" ? {} : { typographyPolicy: typographyPolicyFor(manifest) }),
     };
   if (stageName === "visual-direction")

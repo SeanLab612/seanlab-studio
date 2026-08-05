@@ -48,6 +48,7 @@ export const summarizeVisualCoverage = ({
     componentCoverage: rounded(secondsByType.component / durationSeconds),
     realMaterialCoverage: rounded((secondsByType.image + secondsByType["screen-demo"]) / durationSeconds),
     animationCoverage: rounded(secondsByType.animation / durationSeconds),
+    annotationCoverage: rounded(secondsByType.annotation / durationSeconds),
     fullScreenTakeoverRatio: rounded(fullScreenSeconds / durationSeconds),
     speakerVisibleRatio: rounded(Math.min(durationSeconds, speakerPrimarySeconds + pipSeconds) / durationSeconds),
   };

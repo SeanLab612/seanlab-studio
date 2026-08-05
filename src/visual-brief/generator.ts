@@ -215,7 +215,12 @@ const forbiddenViewerTerms = [
   "review output",
   "component id",
   "layout template",
-  "组件",
+  "使用组件",
+  "选择组件",
+  "视觉组件",
+  "语义组件",
+  "动效组件",
+  "组件审核画面",
   "审核帧",
   "测试画面",
   "设计语言",
@@ -226,7 +231,7 @@ const forbiddenViewerTerms = [
   "motion component",
 ];
 
-export const validateViewerFacingNarrative = (narrative: VisualBriefNarrative, sourceText = "") => {
+export const validateViewerFacingNarrative = (narrative: VisualBriefNarrative, _sourceText = "") => {
   const text = [
     narrative.eyebrow,
     narrative.title,
@@ -236,10 +241,7 @@ export const validateViewerFacingNarrative = (narrative: VisualBriefNarrative, s
   ]
     .join(" ")
     .toLowerCase();
-  const normalizedSource = sourceText.toLowerCase();
-  const forbidden = forbiddenViewerTerms.find(
-    (term) => text.includes(term) && !(term === "组件" && normalizedSource.includes(term)),
-  );
+  const forbidden = forbiddenViewerTerms.find((term) => text.includes(term));
   if (forbidden) throw new Error(`Viewer-facing narrative contains production terminology: ${forbidden}`);
 };
 

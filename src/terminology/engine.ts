@@ -106,20 +106,22 @@ const productionTerms = [
   "review output",
   "component id",
   "layout template",
-  "组件",
+  "使用组件",
+  "选择组件",
+  "视觉组件",
+  "语义组件",
+  "动效组件",
+  "组件审核画面",
   "审核帧",
   "测试画面",
   "设计语言",
   "动效演示",
 ];
 
-export const validateViewerCopy = (text: string, role: CopyRole, context?: { sourceText?: string }) => {
+export const validateViewerCopy = (text: string, role: CopyRole, _context?: { sourceText?: string }) => {
   if (!text.trim()) throw new Error(`${role} must not be empty.`);
   const normalized = text.toLowerCase();
-  const normalizedSource = context?.sourceText?.toLowerCase() ?? "";
-  const forbidden = productionTerms.find(
-    (term) => normalized.includes(term) && !(term === "组件" && normalizedSource.includes(term)),
-  );
+  const forbidden = productionTerms.find((term) => normalized.includes(term));
   if (forbidden) throw new Error(`${role} contains production terminology: ${forbidden}`);
   if (role === "design-label" && text.length > 28) throw new Error("design-label must be at most 28 characters.");
   if (role === "display-copy" && text.length > 72) throw new Error("display-copy must be at most 72 characters.");

@@ -186,6 +186,35 @@ test("whole-video direction assigns importance and keeps audit-friendly caption 
   assert.equal(validateVisualDirectionPlan(plan), true);
 });
 
+test("a configured minimum coverage keeps eligible visuals for their evidence-bounded passage", () => {
+  const sparse = directVisualPacing({
+    candidates: [candidate("candidate-1", 0, 20)],
+    durationSeconds: 30,
+  });
+  const coverageDriven = directVisualPacing({
+    candidates: [candidate("candidate-1", 0, 20)],
+    durationSeconds: 30,
+    policy: { minimumVisualCoverageRatio: 0.8 },
+  });
+  assert.equal(sparse.decisions[0].displayEnd, 12);
+  assert.equal(coverageDriven.decisions[0].displayEnd, 20);
+});
+
+test("a configured minimum coverage removes artificial gaps between adjacent eligible visuals", () => {
+  const plan = directVisualPacing({
+    candidates: [candidate("candidate-1", 0, 8), candidate("candidate-2", 8, 16)],
+    durationSeconds: 20,
+    policy: { minimumVisualCoverageRatio: 0.8 },
+  });
+  assert.deepEqual(
+    plan.decisions.map(({ displayStart, displayEnd }) => [displayStart, displayEnd]),
+    [
+      [0, 8],
+      [8, 16],
+    ],
+  );
+});
+
 test("visual-direction validation rejects timing retained by a skipped decision", () => {
   const plan = directVisualPacing({ candidates: [candidate("candidate-1", 0, 8)], durationSeconds: 20 });
   plan.decisions[0].action = "skip";

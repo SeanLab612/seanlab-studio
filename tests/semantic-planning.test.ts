@@ -77,6 +77,65 @@ test("global semantic plan rejects overlapping or reordered caption ranges", () 
   );
 });
 
+test("production Agent must decide every reference beat and reach the configured visual coverage", () => {
+  const captions = Array.from({ length: 10 }, (_, index) => ({
+    start: index,
+    end: index + 1,
+    zh: index === 8 ? "最后展示录屏结果。" : `第${index + 1}步继续解释。`,
+  }));
+  const referenceBeats = [{ id: "screen-result", exactSpokenQuote: "最后展示录屏结果。" }];
+  const base = {
+    schemaVersion: "1.0",
+    analyzedThroughCue: 9,
+    visualDecisions: [{ beatId: "screen-result", action: "use", reason: "录屏直接证明运行结果" }],
+    segments: [intent({ startCue: 0, endCue: 7 })],
+  };
+  assert.doesNotThrow(() => parseSemanticNarrativePlan(base, captions, 30, referenceBeats, 0.8));
+  assert.throws(
+    () => parseSemanticNarrativePlan({ ...base, visualDecisions: [] }, captions, 30, referenceBeats, 0.8),
+    /missing reference beats/,
+  );
+  assert.throws(
+    () =>
+      parseSemanticNarrativePlan(
+        { ...base, segments: [intent({ startCue: 0, endCue: 3 })] },
+        captions,
+        30,
+        referenceBeats,
+        0.8,
+      ),
+    /visual coverage/,
+  );
+});
+
+test("production Agent cannot reject a creator-registered recording as unavailable", () => {
+  const captions = [{ start: 0, end: 4, zh: "录屏可以看到模型在浏览器里旋转。" }];
+  const referenceBeats = [
+    {
+      id: "screen-result",
+      exactSpokenQuote: "录屏可以看到模型在浏览器里旋转。",
+      materialAssetIds: ["recording-1"],
+    },
+  ];
+  assert.throws(
+    () =>
+      parseSemanticNarrativePlan(
+        {
+          schemaVersion: "1.0",
+          analyzedThroughCue: 0,
+          visualDecisions: [{ beatId: "screen-result", action: "skip", reason: "素材不在图片清单中，因此未登记。" }],
+          segments: [intent({ startCue: 0, endCue: 0 })],
+        },
+        captions,
+        30,
+        referenceBeats,
+        0,
+        new Set(["recording-1"]),
+      ),
+    /incorrectly treats an available referenced material as missing/,
+  );
+});
+
 test("global semantic plan rejects a chapter-sized range even when the JSON schema accepts it", () => {
   assert.throws(
     () =>
@@ -1230,4 +1289,13 @@ test("speaker fallback can extract an exact emphasized phrase from an otherwise 
     }),
   );
   assert.deepEqual(planned?.targets, ["完全无人参与的自动成片"]);
+});
+
+test("coverage fallback can reuse a short exact spoken clause without inventing copy", () => {
+  const planned = resolveSpeakerRoughAnnotationPlan(
+    "图片看不到背面、隐藏结构只能推断，不能假装确定。",
+    intent({ rhetoric: "core-positioning", motionIntent: "introduce", items: [] }),
+    { allowClauseFallback: true },
+  );
+  assert.deepEqual(planned?.targets, ["图片看不到背面", "隐藏结构只能推断", "不能假装确定"]);
 });

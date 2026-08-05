@@ -33,7 +33,7 @@ test("animation foundation exposes one approved style and ten semantic prototype
   assert.equal(new Set(layouts).size, 10);
 });
 
-test("coverage keeps five primary visual types mutually exclusive and reports PIP separately", () => {
+test("coverage keeps five visual-effect types plus speaker mutually exclusive and reports PIP separately", () => {
   const report = summarizeVisualCoverage({
     durationSeconds: 20,
     intervals: [
@@ -64,7 +64,14 @@ test("coverage keeps five primary visual types mutually exclusive and reports PI
       },
     ],
   });
-  assert.deepEqual(report.secondsByType, { speaker: 6, component: 4, image: 3, "screen-demo": 3, animation: 4 });
+  assert.deepEqual(report.secondsByType, {
+    speaker: 6,
+    component: 4,
+    image: 3,
+    "screen-demo": 3,
+    animation: 4,
+    annotation: 0,
+  });
   assert.equal(report.componentCoverage, 0.2);
   assert.equal(report.realMaterialCoverage, 0.3);
   assert.equal(report.animationCoverage, 0.2);
@@ -463,6 +470,96 @@ test("confirmed beats resolve against semantic captions and reserve the interval
   assert.equal(candidates[0].materializationStatus, "skipped");
   assert.equal(candidates[0].overlayCue, undefined);
   assert.match(candidates[0].materializationReason ?? "", /reserves this interval for animation/);
+});
+
+test("reference visual beats execute only after the downstream Agent selects them", () => {
+  const plan = {
+    visualPlanContractVersion: "4.0",
+    finalScriptSha256: "locked-script",
+    beats: [
+      {
+        id: "reference-animation",
+        sectionId: "section-1",
+        exactSpokenQuote: "先分析，再生成。",
+        status: "confirmed" as const,
+        executionPolicy: "reference" as const,
+        primaryVisualType: "animation" as const,
+        takeover: "full" as const,
+        speakerPresence: "circle-pip" as const,
+        animationIntent: {
+          prototypeId: "process-flow" as const,
+          styleProfileId: "paper-editorial" as const,
+          stages: [
+            { id: "stage-1", spokenQuote: "先分析", action: "分析", label: "分析" },
+            { id: "stage-2", spokenQuote: "再生成", action: "生成", label: "生成" },
+          ],
+          takeaway: "先分析，再生成",
+        },
+        finalScriptSha256: "locked-script",
+      },
+    ],
+  };
+  const captions = [{ start: 0, end: 3, zh: "先分析，再生成。" }];
+  assert.deepEqual(resolveLockedVisualBeatTimeline({ plan, captions }), []);
+  assert.equal(
+    resolveLockedVisualBeatTimeline({
+      plan,
+      captions,
+      visualDecisions: [{ beatId: "reference-animation", action: "use" }],
+    })[0].primaryVisualType,
+    "animation",
+  );
+});
+
+test("selected reference beats tolerate minor ASR drift without weakening locked anchors", () => {
+  const intervals = resolveLockedVisualBeatTimeline({
+    plan: {
+      visualPlanContractVersion: "4.0",
+      beats: [
+        {
+          id: "reference-screen",
+          sectionId: "runtime",
+          exactSpokenQuote: "输出规格可以记录部件树，并暴露枢轴、插槽和碰撞体。",
+          status: "confirmed",
+          executionPolicy: "reference",
+          primaryVisualType: "screen-demo",
+          takeover: "full",
+          speakerPresence: "circle-pip",
+          materialAssetIds: ["recording-1"],
+        },
+      ],
+    },
+    captions: [
+      { start: 0, end: 3, zh: "输出规格可以记录部件数，" },
+      { start: 3, end: 7, zh: "并通过运行时层级暴露枢轴、插槽和碰撞体。" },
+    ],
+    visualDecisions: [{ beatId: "reference-screen", action: "use" }],
+  });
+  assert.equal(intervals.length, 1);
+  assert.deepEqual([intervals[0].start, intervals[0].end], [0, 7]);
+});
+
+test("reference component suggestions never reserve time without a rendered downstream component", () => {
+  const intervals = resolveLockedVisualBeatTimeline({
+    plan: {
+      visualPlanContractVersion: "4.0",
+      beats: [
+        {
+          id: "reference-component",
+          sectionId: "overview",
+          exactSpokenQuote: "先理解内容，再决定画面。",
+          status: "confirmed",
+          executionPolicy: "reference",
+          primaryVisualType: "component",
+          takeover: "partial",
+          speakerPresence: "full",
+        },
+      ],
+    },
+    captions: [{ start: 0, end: 4, zh: "先理解内容，再决定画面。" }],
+    visualDecisions: [{ beatId: "reference-component", action: "use" }],
+  });
+  assert.deepEqual(intervals, []);
 });
 
 test("legacy animation styles migrate to the hand-drawn renderer", () => {

@@ -115,6 +115,8 @@ export const resolveAuthoredScenes = ({
       width: asset.width,
       height: asset.height,
       required: scene.required,
+      ...(scene.executionPolicy ? { executionPolicy: scene.executionPolicy } : {}),
+      ...(scene.visualBeatId ? { visualBeatId: scene.visualBeatId } : {}),
       confidence: Math.min(start.score, end.score),
       startCue: start.startCue,
       endCue: end.endCue,

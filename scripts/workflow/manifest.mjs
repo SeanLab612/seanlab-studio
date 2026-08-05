@@ -269,6 +269,17 @@ export const validateManifest = (manifest) => {
       )
     )
       throw new Error("policies.visualDirection.maximumVisualCoverageRatio must be between zero and one");
+    if (
+      manifest.policies.visualDirection.minimumVisualCoverageRatio !== undefined &&
+      !(
+        manifest.policies.visualDirection.minimumVisualCoverageRatio >= 0 &&
+        manifest.policies.visualDirection.minimumVisualCoverageRatio <=
+          manifest.policies.visualDirection.maximumVisualCoverageRatio
+      )
+    )
+      throw new Error(
+        "policies.visualDirection.minimumVisualCoverageRatio must be between zero and the maximum coverage ratio",
+      );
   }
   if (manifest.assetProfile) {
     assertObject(manifest.assetProfile, "assetProfile");

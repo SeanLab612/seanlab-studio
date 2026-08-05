@@ -43,6 +43,10 @@ const captions = JSON.parse(await readFile(resolve(config.semanticCaptionsFile),
 const authoredVisualPlan = config.authoredVisualPlanFile
   ? JSON.parse(await readFile(resolve(config.authoredVisualPlanFile), "utf8"))
   : { sections: [], annotations: [] };
+const visualDecisions = bundle.plan.visualDecisions ?? [];
+const usedReferenceBeatIds = new Set(
+  visualDecisions.filter((decision) => decision.action === "use").map((decision) => decision.beatId),
+);
 for (const annotation of authoredVisualPlan.annotations ?? []) {
   if (!authoredVisualEntryIsLocked(authoredVisualPlan, annotation, "annotation")) continue;
   const quoteSha256 = createHash("sha256").update(annotation.exactSpokenQuote).digest("hex");
@@ -50,12 +54,16 @@ for (const annotation of authoredVisualPlan.annotations ?? []) {
     throw new Error(`Text annotation ${annotation.id} exact-spoken-quote hash binding is stale`);
 }
 for (const beat of authoredVisualPlan.beats ?? []) {
-  if (!authoredVisualEntryIsLocked(authoredVisualPlan, beat)) continue;
+  if (!authoredVisualEntryIsLocked(authoredVisualPlan, beat) && !usedReferenceBeatIds.has(beat.id)) continue;
   const quoteSha256 = createHash("sha256").update(beat.exactSpokenQuote).digest("hex");
   if (beat.exactSpokenQuoteSha256 && beat.exactSpokenQuoteSha256 !== quoteSha256)
     throw new Error(`Visual beat ${beat.id} exact-spoken-quote hash binding is stale`);
 }
-const legacyVisualBeatIntervals = resolveLockedVisualBeatTimeline({ plan: authoredVisualPlan, captions });
+const legacyVisualBeatIntervals = resolveLockedVisualBeatTimeline({
+  plan: authoredVisualPlan,
+  captions,
+  visualDecisions,
+});
 const plannedAnimationCues = [
   ...resolveLockedSectionAnimationTimeline({ plan: authoredVisualPlan, captions }),
   ...resolvedAnimationCues(legacyVisualBeatIntervals),
@@ -109,7 +117,11 @@ const imageCues = legacyVisualBeatIntervals.flatMap((interval) => {
 });
 const authoredTimeline = JSON.parse(await readFile(resolve(config.resolvedSceneTimelineFile), "utf8"));
 if (authoredTimeline.status === "blocked") throw new Error("Required authored recording scenes remain unresolved");
-const screenScenes = authoredTimeline.scenes ?? [];
+const screenScenes = (authoredTimeline.scenes ?? []).filter(
+  (scene) =>
+    scene.executionPolicy !== "reference" ||
+    usedReferenceBeatIds.has(scene.visualBeatId ?? scene.id.replace(/^scene-/, "")),
+);
 const brandTimeline = config.brandEnabled
   ? JSON.parse(await readFile(resolve(config.brandTimelineFile), "utf8"))
   : { schemaVersion: "1.0", status: "disabled", totalInsertedSeconds: 0 };
@@ -208,7 +220,12 @@ for (const cue of overlayCues) {
     id: `component-${cue.generatedVisual.segment.id}`,
     start: cue.start,
     end: cue.end,
-    primaryVisualType: cue.generatedVisual.component.id === "image-evidence-inset" ? "image" : "component",
+    primaryVisualType:
+      cue.generatedVisual.component.id === "image-evidence-inset"
+        ? "image"
+        : cue.generatedVisual.component.id === "rough-annotation"
+          ? "annotation"
+          : "component",
     takeover: "partial",
     speakerPresence: "full",
   });
@@ -219,12 +236,45 @@ for (const cue of annotationCues) {
     id: `annotation-${cue.id}`,
     start: cue.start,
     end: cue.end,
-    primaryVisualType: "component",
+    primaryVisualType: "annotation",
+    takeover: "partial",
+    speakerPresence: "full",
+  });
+}
+for (const cue of titleCues) {
+  if (overlapsCoverage(cue.start, cue.end)) continue;
+  coverageIntervals.push({
+    id: cue.id,
+    start: cue.start,
+    end: cue.end,
+    primaryVisualType: "annotation",
     takeover: "partial",
     speakerPresence: "full",
   });
 }
 directionReport.visualTypeCoverage = summarizeVisualCoverage({ intervals: coverageIntervals, durationSeconds });
+directionReport.summary.componentVisualCoverageRatio = directionReport.summary.visualCoverageRatio;
+directionReport.summary.visualCoverageRatio = Number(
+  (1 - directionReport.visualTypeCoverage.ratioByType.speaker).toFixed(4),
+);
+directionReport.executionDecisions = {
+  source: "production-agent",
+  decisions: visualDecisions,
+  usedReferenceBeatIds: [...usedReferenceBeatIds],
+};
+const minimumVisualCoverageRatio = Number(config.visualDirection?.minimumVisualCoverageRatio ?? 0);
+if (
+  minimumVisualCoverageRatio > 0 &&
+  directionReport.summary.visualCoverageRatio + 0.0001 < minimumVisualCoverageRatio
+) {
+  await writeFile(
+    `${resolve(config.visualDirectionReportFile)}.coverage-failed.json`,
+    `${JSON.stringify(directionReport, null, 2)}\n`,
+  );
+  throw new Error(
+    `Effective visual coverage ${(directionReport.summary.visualCoverageRatio * 100).toFixed(1)}% is below the required ${(minimumVisualCoverageRatio * 100).toFixed(1)}%`,
+  );
+}
 directionReport.animationRenderer = {
   status: unapprovedAnimationCues.length ? "candidate-blocked" : animationCues.length ? "approved" : "not-used",
   cueCount: animationCues.length,

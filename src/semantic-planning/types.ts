@@ -92,5 +92,10 @@ export type SemanticNarrativePlan = {
   schemaVersion: "1.0";
   analyzedThroughCue: number;
   videoIdentity?: VideoIdentity;
+  visualDecisions?: Array<{
+    beatId: string;
+    action: "use" | "skip";
+    reason: string;
+  }>;
   segments: SemanticNarrativeSegment[];
 };
