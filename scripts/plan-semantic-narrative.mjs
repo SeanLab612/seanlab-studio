@@ -4,9 +4,10 @@ import { resolve } from "node:path";
 import { createStructuredAgentJsonAdapter, isStructuredAgentProvider } from "./workflow/agent-json-adapter.mjs";
 import {
   createSemanticNarrativePrompt,
+  isSemanticPlanValidationError,
   normalizeSemanticItemOrder,
   parseSemanticNarrativePlan,
-  semanticDensityRepairInstruction,
+  semanticValidationRepairInstruction,
 } from "../src/semantic-planning/index.ts";
 
 const config = JSON.parse(await readFile(resolve(process.argv[2]), "utf8"));
@@ -29,7 +30,7 @@ const adapter = createStructuredAgentJsonAdapter({
 const prompt = createSemanticNarrativePrompt(semanticCaptions, terminologyProfile, imageEvidence);
 let narrativePlan;
 let validationError;
-let densityRepair = "";
+let validationRepair = "";
 const maximumSegmentSeconds = Number(semanticConfig.maximumSegmentSeconds ?? 24);
 for (let attempt = 0; attempt < 3; attempt += 1) {
   const repairPrompt =
@@ -37,7 +38,7 @@ for (let attempt = 0; attempt < 3; attempt += 1) {
       ? prompt
       : {
           ...prompt,
-          system: `${prompt.system}\nYour previous schema-valid plan failed the workflow semantic validation: ${validationError}. Return a corrected complete plan. Every segment must contain at most 10 cues and span at most ${maximumSegmentSeconds} seconds. ${densityRepair || "Split oversized ranges at complete caption boundaries."} Do not keep the invalid range, merely shorten it, overlap replacements, or reuse one generic narrative across the replacement segments.`,
+          system: `${prompt.system}\nYour previous schema-valid plan failed the workflow semantic validation: ${validationError}. Return a corrected complete plan. Every segment must contain at most 10 cues and span at most ${maximumSegmentSeconds} seconds. ${validationRepair || "Correct the reported validation issue at complete caption boundaries."} Do not keep the invalid range, merely shorten it, overlap replacements, or reuse one generic narrative across the replacement segments.`,
         };
   const rawPlan = await adapter.completeJson(repairPrompt);
   const normalizedPlan = normalizeSemanticItemOrder(rawPlan);
@@ -46,7 +47,21 @@ for (let attempt = 0; attempt < 3; attempt += 1) {
     break;
   } catch (error) {
     validationError = error instanceof Error ? error.message : String(error);
-    densityRepair = semanticDensityRepairInstruction(normalizedPlan, semanticCaptions, maximumSegmentSeconds);
+    const validationIssue = isSemanticPlanValidationError(error) ? error.issue : undefined;
+    validationRepair = semanticValidationRepairInstruction(
+      normalizedPlan,
+      semanticCaptions,
+      maximumSegmentSeconds,
+      validationIssue,
+    );
+    console.error(
+      JSON.stringify({
+        event: "semantic-plan.validation-failed",
+        attempt: attempt + 1,
+        issue: validationIssue ?? { kind: "unclassified", message: validationError },
+        repairInstruction: validationRepair || null,
+      }),
+    );
   }
 }
 if (!narrativePlan) throw new Error(`Agent semantic plan remained invalid after repair: ${validationError}`);

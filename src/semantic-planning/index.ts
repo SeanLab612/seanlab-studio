@@ -7,5 +7,6 @@ export * from "./image-evidence-coverage.ts";
 export * from "./content-validation.ts";
 export * from "./video-identity.ts";
 export * from "./repair.ts";
+export * from "./validation.ts";
 export * from "./rough-annotation-routing.ts";
 export * from "./evidence-timing.ts";

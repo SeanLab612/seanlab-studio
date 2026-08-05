@@ -1955,9 +1955,9 @@ const productionBaselineReviewView = (workflow) => {
   if (baseline.status === "approved")
     return `<section class="static-review"><div class="panel approval-success"><div class="eyebrow">SAFE BASELINE</div><h2>基础审核版本已通过</h2><p>增强视觉未能完成时，系统保留了人物主画面和已批准的剪辑结果。</p><div class="actions"><button type="button" class="primary" id="deliver-production-baseline">生成最终成片</button></div></div></section>`;
   return `<section class="static-review production-baseline-review">
-    <div class="panel review-header"><div><div class="eyebrow">SAFE BASELINE</div><h2>基础版本审核</h2><p>增强视觉已自动降级，但人物主画面和已批准的粗剪完整保留。</p></div><span class="status-pill">可以审核</span></div>
+    <div class="panel review-header"><div><div class="eyebrow">SAFE BASELINE</div><h2>增强制作未完成 · 保底预览</h2><p>Agent 已保留人物主画面和已批准的粗剪；这不是增强制作成功的结果，仅在自动修复达到上限后供你选择。</p></div><span class="status-pill">等待选择</span></div>
     <div class="panel recut-player"><video controls preload="metadata" src="${escapeHtml(baseline.reviewUrl)}"></video></div>
-    <div class="panel recut-actions-panel"><label class="confirmation-row"><input type="checkbox" id="production-baseline-confirm"/><span>我已完整播放基础版本，并确认可作为本次审核结果</span></label><div class="actions"><button type="button" class="primary" id="approve-production-baseline">通过基础版本</button></div></div>
+    <div class="panel recut-actions-panel"><label class="confirmation-row"><input type="checkbox" id="production-baseline-confirm"/><span>我接受放弃本次增强视觉，并确认保底版本可作为最终结果</span></label><div class="actions"><button type="button" class="secondary" id="approve-production-baseline">接受保底版本</button></div></div>
   </section>`;
 };
 const videoView = (project, workflow) => `

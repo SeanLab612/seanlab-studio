@@ -81,12 +81,13 @@ export const loadStudioWorkflow = async (projectId) => {
   const recutReady = state?.stages?.["recut-review"]?.status === "succeeded";
   const recutApproved = state?.stages?.["recut-approval"]?.status === "approved";
   const editPromoted = state?.stages?.["edit-promote"]?.status === "succeeded";
-  const productionBaseline = await loadProductionBaseline(projectId);
+  const storedProductionBaseline = await loadProductionBaseline(projectId);
   const enhancedReviewReady =
     state?.stages?.["review-evidence"]?.status === "succeeded" &&
     state?.stages?.["visual-qa"]?.status === "succeeded" &&
     state?.stages?.["regression-fixtures"]?.status === "succeeded" &&
     state?.stages?.["agent-review"]?.status === "succeeded";
+  const productionBaseline = enhancedReviewReady ? undefined : storedProductionBaseline;
   const reviewReady = enhancedReviewReady || Boolean(productionBaseline);
   const reviewApproved =
     state?.stages?.["human-approval"]?.status === "approved" ||

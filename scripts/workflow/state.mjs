@@ -3,7 +3,7 @@ import { createReadStream } from "node:fs";
 import { access, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
-export const STAGE_STATUSES = ["pending", "running", "succeeded", "failed", "stale", "approved"];
+export const STAGE_STATUSES = ["pending", "running", "interrupted", "succeeded", "failed", "stale", "approved"];
 
 export const fileExists = async (path) =>
   access(path)

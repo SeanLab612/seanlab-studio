@@ -76,6 +76,8 @@ import {
 } from "./creator/production-agent.mjs";
 import {
   decideAutomaticProductionRecovery,
+  deterministicProductionDiagnosis,
+  deterministicProductionRepair,
   MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS,
 } from "./creator/production-agent-recovery.mjs";
 import { repairProductionBinding } from "./creator/production-agent-binding-repair.mjs";
@@ -394,6 +396,23 @@ const job = (kind, projectId, operation, lifecycle = {}) => {
     });
   return record;
 };
+const productionStageProgressMessages = {
+  "semantic-plan": "正在理解口播内容并规划增强视觉",
+  "component-props": "正在准备视觉组件",
+  "visual-direction": "正在安排画面节奏",
+  validate: "正在检查视觉方案",
+  "review-base": "正在准备审核画面",
+  "qa-capture": "正在生成静态审核图",
+  "visual-qa": "制作 Agent 正在检查显示完整性",
+  "visual-pacing-review": "正在检查动画节奏",
+  "review-evidence": "正在整理审核证据",
+  "regression-fixtures": "正在检查已批准风格",
+  "agent-review": "制作 Agent 正在自主复核",
+  "human-approval": "制作 Agent 正在锁定审核证据",
+  "delivery-render": "正在渲染最终成片",
+  "delivery-validate": "最终成片已生成，正在进行技术验收",
+};
+const productionStageProgressMessage = (stage) => productionStageProgressMessages[stage] ?? `正在执行 ${stage}`;
 const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, environment = {} } = {}) =>
   job(
     "video-workflow",
@@ -491,11 +510,7 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
                 reportProgress({
                   phase: event.stage,
                   percent: deliveryAction ? (event.stage === "delivery-validate" ? 88 : 8) : undefined,
-                  message: deliveryAction
-                    ? event.stage === "delivery-validate"
-                      ? "最终成片已生成，正在进行技术验收"
-                      : "正在渲染最终成片"
-                    : `正在执行 ${event.stage}`,
+                  message: deliveryAction ? productionStageProgressMessage(event.stage) : `正在执行 ${event.stage}`,
                 });
               if (event.stage && ["stage.succeeded", "stage.candidate.succeeded"].includes(event.event))
                 reportProgress({
@@ -504,7 +519,7 @@ const workflowJob = (projectId, manifest, action, args, { rollbackAttempt, envir
                   message: deliveryAction
                     ? event.stage === "delivery-validate"
                       ? "技术验收通过，等待你的最终确认"
-                      : "最终成片渲染完成"
+                      : `${productionStageProgressMessages[event.stage]?.replace("正在", "已完成") ?? event.stage}`
                     : `${event.stage} 已完成`,
                 });
               if (event.event === "workflow.preview") {
@@ -614,7 +629,7 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
         if (!baseline.success) throw new Error(baseline.reason);
         await transitionProductionAgent({
           projectId,
-          state: "active",
+          state: "waiting-human",
           reason: "automatic-baseline-ready",
           metadata: { failedJobId: failedRecord.id, attempts },
         });
@@ -680,28 +695,36 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
           provider = acceptanceFixture.provider;
         }
       } else {
-        const selectedAgent = await detectAgent(project.agent.id);
-        if (!selectedAgent.available) throw new Error(selectedAgent.remediation ?? "当前项目固定 Agent 不可用");
-        if (!project.agent.model) throw new Error("当前项目没有固定已审核模型，不能自动诊断");
-        assertApprovedAgentModel(await loadAgentModelGovernance(), project.agent.id, project.agent.model);
         const visibleJobs = [...jobs.values()].filter((candidate) => candidate.id !== currentJob.id).map(publicJob);
         const operations = await loadStudioOperations({ projectId, jobs: visibleJobs });
         recovery = operations.operations.recovery;
-        adapter = createStructuredAgentJsonAdapter({
-          config: {
-            provider: project.agent.id,
-            model: project.agent.model,
-            maxRetries: 0,
-            timeoutSeconds: 180,
-          },
-          schemaPath: resolve("schemas/studio-recovery-diagnosis.schema.json"),
-          cwd: process.cwd(),
-        });
-        const prompt = studioRecoveryDiagnosisPrompt(recovery);
-        diagnosis = await adapter.completeJson({ ...prompt, signal: controller.signal });
-        provider = adapter.getLastRunMetadata();
+        const deterministicRepair = deterministicProductionRepair(recovery.failure);
+        if (deterministicRepair) {
+          diagnosis = deterministicProductionDiagnosis(recovery.failure, deterministicRepair);
+          provider = { provider: "deterministic-local", model: null, attempts: 0 };
+        } else {
+          const selectedAgent = await detectAgent(project.agent.id);
+          if (!selectedAgent.available) throw new Error(selectedAgent.remediation ?? "当前项目固定 Agent 不可用");
+          if (!project.agent.model) throw new Error("当前项目没有固定已审核模型，不能自动诊断");
+          assertApprovedAgentModel(await loadAgentModelGovernance(), project.agent.id, project.agent.model);
+          adapter = createStructuredAgentJsonAdapter({
+            config: {
+              provider: project.agent.id,
+              model: project.agent.model,
+              maxRetries: 0,
+              timeoutSeconds: 180,
+            },
+            schemaPath: resolve("schemas/studio-recovery-diagnosis.schema.json"),
+            cwd: process.cwd(),
+          });
+          const prompt = studioRecoveryDiagnosisPrompt(recovery);
+          diagnosis = await adapter.completeJson({ ...prompt, signal: controller.signal });
+          provider = adapter.getLastRunMetadata();
+        }
       }
-      let repair = acceptanceFixture?.repair;
+      let repair = acceptanceFixture?.repair ?? deterministicProductionRepair(recovery.failure);
+      if (repair?.kind === "validated-semantic-plan-repair")
+        reportProgress({ phase: "repair", percent: 38, message: "制作 Agent 正在按字幕证据重新拆分语义规划" });
       if (
         !repair &&
         recovery.failure?.code === "PROVIDER_AUTH_MISSING" &&
@@ -763,11 +786,13 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
       }
       reportProgress({ phase: "readiness", percent: 55, message: "正在验证断点和可复用产物" });
       let readiness = acceptanceFixture?.readiness;
+      const repairResumeStage = recovery.resume?.stage ?? repair?.stage;
+      const repairResumeAction = recovery.resume?.action ?? repair?.workflowAction;
       if (
         !readiness &&
         (recovery.status === "recoverable" || repair?.success) &&
-        recovery.resume?.stage &&
-        ["recut", "continue", "delivery"].includes(recovery.resume.action)
+        repairResumeStage &&
+        ["recut", "continue", "delivery"].includes(repairResumeAction)
       ) {
         const snapshot = await loadStudioWorkflow(projectId);
         readiness = await inspectStudioReadiness({
@@ -783,7 +808,7 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
         repair,
       });
       let baseline;
-      if (decision.action !== "resume") {
+      if (decision.action !== "resume" && attempts + 1 >= MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS) {
         reportProgress({ phase: "baseline", percent: 72, message: "正在准备不依赖增强视觉的基础审核版本" });
         baseline = await createProductionBaseline({ projectId, failure: recovery.failure }).catch((error) => ({
           kind: "production-baseline",
@@ -821,7 +846,7 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
       else if (decision.action === "baseline")
         await transitionProductionAgent({
           projectId,
-          state: "active",
+          state: "waiting-human",
           reason: decision.reason,
           metadata: {
             failedJobId: failedRecord.id,

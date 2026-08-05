@@ -342,7 +342,7 @@ const resumabilityCheck = async (manifest, paths, stages, activeStage) => {
     );
     if (invalid.length) throw new Error(`Run state contains ${invalid.length} unsupported stage entries`);
     const interrupted = Object.entries(state.stages ?? {})
-      .filter(([name, value]) => value.status === "running" && name !== activeStage)
+      .filter(([name, value]) => value.status === "interrupted" || (value.status === "running" && name !== activeStage))
       .map(([name]) => name);
     const stale = Object.entries(state.stages ?? {})
       .filter(([, value]) => value.status === "stale")

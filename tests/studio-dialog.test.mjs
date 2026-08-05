@@ -378,6 +378,12 @@ test("Studio renders at source settings and keeps only final acceptance user-fac
   assert.match(delivery, /DELIVERY_FILE_WITHOUT_RENDER_STATE/);
 });
 
+test("Studio reports the active production stage instead of calling every stage final rendering", async () => {
+  const server = await readFile(new URL("../scripts/studio-server.mjs", import.meta.url), "utf8");
+  assert.match(server, /"semantic-plan": "正在理解口播内容并规划增强视觉"/);
+  assert.match(server, /productionStageProgressMessage\(event\.stage\)/);
+});
+
 test("Studio cover workspace renders registered local layers without invoking an Agent", async () => {
   const html = await readFile(new URL("../studio/index.html", import.meta.url), "utf8");
   const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
@@ -679,6 +685,8 @@ test("Studio exposes a source-bound baseline review instead of sending enhanced-
   const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
   const server = await readFile(new URL("../scripts/studio-server.mjs", import.meta.url), "utf8");
   assert.match(app, /productionBaselineReviewView/);
+  assert.match(app, /增强制作未完成 · 保底预览/);
+  assert.doesNotMatch(app, /<h2>基础版本审核<\/h2>/);
   assert.match(app, /human-production-baseline-approved/);
   assert.match(server, /createProductionBaseline/);
   assert.match(server, /workflow\/production-baseline\/video/);

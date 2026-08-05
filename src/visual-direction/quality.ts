@@ -170,7 +170,7 @@ export const evaluateVisualDirectionQuality = ({
       expected: 0,
     });
   if (longestUnexplainedSpeakerGap > maximumUnexplainedSpeakerGapSeconds + 0.0001)
-    findings.push({
+    advisories.push({
       rule: "visual-direction.unexplained-speaker-gap",
       actual: longestUnexplainedSpeakerGap,
       expected: maximumUnexplainedSpeakerGapSeconds,

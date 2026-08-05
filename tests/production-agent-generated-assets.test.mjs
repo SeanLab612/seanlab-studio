@@ -11,6 +11,8 @@ import {
 } from "../scripts/creator/generated-image-contract.mjs";
 import {
   decideAutomaticProductionRecovery,
+  deterministicProductionDiagnosis,
+  deterministicProductionRepair,
   MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS,
 } from "../scripts/creator/production-agent-recovery.mjs";
 import { buildBindingCandidates } from "../scripts/creator/production-agent-binding-repair.mjs";
@@ -203,9 +205,58 @@ test("automatic production recovery stops for unvalidated code repair, blocked r
         { reason: "automatic-source-repair" },
         { reason: "automatic-binding-repair" },
         { reason: "automatic-visual-contract-repair" },
+        { reason: "automatic-semantic-plan-repair" },
       ],
     }),
-    5,
+    6,
+  );
+});
+
+test("semantic plan validation failures use a deterministic repair and ignore a pessimistic diagnosis", () => {
+  const repair = deterministicProductionRepair({
+    code: "SEMANTIC_PLAN_INVALID",
+    category: "semantic-planning",
+    stage: "semantic-plan",
+    retryable: true,
+  });
+  assert.deepEqual(repair, {
+    kind: "validated-semantic-plan-repair",
+    stage: "semantic-plan",
+    workflowAction: "continue",
+    strategy: "structured-validation-repair",
+    success: true,
+  });
+  const diagnosis = deterministicProductionDiagnosis(
+    { code: "SEMANTIC_PLAN_INVALID", stage: "semantic-plan", message: "mixed relations" },
+    repair,
+  );
+  assert.equal(diagnosis.recommendedAction, "recheck");
+  assert.equal(diagnosis.safeToResume, true);
+  assert.match(diagnosis.evidence.join(" "), /structured-validation-repair/);
+  const decision = decideAutomaticProductionRecovery({
+    recovery: {
+      status: "blocked",
+      resume: { enabled: false, stage: "semantic-plan" },
+    },
+    diagnosis: {
+      safeToResume: false,
+      recommendedAction: "request-user",
+      userMessage: "需要用户处理",
+    },
+    attempts: 0,
+    readiness: { readinessStatus: "ready" },
+    repair,
+  });
+  assert.equal(decision.action, "resume");
+  assert.equal(decision.reason, "automatic-semantic-plan-repair");
+  assert.equal(decision.stage, "semantic-plan");
+  assert.equal(
+    deterministicProductionRepair({
+      code: "SEMANTIC_PLAN_INVALID",
+      stage: "semantic-plan",
+      retryable: false,
+    }),
+    undefined,
   );
 });
 

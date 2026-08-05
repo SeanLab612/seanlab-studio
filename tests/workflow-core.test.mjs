@@ -12,7 +12,7 @@ import {
   validateManifest,
   writeManifest,
 } from "../scripts/workflow/manifest.mjs";
-import {fileExists, loadState, saveState, signatureFor, writeArtifactLedger} from "../scripts/workflow/state.mjs";
+import {STAGE_STATUSES, fileExists, loadState, saveState, signatureFor, writeArtifactLedger} from "../scripts/workflow/state.mjs";
 import {
   assertQaApprovalAllowed,
   approvedDeliveryStartIndex,
@@ -236,6 +236,10 @@ test("state persists structured stage status", async () => {
   await saveState(statePath, state);
   assert.equal(JSON.parse(await readFile(statePath, "utf8")).stages.ingest.status, "succeeded");
   assert.equal(await fileExists(statePath), true);
+});
+
+test("an interrupted Studio stage is a valid resumable workflow state", () => {
+  assert.ok(STAGE_STATUSES.includes("interrupted"));
 });
 
 test("artifact ledger exposes the regression gate result", async () => {
