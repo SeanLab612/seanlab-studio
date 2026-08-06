@@ -210,7 +210,7 @@ export const DecisionMatrix: React.FC<
         style={{
           position: "absolute",
           left: 72,
-          right: 34,
+          right: 240,
           top: 35,
           bottom: 64,
           borderLeft: "2px solid rgba(255,255,255,.65)",
@@ -248,13 +248,6 @@ export const DecisionMatrix: React.FC<
           const hi = highlightIds.includes(p.id);
           const xPosition = mode === "qualitative" ? (p.xBand === "high" ? 75 : 25) : (p.x ?? 0);
           const yPosition = mode === "qualitative" ? (p.yBand === "high" ? 75 : 25) : (p.y ?? 0);
-          const labelPosition = [
-            { left: 18, top: 8 },
-            { left: -88, top: 6 },
-            { left: -16, top: -38 },
-            { left: 18, top: -36 },
-            { left: 18, top: -40 },
-          ][i % 5];
           return (
             <div
               key={p.id}
@@ -273,20 +266,60 @@ export const DecisionMatrix: React.FC<
                   borderRadius: 99,
                   background: p.color ?? (hi ? accent : "#F5F2EA"),
                   boxShadow: hi ? `0 0 20px ${p.color ?? accent}` : "none",
-                }}
-              />
-              <span
-                style={{
-                  position: "absolute",
-                  left: labelPosition.left,
-                  top: labelPosition.top,
-                  whiteSpace: "nowrap",
-                  fontSize: 24,
-                  fontWeight: hi ? 850 : 650,
-                  color: hi ? (p.color ?? accent) : palette.paper,
+                  color: "#101318",
+                  display: "grid",
+                  placeItems: "center",
+                  fontSize: 13,
+                  fontWeight: 900,
                 }}
               >
-                <EmphasisText text={p.label} />
+                {i + 1}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          left: 500,
+          top: 35,
+          width: 185,
+          display: "grid",
+          gap: points.length > 5 ? 8 : 14,
+        }}
+      >
+        {points.slice(0, 8).map((point, index) => {
+          const highlighted = highlightIds.includes(point.id);
+          const color = point.color ?? (highlighted ? accent : palette.paper);
+          return (
+            <div key={`legend-${point.id}`} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+              <span
+                style={{
+                  flex: "0 0 auto",
+                  width: 22,
+                  height: 22,
+                  borderRadius: 99,
+                  display: "grid",
+                  placeItems: "center",
+                  background: color,
+                  color: "#101318",
+                  fontSize: 12,
+                  fontWeight: 900,
+                }}
+              >
+                {index + 1}
+              </span>
+              <span
+                style={{
+                  color,
+                  fontSize: points.length > 5 ? 16 : 19,
+                  fontWeight: highlighted ? 850 : 680,
+                  lineHeight: 1.12,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                <EmphasisText text={point.label} />
               </span>
             </div>
           );
@@ -364,12 +397,14 @@ export const ModelClassificationMap: React.FC<
               ) : (
                 <Icon id={x.iconId} fallbackLabel={x.title} size={compact ? 48 : 54} color={x.accent ?? accent} />
               )}
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <div
                   style={{
                     fontSize: compact ? 24 : 26,
                     fontWeight: 850,
                     color: on ? (x.accent ?? accent) : palette.paper,
+                    lineHeight: 1.12,
+                    overflowWrap: "anywhere",
                   }}
                 >
                   <EmphasisText text={x.title} />
@@ -381,6 +416,7 @@ export const ModelClassificationMap: React.FC<
                     fontWeight: 650,
                     color: palette.muted,
                     marginTop: 6,
+                    overflowWrap: "anywhere",
                   }}
                 >
                   <EmphasisText text={x.detail} />
@@ -540,13 +576,30 @@ export const CapabilitySurfaceGrid: React.FC<
       {columns.slice(0, 6).map((c) => (
         <div
           key={c}
-          style={{ textAlign: "center", fontSize: 24, lineHeight: 1.15, fontWeight: 800, color: palette.muted }}
+          style={{
+            textAlign: "center",
+            fontSize: columns.length >= 5 ? 18 : 22,
+            lineHeight: 1.12,
+            fontWeight: 800,
+            color: palette.muted,
+            overflowWrap: "anywhere",
+          }}
         >
           <EmphasisText text={c} />
         </div>
       ))}
       {rows.slice(0, 6).flatMap((r, ri) => [
-        <div key={`${r}-l`} style={{ fontSize: 26, fontWeight: 820, display: "flex", alignItems: "center" }}>
+        <div
+          key={`${r}-l`}
+          style={{
+            fontSize: rows.length >= 5 ? 20 : 24,
+            lineHeight: 1.12,
+            fontWeight: 820,
+            display: "flex",
+            alignItems: "center",
+            overflowWrap: "anywhere",
+          }}
+        >
           <EmphasisText text={r} />
         </div>,
         ...columns.slice(0, 6).map((_, ci) => {
@@ -645,9 +698,15 @@ export const TradeoffScale: React.FC<
           variant="brightFootage"
           style={{ marginBottom: compact ? 16 : 14 }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 18 }}>
             <b
-              style={{ fontSize: compact ? 28 : 30, color: highlightId && !hi ? "rgba(245,242,234,0.82)" : undefined }}
+              style={{
+                minWidth: 0,
+                fontSize: compact ? 28 : 30,
+                lineHeight: 1.12,
+                overflowWrap: "anywhere",
+                color: highlightId && !hi ? "rgba(245,242,234,0.82)" : undefined,
+              }}
             >
               <EmphasisText text={x.label} />
             </b>

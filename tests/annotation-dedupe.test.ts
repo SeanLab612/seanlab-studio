@@ -7,6 +7,7 @@ const cue = (items: Array<{ id: string; text: string; effect: string }>) => ({
   end: 6,
   generatedVisual: {
     component: { id: "rough-annotation" },
+    segment: { id: "rough-1" },
     props: {
       items,
       activeIndex: 0,
@@ -54,6 +55,7 @@ test("a fully duplicated Agent annotation cue is removed", () => {
   });
   assert.equal(result.removedItemCount, 1);
   assert.equal(result.removedCueCount, 1);
+  assert.deepEqual(result.removedCueIds, ["rough-1"]);
   assert.deepEqual(result.overlayCues, []);
 });
 

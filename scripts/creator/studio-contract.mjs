@@ -24,6 +24,30 @@ export const workflowArgsForStudioPlan = ({ semanticReplanRequired = false } = {
     ? ["--from", "semantic-plan", "--replan-semantic", "--until", "plan", "--production-agent-auto-approve"]
     : workflowArgsForStudioAction("plan");
 
+export const workflowExecutionForStudioRecovery = ({ recovery, snapshot }) => {
+  const semanticPlanRepair =
+    recovery?.authority?.registeredRepairKind === "validated-semantic-plan-repair" &&
+    recovery?.failure?.retryable !== false &&
+    ["semantic-plan", "component-props", "visual-direction", "validate"].includes(recovery?.failure?.stage);
+
+  if (semanticPlanRepair && !snapshot?.productionPlan?.confirmed)
+    return {
+      action: "plan",
+      workflowArgs: ["--from", "semantic-plan", "--replan-semantic", ...workflowArgsForStudioAction("plan")],
+      expectedTargetStage: "validate",
+    };
+
+  const action = recovery.resume.action;
+  let workflowArgs = workflowArgsForStudioAction(action);
+  if (action === "continue" && recovery.resume.stage) workflowArgs = ["--from", recovery.resume.stage, ...workflowArgs];
+  return {
+    action,
+    workflowArgs,
+    expectedTargetStage:
+      action === "recut" ? "recut-review" : snapshot?.productionPlan?.confirmed ? "agent-review" : "validate",
+  };
+};
+
 const readinessRecoveryStatuses = new Set(["failed", "interrupted", "stale"]);
 
 const completedStatuses = new Set(["succeeded", "approved"]);

@@ -96,9 +96,9 @@ export const BinaryVersus: React.FC<BinaryVersusProps> = ({
               <div
                 style={{
                   position: "relative",
-                  height: compact ? 310 : 292,
+                  minHeight: compact ? 354 : 360,
                   minWidth: 0,
-                  overflow: "hidden",
+                  overflow: "visible",
                   padding: compact ? "8px 10px" : "8px 12px",
                   ...rise(progress, 18),
                   opacity: stableOpacity * progress,
@@ -125,11 +125,11 @@ export const BinaryVersus: React.FC<BinaryVersusProps> = ({
                 ) : null}
                 <div
                   style={{
-                    height: "100%",
+                    minHeight: "100%",
                     minWidth: 0,
                     display: "flex",
                     flexDirection: "column",
-                    overflow: "hidden",
+                    overflow: "visible",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -163,10 +163,10 @@ export const BinaryVersus: React.FC<BinaryVersusProps> = ({
                         style={{
                           fontSize: compact ? 25 : 26,
                           fontWeight: 850,
+                          lineHeight: 1.15,
                           marginTop: item.eyebrow ? 5 : 0,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
+                          whiteSpace: "normal",
+                          overflowWrap: "anywhere",
                         }}
                       >
                         <EmphasisText text={item.label} />
@@ -180,10 +180,6 @@ export const BinaryVersus: React.FC<BinaryVersusProps> = ({
                       fontWeight: 950,
                       color: accent,
                       marginTop: 38,
-                      overflow: "hidden",
-                      display: "-webkit-box",
-                      WebkitBoxOrient: "vertical",
-                      WebkitLineClamp: 3,
                       overflowWrap: "anywhere",
                     }}
                   >
@@ -197,10 +193,7 @@ export const BinaryVersus: React.FC<BinaryVersusProps> = ({
                         fontWeight: 650,
                         opacity: 0.82,
                         marginTop: 16,
-                        overflow: "hidden",
-                        display: "-webkit-box",
-                        WebkitBoxOrient: "vertical",
-                        WebkitLineClamp: 3,
+                        overflowWrap: "anywhere",
                       }}
                     >
                       <EmphasisText text={item.detail} />

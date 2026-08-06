@@ -79,7 +79,18 @@ export const DistributionBars: React.FC<{
                   boxShadow: bar.emphasized ? `0 0 34px ${palette.amber}35` : "none",
                 }}
               />
-              <div style={{ fontSize: 22, fontWeight: 800, marginTop: 12, color }}>{bar.label}</div>
+              <div
+                style={{
+                  fontSize: bars.length >= 6 ? 18 : 22,
+                  fontWeight: 800,
+                  lineHeight: 1.12,
+                  marginTop: 12,
+                  color,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {bar.label}
+              </div>
             </div>
           );
         })}

@@ -42,8 +42,9 @@
     "test:registry": "node --experimental-strip-types --experimental-specifier-resolution=node scripts/component-registry-smoke.mjs",
     "test:icons": "node --experimental-strip-types --experimental-specifier-resolution=node scripts/icon-registry-smoke.mjs",
     "test:fixtures": "node --experimental-strip-types scripts/fixtures/validate.mjs --verify-local",
+    "test:component-text": "node --experimental-strip-types scripts/render-component-text-stress.mjs",
     "docs:assets": "node scripts/generate-readme-assets.mjs",
-    "test": "npm run format:check && npm run lint && npm run typecheck && npm run test:unit && npm run test:workflow-core && npm run test:fixtures"
+    "test": "npm run format:check && npm run lint && npm run typecheck && npm run test:unit && npm run test:workflow-core && npm run test:fixtures && npm run test:component-text"
   },
   "dependencies": {
     "@remotion/cli": "4.0.490",

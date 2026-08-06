@@ -48,7 +48,7 @@ test("validates dynamic component bounds", () => {
   assert.throws(() => validateComponentProps("binary-versus", { items: [{}, {}, {}] }), /2-2 items/);
 });
 
-test("binary-versus text capacity blocks the overflow seen in final delivery", () => {
+test("binary-versus preserves complete wrap-capable copy instead of truncating it", () => {
   const overflow = {
     items: [
       {
@@ -59,9 +59,14 @@ test("binary-versus text capacity blocks the overflow seen in final delivery", (
       { label: "适合结构化内容", metric: "知识讲解、产品介绍、数据大字报、结构化内容" },
     ],
   };
-  assert.throws(() => validateComponentProps("binary-versus", overflow), /component-text-overflow/);
+  assert.doesNotThrow(() => validateComponentProps("binary-versus", overflow));
   const compacted = compactComponentProps("binary-versus", overflow);
+  assert.deepEqual(compacted, overflow);
   assert.doesNotThrow(() => validateComponentProps("binary-versus", compacted));
+  assert.throws(
+    () => validateComponentProps("binary-versus", { items: [{ label: "显示不完整…" }, { label: "完整方案" }] }),
+    /component-text-incomplete/,
+  );
 });
 
 test("blocks workflow metadata from viewer-facing copy", () => {

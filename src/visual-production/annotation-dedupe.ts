@@ -7,6 +7,7 @@ type OverlayCueLike = {
   end: number;
   generatedVisual?: {
     component?: { id?: string };
+    segment?: { id?: string };
     props?: Record<string, unknown>;
   };
 } & Record<string, unknown>;
@@ -35,6 +36,7 @@ export const dedupeAgentRoughAnnotations = <Cue extends OverlayCueLike>({
 }) => {
   let removedItemCount = 0;
   let removedCueCount = 0;
+  const removedCueIds: string[] = [];
   const cues = overlayCues.flatMap((cue): Cue[] => {
     if (cue.generatedVisual?.component?.id !== "rough-annotation") return [cue];
     const props = cue.generatedVisual.props ?? {};
@@ -51,6 +53,7 @@ export const dedupeAgentRoughAnnotations = <Cue extends OverlayCueLike>({
     });
     if (!retained.length) {
       removedCueCount += 1;
+      if (cue.generatedVisual?.segment?.id) removedCueIds.push(cue.generatedVisual.segment.id);
       return [];
     }
     const retainedIds = new Set(retained.map((item) => item.id));
@@ -80,5 +83,5 @@ export const dedupeAgentRoughAnnotations = <Cue extends OverlayCueLike>({
       } as Cue,
     ];
   });
-  return { overlayCues: cues, removedItemCount, removedCueCount };
+  return { overlayCues: cues, removedItemCount, removedCueCount, removedCueIds };
 };

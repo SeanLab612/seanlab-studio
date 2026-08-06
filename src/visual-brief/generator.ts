@@ -265,34 +265,20 @@ const assertTextCapacity = (value: unknown, maximum: number, label: string) => {
     throw new Error(`component-text-overflow: ${label} exceeds ${maximum} display characters.`);
   }
 };
-const compactText = (value: unknown, maximum: number) => {
-  if (typeof value !== "string" || textLength(value) <= maximum) return value;
-  const characters = [...value.trim()];
-  const preferred = characters
-    .slice(0, maximum - 1)
-    .map((character, index) => (/[,，。；;、：:]/.test(character) ? index : -1))
-    .filter((index) => index >= Math.floor(maximum * 0.6))
-    .at(-1);
-  return `${characters
-    .slice(0, preferred === undefined ? maximum - 1 : preferred)
-    .join("")
-    .trim()}…`;
-};
-
 const componentTextLimits: Record<string, number> = {
   eyebrow: 18,
-  label: 28,
-  metric: 18,
-  detail: 48,
-  description: 48,
-  title: 22,
-  takeaway: 36,
-  sourceName: 28,
+  label: 40,
+  metric: 24,
+  detail: 72,
+  description: 72,
+  title: 40,
+  takeaway: 64,
+  sourceName: 40,
   leadIn: 12,
-  denied: 18,
+  denied: 30,
   prefix: 8,
-  emphasis: 18,
-  support: 30,
+  emphasis: 42,
+  support: 72,
 };
 const visitComponentText = (
   value: unknown,
@@ -315,34 +301,37 @@ const visitComponentText = (
 
 export const compactComponentProps = (componentId: VisualComponentId, input: Record<string, unknown>) => {
   const props = structuredClone(input);
-  visitComponentText(props, (container, key, maximum) => {
-    container[key] = compactText(container[key], maximum);
-  });
-  if (componentId === "binary-versus" && Array.isArray(props.items)) {
-    props.items = props.items.map((raw) => {
-      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
-      const item = raw as Record<string, unknown>;
-      return {
-        ...item,
-        eyebrow: compactText(item.eyebrow, 16),
-        label: compactText(item.label, 10),
-        metric: compactText(item.metric, 14),
-        detail: compactText(item.detail, 30),
-      };
-    });
-    props.takeaway = compactText(props.takeaway, 36);
-  }
-  if (componentId === "editorial-statement") {
-    props.leadIn = compactText(props.leadIn, 12);
-    props.denied = compactText(props.denied, 18);
-    props.prefix = compactText(props.prefix, 8);
-    props.emphasis = compactText(props.emphasis, 18);
-    props.support = compactText(props.support, 30);
-  }
+  // Preserve complete viewer-facing copy. Renderers adapt their density and
+  // line wrapping; validation selects a shorter complete phrase or a different
+  // component instead of silently appending an ellipsis.
+  void componentId;
   return props;
 };
 
+const assertCompleteDisplayText = (value: unknown, label: string) => {
+  if (typeof value !== "string") return;
+  if (/(?:…|\.\.\.)\s*$/.test(value.trim()))
+    throw new Error(`component-text-incomplete: ${label} ends with a generated ellipsis.`);
+};
+
+const visitAllDisplayStrings = (value: unknown, path: string, visitor: (text: string, path: string) => void) => {
+  if (typeof value === "string") {
+    visitor(value, path);
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => {
+      visitAllDisplayStrings(item, `${path}[${index}]`, visitor);
+    });
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  for (const [key, child] of Object.entries(value as Record<string, unknown>))
+    visitAllDisplayStrings(child, `${path}.${key}`, visitor);
+};
+
 export const validateComponentProps = (componentId: VisualComponentId, props: Record<string, unknown>) => {
+  visitAllDisplayStrings(props, componentId, assertCompleteDisplayText);
   visitComponentText(props, (container, key, maximum) => {
     assertTextCapacity(container[key], maximum, `${componentId}.${key}`);
   });
@@ -354,11 +343,14 @@ export const validateComponentProps = (componentId: VisualComponentId, props: Re
           throw new Error(`binary-versus.items[${index}] must be an object.`);
         const item = raw as Record<string, unknown>;
         assertTextCapacity(item.eyebrow, 16, `binary-versus.items[${index}].eyebrow`);
-        assertTextCapacity(item.label, 10, `binary-versus.items[${index}].label`);
-        assertTextCapacity(item.metric, 14, `binary-versus.items[${index}].metric`);
-        assertTextCapacity(item.detail, 30, `binary-versus.items[${index}].detail`);
+        assertCompleteDisplayText(item.label, `binary-versus.items[${index}].label`);
+        assertCompleteDisplayText(item.metric, `binary-versus.items[${index}].metric`);
+        assertCompleteDisplayText(item.detail, `binary-versus.items[${index}].detail`);
+        assertTextCapacity(item.label, 24, `binary-versus.items[${index}].label`);
+        assertTextCapacity(item.metric, 24, `binary-versus.items[${index}].metric`);
+        assertTextCapacity(item.detail, 54, `binary-versus.items[${index}].detail`);
       }
-      assertTextCapacity(props.takeaway, 36, "binary-versus.takeaway");
+      assertTextCapacity(props.takeaway, 64, "binary-versus.takeaway");
       break;
     case "key-stat-summary":
       assertItems(props, 1, 3, componentId);
@@ -454,6 +446,7 @@ export const validateComponentProps = (componentId: VisualComponentId, props: Re
             `rough-annotation.items[${index}].text must remain single-line; multiline copy is unsupported.`,
           );
         assertTextCapacity(item.text, 14, `rough-annotation.items[${index}].text`);
+        assertCompleteDisplayText(item.text, `rough-annotation.items[${index}].text`);
         if (
           !["highlight", "underline", "circle", "box", "crossed-off", "strike-through", "bracket"].includes(
             String(item.effect),
@@ -465,10 +458,10 @@ export const validateComponentProps = (componentId: VisualComponentId, props: Re
     case "editorial-statement":
       assertString(props.emphasis, "editorial-statement.emphasis");
       assertTextCapacity(props.leadIn, 12, "editorial-statement.leadIn");
-      assertTextCapacity(props.denied, 18, "editorial-statement.denied");
+      assertTextCapacity(props.denied, 30, "editorial-statement.denied");
       assertTextCapacity(props.prefix, 8, "editorial-statement.prefix");
-      assertTextCapacity(props.emphasis, 18, "editorial-statement.emphasis");
-      assertTextCapacity(props.support, 30, "editorial-statement.support");
+      assertTextCapacity(props.emphasis, 42, "editorial-statement.emphasis");
+      assertTextCapacity(props.support, 72, "editorial-statement.support");
       break;
   }
 };

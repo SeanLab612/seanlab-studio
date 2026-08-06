@@ -63,22 +63,40 @@ export const ScenarioBranches: React.FC<{
           strokeDashoffset={1 - draw}
           opacity={downOpacity}
         />
-        <g opacity={upOpacity}>
-          <text x="505" y="65" fill={branches[0].color ?? palette.mint} fontSize="30" fontWeight="800">
-            {branches[0].label}
-          </text>
-          <text x="505" y="101" fill={palette.paper} fontSize="22" fontWeight="680">
-            {branches[0].detail}
-          </text>
-        </g>
-        <g opacity={downOpacity}>
-          <text x="490" y="294" fill={branches[1].color ?? palette.red} fontSize="30" fontWeight="800">
-            {branches[1].label}
-          </text>
-          <text x="490" y="331" fill={palette.paper} fontSize="22" fontWeight="680">
-            {branches[1].detail}
-          </text>
-        </g>
+        <foreignObject x="468" y="10" width="326" height="160" opacity={upOpacity}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, overflowWrap: "anywhere" }}>
+            <div
+              style={{
+                color: branches[0].color ?? palette.mint,
+                fontSize: branches[0].label.length > 10 ? 25 : 30,
+                fontWeight: 800,
+                lineHeight: 1.12,
+              }}
+            >
+              <EmphasisText text={branches[0].label} />
+            </div>
+            <div style={{ color: palette.paper, fontSize: 21, fontWeight: 680, lineHeight: 1.22 }}>
+              <EmphasisText text={branches[0].detail} />
+            </div>
+          </div>
+        </foreignObject>
+        <foreignObject x="462" y="238" width="332" height="158" opacity={downOpacity}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, overflowWrap: "anywhere" }}>
+            <div
+              style={{
+                color: branches[1].color ?? palette.red,
+                fontSize: branches[1].label.length > 10 ? 25 : 30,
+                fontWeight: 800,
+                lineHeight: 1.12,
+              }}
+            >
+              <EmphasisText text={branches[1].label} />
+            </div>
+            <div style={{ color: palette.paper, fontSize: 21, fontWeight: 680, lineHeight: 1.22 }}>
+              <EmphasisText text={branches[1].detail} />
+            </div>
+          </div>
+        </foreignObject>
         <circle cx="720" cy="50" r="8" fill={branches[0].color ?? palette.mint} opacity={upOpacity} />
         <circle cx="720" cy="342" r="9" fill={branches[1].color ?? palette.red} opacity={downOpacity} />
       </svg>

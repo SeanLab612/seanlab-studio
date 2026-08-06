@@ -99,6 +99,7 @@ import {
 import {
   resumeStageForStudio,
   workflowArgsForConfirmedProduction,
+  workflowExecutionForStudioRecovery,
   workflowArgsForStudioPlan,
   workflowArgsForStudioAction,
   workflowArgsForStudioReadiness,
@@ -1700,15 +1701,12 @@ const routes = async (request, response, url) => {
       manifest: project.video.manifest,
       workflowArgs: readinessArgs,
     });
-    const expectedTargetStage = recovery.resume.action === "recut" ? "recut-review" : "agent-review";
+    const execution = workflowExecutionForStudioRecovery({ recovery, snapshot });
     assertStudioReadinessConfirmation({
       readiness,
       expectedSha256: input.readinessSha256,
-      expectedTargetStage,
+      expectedTargetStage: execution.expectedTargetStage,
     });
-    let workflowArgs = workflowArgsForStudioAction(recovery.resume.action);
-    if (recovery.resume.action === "continue" && recovery.resume.stage)
-      workflowArgs = ["--from", recovery.resume.stage, ...workflowArgs];
     const recoveryConfirmation = await recordStudioRecoveryConfirmation({
       projectId,
       recovery,
@@ -1716,10 +1714,10 @@ const routes = async (request, response, url) => {
     });
     const readinessConfirmation = await recordStudioReadinessConfirmation({
       projectId,
-      action: `recovery-${recovery.resume.action}`,
+      action: `recovery-${execution.action}`,
       readiness,
     });
-    const record = workflowJob(projectId, project.video.manifest, recovery.resume.action, workflowArgs);
+    const record = workflowJob(projectId, project.video.manifest, execution.action, execution.workflowArgs);
     record.recoveryConfirmation = recoveryConfirmation;
     record.readinessConfirmation = readinessConfirmation;
     await persistJobs();
