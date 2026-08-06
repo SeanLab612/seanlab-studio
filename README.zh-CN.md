@@ -58,6 +58,12 @@ Studio 集中管理项目进度、固定 Agent、审核节点和可复用视觉�
 
 ![信息组件，第 5 组](docs/assets/components-group-05.jpg)
 
+### 第 20 个组件：观点陈述
+
+第 20 个组件用于没有更强语义结构的大白话和单一判断。它保持整句文字清晰可读，只将重点文字改为 Tiffany 蓝。
+
+![第 20 个组件：Tiffany 蓝观点陈述](regression-fixtures/golden/16x9/editorial-statement/editorial-statement.jpg)
+
 ### 10 种数据图表
 
 覆盖数值对比、时间序列、比例、瀑布变化、散点、区间、漏斗、前后对比和风险收益等场景。
