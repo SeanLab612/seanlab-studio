@@ -15,7 +15,7 @@ test("release readiness keeps version, operator commands, docs, governance, and 
   ]) {
     assert.ok(report.checks.some((check) => check.id === id && check.status === "passed"), id);
   }
-  assert.equal(report.version, "0.1.0");
+  assert.equal(report.version, "0.2.0");
   assert.equal(report.productPosition, "local-production-mvp");
   assert.equal(report.versionPromotion, "explicitly-approved");
   assert.deepEqual(report.safety, {

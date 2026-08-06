@@ -63,7 +63,7 @@ const state = {
   health: null,
   doctor: null,
   deleteTarget: null,
-  metadata: { name: "SeanLab Studio", version: "0.1.0" },
+  metadata: { name: "SeanLab Studio", version: "0.2.0" },
   editorial: { categories: [], questionnaires: {}, editingProjectId: null },
   activeNarrationSection: 0,
 };
@@ -553,7 +553,7 @@ const renderResourceLibrary = () => {
   bindResourceLibraryActions();
 };
 const shortVersion = () => {
-  const [major = "0", minor = "1"] = String(state.metadata.version ?? "0.1.0").split(".");
+  const [major = "0", minor = "2"] = String(state.metadata.version ?? "0.2.0").split(".");
   return `v${major}.${minor}`;
 };
 const renderTopbar = () => {
