@@ -71,7 +71,13 @@ export const transitionProductionAgent = async ({ projectId, state, reason, meta
 };
 
 export const automaticProductionRecoveryAttempts = (state) =>
-  (state.history ?? []).filter((event) => automaticResumeReasons.has(event.reason)).length;
+  (() => {
+    const history = state.history ?? [];
+    const boundary = history.findLastIndex(
+      (event) => event.state === "active" || event.reason === "automatic-recovery-succeeded",
+    );
+    return history.slice(boundary + 1).filter((event) => automaticResumeReasons.has(event.reason)).length;
+  })();
 
 export const recordProductionAgentDiagnosis = async ({
   projectId,

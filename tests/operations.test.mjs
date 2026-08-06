@@ -59,6 +59,11 @@ test("production failures are classified into creator-facing recovery classes", 
     ["VisualBrief props items are invalid", "VISUAL_PROPS_INVALID"],
     ["Missing component QA contract: process-steps", "QA_CONTRACT_MISSING"],
     ["Agent semantic provider request timed out", "PROVIDER_REQUEST_TIMEOUT"],
+    [
+      "Transport channel closed: http/request failed: error sending request for url (https://chatgpt.com/backend-api/ps/mcp)",
+      "PROVIDER_REQUEST_FAILED",
+    ],
+    ["failed to refresh available models: stream disconnected before completion", "PROVIDER_REQUEST_FAILED"],
   ];
   for (const [message, code] of cases)
     assert.equal(classifyOperationalError(new Error(message), { stage: "component-props" }).code, code);

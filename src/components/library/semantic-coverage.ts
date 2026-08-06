@@ -16,7 +16,7 @@ export const semanticCoverageRegistry = [
     status: "approved",
     componentIds: ["editorial-statement"],
     notes:
-      "One complete plain-language claim with no stronger structured or material-backed form; capped at 25 percent of a video and two consecutive uses.",
+      "One complete plain-language claim with no stronger structured or material-backed form; no whole-video share cap, with at most two consecutive uses.",
   },
   {
     id: "rough-annotation",

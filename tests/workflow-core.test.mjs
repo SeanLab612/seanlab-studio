@@ -65,7 +65,7 @@ test("creates a portable manifest and resolves project-relative paths", async ()
   assert.equal(stored.policies.visualDirection.minimumBreathingGapSeconds, 0.6);
   assert.equal(stored.policies.visualDirection.minimumVisibleSeconds, 2.2);
   assert.equal(stored.policies.visualDirection.repetitionWindowSeconds, 12);
-  assert.equal(stored.policies.visualDirection.maximumVisualCoverageRatio, 0.95);
+  assert.equal(stored.policies.visualDirection.maximumVisualCoverageRatio, 1);
   assert.equal(stored.policies.visualDirection.maximumAnimationCoverageRatio, 0.25);
   assert.equal(stored.providers.recutPlanning.provider, "codex-cli");
   assert.equal(paths.recutPreview, resolve(root, "project", "workspace/recut-preview-720p.mp4"));
@@ -279,6 +279,7 @@ test("review target includes resumable QA before human approval", () => {
   assert.ok(names.indexOf("translate") < names.indexOf("scene-align"));
   assert.ok(names.indexOf("scene-align") < names.indexOf("visual-direction"));
   assert.equal(TARGET_STAGE.review, "agent-review");
+  assert.equal(TARGET_STAGE.approval, "human-approval");
   assert.equal(TARGET_STAGE.delivery, "delivery-validate");
   assert.equal(names.includes("review-render"), false);
   assert.equal(motionReviewModeFor(manifest), "conditional-excerpts");

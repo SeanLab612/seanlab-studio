@@ -5,6 +5,7 @@ import {
   resumeStageForStudio,
   studioStageDependenciesCurrent,
   workflowArgsForStudioAction,
+  workflowArgsForStudioPlan,
   workflowArgsForStudioReadiness,
 } from "../scripts/creator/studio-contract.mjs";
 
@@ -19,19 +20,68 @@ test("Studio exposes only registered workflow actions", () => {
   assert.deepEqual(workflowArgsForStudioAction("plan"), ["--until", "plan", "--production-agent-auto-approve"]);
   assert.deepEqual(workflowArgsForStudioAction("production"), [
     "--until",
-    "delivery",
+    "approval",
     "--production-agent-auto-approve",
-    "--delivery-resolution",
-    "source",
-    "--delivery-frame-rate",
-    "source",
   ]);
   assert.deepEqual(workflowArgsForStudioAction("delivery"), ["--until", "delivery"]);
   assert.throws(() => workflowArgsForStudioAction(["--force"]), /仅允许/);
   assert.throws(() => workflowArgsForStudioAction("arbitrary-command"), /仅允许/);
 });
 
+test("Studio plan execution uses the same semantic replan scope as readiness", () => {
+  assert.deepEqual(workflowArgsForStudioPlan({ semanticReplanRequired: false }), [
+    "--until",
+    "plan",
+    "--production-agent-auto-approve",
+  ]);
+  assert.deepEqual(workflowArgsForStudioPlan({ semanticReplanRequired: true }), [
+    "--from",
+    "semantic-plan",
+    "--replan-semantic",
+    "--until",
+    "plan",
+    "--production-agent-auto-approve",
+  ]);
+});
+
 test("Studio readiness stops at the read-only production direction before final production", () => {
+  assert.deepEqual(
+    workflowArgsForStudioReadiness({
+      recutApproved: true,
+      reviewApproved: true,
+      stages: [
+        { name: "human-approval", status: "approved" },
+        { name: "semantic-plan", status: "failed" },
+      ],
+    }),
+    [
+      "--from",
+      "semantic-plan",
+      "--until",
+      "plan",
+      "--production-agent-auto-approve",
+      "--dry-run",
+    ],
+  );
+  assert.deepEqual(
+    workflowArgsForStudioReadiness({
+      semanticReplanRequired: true,
+      currentFailure: { stage: "visual-direction" },
+      stages: [
+        { name: "semantic-plan", status: "interrupted" },
+        { name: "visual-direction", status: "failed" },
+      ],
+    }),
+    [
+      "--from",
+      "semantic-plan",
+      "--replan-semantic",
+      "--until",
+      "plan",
+      "--production-agent-auto-approve",
+      "--dry-run",
+    ],
+  );
   assert.deepEqual(workflowArgsForStudioReadiness({ recutApproved: false, reviewApproved: false }), [
     "--until",
     "plan",
@@ -71,13 +121,9 @@ test("Studio readiness stops at the read-only production direction before final 
     }),
     [
       "--until",
-      "delivery",
+      "approval",
       "--production-agent-auto-approve",
       "--dry-run",
-      "--delivery-resolution",
-      "source",
-      "--delivery-frame-rate",
-      "source",
     ],
   );
   assert.deepEqual(
@@ -188,13 +234,9 @@ test("confirmed production resumes only after the frozen visual plan", () => {
       "--from",
       "agent-review",
       "--until",
-      "delivery",
+      "approval",
       "--production-agent-auto-approve",
       "--dry-run",
-      "--delivery-resolution",
-      "source",
-      "--delivery-frame-rate",
-      "source",
     ],
   );
 });

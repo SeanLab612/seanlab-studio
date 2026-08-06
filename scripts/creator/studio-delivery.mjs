@@ -188,7 +188,7 @@ export const loadStudioDelivery = async (projectId) => {
   const edl = await optionalJson(resolve(evidence.paths.workspace, "edl.json"));
   const selectedProfile = normalizeDeliveryProfile(evidence.context.manifest.render?.delivery);
   const estimates = media
-    ? ["1080p", "2k", "4k", "source"].flatMap((resolution) =>
+    ? ["720p", "1080p", "2k", "4k", "source"].flatMap((resolution) =>
         [30, 60, "source"].map((frameRate) => ({
           key: `${resolution}-${frameRate}`,
           profile: { resolution, frameRate },

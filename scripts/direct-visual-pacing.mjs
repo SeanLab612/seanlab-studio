@@ -12,6 +12,7 @@ import {
   planWholeVideoTitleCues,
   summarizeVisualDirection,
 } from "../src/visual-direction/index.ts";
+import { planEditorialCoverageFill } from "../src/visual-direction/editorial-coverage-fill.ts";
 import { applyEditorialStatementPolicy } from "../src/visual-direction/editorial-statement-policy.ts";
 import {
   animationPrototypeRegistry,
@@ -41,6 +42,7 @@ const bundle = JSON.parse(await readFile(resolve(config.componentCandidatesFile)
 if (bundle.schemaVersion !== "1.0" || !Array.isArray(bundle.candidates))
   throw new Error("component candidate bundle must use schemaVersion 1.0");
 const captions = JSON.parse(await readFile(resolve(config.semanticCaptionsFile), "utf8"));
+const layoutManifest = JSON.parse(await readFile(resolve(config.editDir, "layout-manifest.json"), "utf8"));
 const authoredVisualPlan = config.authoredVisualPlanFile
   ? JSON.parse(await readFile(resolve(config.authoredVisualPlanFile), "utf8"))
   : { sections: [], annotations: [] };
@@ -298,92 +300,163 @@ const selectedOverlayCues = bundle.candidates.flatMap((candidate) => {
     },
   ];
 });
-const editorialStatementPolicy = applyEditorialStatementPolicy(selectedOverlayCues, durationSeconds);
+const nonComponentResetIntervals = [...primaryVisualIntervals, ...screenScenes, ...annotationCues, ...titleCues];
+const initialEditorialStatementPolicy = applyEditorialStatementPolicy(selectedOverlayCues, durationSeconds, {
+  resetIntervals: nonComponentResetIntervals,
+});
+const initialAnnotationDedupe = dedupeAgentRoughAnnotations({
+  overlayCues: initialEditorialStatementPolicy.cues,
+  userAnnotations: annotationCues,
+});
+const buildCoverageIntervals = (componentCues) => {
+  const intervals = [...primaryVisualIntervals];
+  const overlaps = (start, end) => intervals.some((item) => start < item.end && end > item.start);
+  for (const scene of screenScenes) {
+    if (overlaps(scene.start, scene.end)) continue;
+    intervals.push({
+      id: scene.id,
+      start: scene.start,
+      end: scene.end,
+      primaryVisualType: "screen-demo",
+      takeover: "full",
+      speakerPresence: "circle-pip",
+    });
+  }
+  for (const cue of componentCues) {
+    if (overlaps(cue.start, cue.end)) continue;
+    intervals.push({
+      id: `component-${cue.generatedVisual.segment.id}`,
+      start: cue.start,
+      end: cue.end,
+      primaryVisualType:
+        cue.generatedVisual.component.id === "image-evidence-inset"
+          ? "image"
+          : cue.generatedVisual.component.id === "rough-annotation"
+            ? "annotation"
+            : "component",
+      takeover: "partial",
+      speakerPresence: "full",
+    });
+  }
+  for (const cue of annotationCues) {
+    if (overlaps(cue.start, cue.end)) continue;
+    intervals.push({
+      id: `annotation-${cue.id}`,
+      start: cue.start,
+      end: cue.end,
+      primaryVisualType: "annotation",
+      takeover: "partial",
+      speakerPresence: "full",
+    });
+  }
+  for (const cue of titleCues) {
+    if (overlaps(cue.start, cue.end)) continue;
+    intervals.push({
+      id: cue.id,
+      start: cue.start,
+      end: cue.end,
+      primaryVisualType: "annotation",
+      takeover: "partial",
+      speakerPresence: "full",
+    });
+  }
+  return intervals.sort((left, right) => left.start - right.start || left.end - right.end);
+};
+const minimumVisualCoverageRatio = Number(config.visualDirection?.minimumVisualCoverageRatio ?? 0);
+const initialCoverageIntervals = buildCoverageIntervals(initialAnnotationDedupe.overlayCues);
+const editorialCoverageFill = planEditorialCoverageFill({
+  captions,
+  coveredIntervals: initialCoverageIntervals,
+  existingEditorialCues: initialAnnotationDedupe.overlayCues.filter(
+    (cue) => cue.generatedVisual?.component?.id === "editorial-statement",
+  ),
+  durationSeconds,
+  minimumCoverageRatio: minimumVisualCoverageRatio,
+  maximumEditorialCoverageRatio: 1,
+  maximumConsecutive: 2,
+  faceCenterX: Number(layoutManifest.faceCenterX ?? 0.5),
+});
+const combinedOverlayCues = [...initialAnnotationDedupe.overlayCues, ...editorialCoverageFill.cues].sort(
+  (left, right) => left.start - right.start || left.end - right.end,
+);
+const editorialStatementPolicy = applyEditorialStatementPolicy(combinedOverlayCues, durationSeconds, {
+  resetIntervals: nonComponentResetIntervals,
+});
 const annotationDedupe = dedupeAgentRoughAnnotations({
   overlayCues: editorialStatementPolicy.cues,
   userAnnotations: annotationCues,
 });
 const overlayCues = annotationDedupe.overlayCues;
+const appliedCoverageFillCues = overlayCues.filter((cue) => cue.coverageFill === true);
+const appliedCoverageFillSeconds = appliedCoverageFillCues.reduce(
+  (total, cue) => total + Math.max(0, cue.end - cue.start),
+  0,
+);
+const appliedCoverageFillReport = {
+  ...editorialCoverageFill.report,
+  status:
+    editorialCoverageFill.report.deficitSeconds <= 0.001
+      ? "not-needed"
+      : editorialCoverageFill.report.existingCoveredSeconds + appliedCoverageFillSeconds + 0.001 >=
+          editorialCoverageFill.report.targetSeconds
+        ? "filled"
+        : "partially-filled",
+  plannedSeconds: Number(appliedCoverageFillSeconds.toFixed(3)),
+  predictedCoveredSeconds: Number(
+    Math.min(durationSeconds, editorialCoverageFill.report.existingCoveredSeconds + appliedCoverageFillSeconds).toFixed(
+      3,
+    ),
+  ),
+  remainingSeconds: Number(
+    Math.max(
+      0,
+      editorialCoverageFill.report.targetSeconds -
+        editorialCoverageFill.report.existingCoveredSeconds -
+        appliedCoverageFillSeconds,
+    ).toFixed(3),
+  ),
+  cueIds: appliedCoverageFillCues.map((cue) => cue.generatedVisual.segment.id),
+};
+directionPlan.coverageFillCues = appliedCoverageFillCues.map((cue) => ({
+  id: cue.generatedVisual.segment.id,
+  start: cue.start,
+  end: cue.end,
+  componentId: "editorial-statement",
+  source: "deterministic-caption-gap-fill",
+}));
 directionReport.annotationDedupe = {
   userAnnotationCount: annotationCues.length,
   removedAgentItemCount: annotationDedupe.removedItemCount,
   removedAgentCueCount: annotationDedupe.removedCueCount,
 };
 directionReport.editorialStatement = {
-  maximumCoverageRatio: 0.25,
+  maximumCoverageRatio: 1,
   maximumConsecutive: 2,
   coverageSeconds: editorialStatementPolicy.coverageSeconds,
   coverageRatio: editorialStatementPolicy.coverageRatio,
   suppressedCueIds: editorialStatementPolicy.suppressedCueIds,
 };
+directionReport.editorialCoverageFill = appliedCoverageFillReport;
 directionReport.requiredImageEvidence = evaluateRequiredImageEvidenceCoverage(
   imageEvidenceAssets,
   overlayCues,
   imageCues,
   animationCues,
 );
-const coverageIntervals = [...primaryVisualIntervals];
-const overlapsCoverage = (start, end) => coverageIntervals.some((item) => start < item.end && end > item.start);
-for (const scene of screenScenes) {
-  if (overlapsCoverage(scene.start, scene.end)) continue;
-  coverageIntervals.push({
-    id: scene.id,
-    start: scene.start,
-    end: scene.end,
-    primaryVisualType: "screen-demo",
-    takeover: "full",
-    speakerPresence: "circle-pip",
-  });
-}
-for (const cue of overlayCues) {
-  if (overlapsCoverage(cue.start, cue.end)) continue;
-  coverageIntervals.push({
-    id: `component-${cue.generatedVisual.segment.id}`,
-    start: cue.start,
-    end: cue.end,
-    primaryVisualType:
-      cue.generatedVisual.component.id === "image-evidence-inset"
-        ? "image"
-        : cue.generatedVisual.component.id === "rough-annotation"
-          ? "annotation"
-          : "component",
-    takeover: "partial",
-    speakerPresence: "full",
-  });
-}
-for (const cue of annotationCues) {
-  if (overlapsCoverage(cue.start, cue.end)) continue;
-  coverageIntervals.push({
-    id: `annotation-${cue.id}`,
-    start: cue.start,
-    end: cue.end,
-    primaryVisualType: "annotation",
-    takeover: "partial",
-    speakerPresence: "full",
-  });
-}
-for (const cue of titleCues) {
-  if (overlapsCoverage(cue.start, cue.end)) continue;
-  coverageIntervals.push({
-    id: cue.id,
-    start: cue.start,
-    end: cue.end,
-    primaryVisualType: "annotation",
-    takeover: "partial",
-    speakerPresence: "full",
-  });
-}
+const coverageIntervals = buildCoverageIntervals(overlayCues);
 directionReport.visualTypeCoverage = summarizeVisualCoverage({ intervals: coverageIntervals, durationSeconds });
 directionReport.summary.componentVisualCoverageRatio = directionReport.summary.visualCoverageRatio;
 directionReport.summary.visualCoverageRatio = Number(
   (1 - directionReport.visualTypeCoverage.ratioByType.speaker).toFixed(4),
 );
+directionReport.summary.coverageFillCount = appliedCoverageFillCues.length;
+directionReport.summary.effectiveSelectedComponentCount = overlayCues.length;
+directionReport.summary.effectiveVisualsPerMinute = Number(((overlayCues.length * 60) / durationSeconds).toFixed(3));
 directionReport.executionDecisions = {
   source: "production-agent",
   decisions: visualDecisions,
   usedReferenceBeatIds: [...usedReferenceBeatIds],
 };
-const minimumVisualCoverageRatio = Number(config.visualDirection?.minimumVisualCoverageRatio ?? 0);
 const maximumAnimationCoverageRatio = Number(config.visualDirection?.maximumAnimationCoverageRatio ?? 0.25);
 if (
   minimumVisualCoverageRatio > 0 &&
@@ -513,6 +586,8 @@ const markdown = [
   `- Chapters: ${directionReport.summary.chapterCount}`,
   `- Visual coverage: ${(directionReport.summary.visualCoverageRatio * 100).toFixed(1)}%`,
   `- Visuals per minute: ${directionReport.summary.visualsPerMinute}`,
+  `- Effective selected components: ${directionReport.summary.effectiveSelectedComponentCount}`,
+  `- Deterministic coverage fillers: ${directionReport.summary.coverageFillCount}`,
   `- Authored recording scenes: ${screenScenes.length}`,
   `- Automatic or manually selected animation sections: ${animationCues.length}`,
   `- Creator text annotations: ${annotationCues.length}`,
@@ -539,6 +614,12 @@ const markdown = [
   "",
   `- Status: ${directionReport.requiredImageEvidence.status}`,
   `- Missing required asset ids: ${directionReport.requiredImageEvidence.missingRequiredAssetIds.join(", ") || "none"}`,
+  "",
+  "## Deterministic coverage fill",
+  "",
+  `- Status: ${directionReport.editorialCoverageFill.status}`,
+  `- Added: ${directionReport.editorialCoverageFill.plannedSeconds.toFixed(1)}s across ${directionReport.editorialCoverageFill.cueIds.length} editorial-statement cues`,
+  `- Remaining deficit: ${directionReport.editorialCoverageFill.remainingSeconds.toFixed(1)}s`,
   "",
   "## Chapters",
   "",

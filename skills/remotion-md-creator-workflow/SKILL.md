@@ -36,6 +36,8 @@ The narration Agent may bind required materials to semantic sections, including 
 
 After lock, the Production Agent owns all five primary visual types: speaker, component, image, screen-demo, and animation. It receives the complete latest narration, confirmed material understanding, every local asset, and the material decisions. Required uploaded assets are hard presence obligations, while placement, duration, crop, grouping, PIP, and animation remain downstream decisions. Studio exposes only a compact read-only direction summary. It must not expose component selectors, timeline editing, annotation tools, or per-beat approval.
 
+Production recovery grants authority by reversibility and validation, not by an open-ended request to fix everything. A retryable external or render interruption may repeat only the verified checkpoint with bounded backoff. A registered project repairer may update only its typed fields and must validate the complete affected timeline before activation. A source defect may be repaired only in an isolated source snapshot, only under `schemas/`, `scripts/`, `src/`, `studio/`, or `tests/`, and activates only after the full validation suite passes against an unchanged live source snapshot. Narration meaning, creator-media deletion or replacement, required-media obligations, direction or final approval, credentials, publishing, and Git remain human-owned. Every repair records evidence; absence of a validator means diagnose-only rather than speculative mutation.
+
 The opening uses the same automatic semantic planning and human confirmation rules as every other spoken block. Never
 inject a fixed portrait, channel identity, slogan, episode tag, transition sentence, or bumper. Creator branding is
 optional project-local input and must not become a repository default.
@@ -54,4 +56,4 @@ Future project modes (`narration-only`, `video-only`, and `full-workflow`) are p
 
 ## Failure policy
 
-If the pinned Agent is unavailable or unauthenticated, stop with remediation. If the final-script hash or authored-media inventory differs from the handoff, stop and rebuild the handoff explicitly. A workflow failure must never silently rewrite approved narration, semantic plans, or accepted visual artifacts.
+If the pinned Agent is unavailable or unauthenticated, preserve the checkpoint and use bounded delayed retries only for a classified transient provider failure. If the final-script hash or authored-media inventory differs from the handoff, stop and rebuild the handoff explicitly. A workflow failure must never silently rewrite approved narration, semantic plans, or accepted visual artifacts. A new creator-authorized production run starts a fresh bounded recovery budget; historical failures must not consume the new run's attempts.

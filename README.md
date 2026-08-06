@@ -36,7 +36,7 @@ The creator starts the production, reviews the script, and reviews the finished 
 4. **Plan** — after the script is locked, the production agent receives the latest script, all material understanding, every uploaded asset, and the confirmed keep/exclude decisions. It presents one read-only production direction for confirmation.
 5. **Produce** — after confirmation, the same logical production agent handles conservative recutting, captions, visual planning, required-media placement, component selection, and hand-drawn animation.
 6. **Self-review** — the agent checks the cut, keyframes, visual QA evidence, and delivery contract, then repairs recoverable problems and continues without exposing internal QA gates.
-7. **Approve and render** — the creator reviews the packaged result and renders the approved delivery, using the source resolution and frame rate by default.
+7. **Choose and render** — after Agent self-review passes, the creator chooses 720p preview, 1080p, 2K, 4K, or source resolution, then explicitly starts and reviews the final render.
 
 Project state, assets, evidence, and approvals remain resumable. Completed stages do not need to be repeated after an interruption.
 
@@ -78,7 +78,7 @@ For Claude Code, replace `codex-cli` with `claude-code` in the doctor command.
 
 ## Visual production library
 
-The Studio includes 20 information components for evidence, key numbers, timelines, processes, causal relationships, comparisons, decisions, quotations, and unstructured plain-language claims. The editorial-statement bridge is limited to 25% of a video and no more than two consecutive uses.
+The Studio includes 20 information components for evidence, key numbers, timelines, processes, causal relationships, comparisons, decisions, quotations, and unstructured plain-language claims. The editorial-statement bridge has no whole-video share cap when the Production Agent finds it semantically suitable, but it is limited to two consecutive uses and never outranks stronger materials or specialized components.
 
 ![SeanLab Studio visual resource library](docs/assets/studio-resource-library.png)
 

@@ -168,6 +168,31 @@ test("an approved review keeps the Agent responsible for delivery render and val
   assert.equal(recovery.resume.stage, "delivery-render");
 });
 
+test("a baseline approval cannot hide an earlier production failure", () => {
+  const workflow = baseWorkflow();
+  workflow.reviewReady = true;
+  workflow.reviewApproved = true;
+  const recovery = buildStudioRecovery({
+    projectId: "baseline-upstream-failure",
+    workflow,
+    jobs: [
+      {
+        id: "semantic-failed",
+        projectId: "baseline-upstream-failure",
+        kind: "video-workflow",
+        action: "continue",
+        status: "failed",
+        currentFailure: workflow.currentFailure,
+      },
+    ],
+    artifacts: [],
+    agent: {},
+  });
+  assert.equal(recovery.status, "recoverable");
+  assert.equal(recovery.resume.action, "continue");
+  assert.equal(recovery.resume.stage, "semantic-plan");
+});
+
 test("recovery blocks product contract defects and duplicate starts", () => {
   const contractFailure = baseWorkflow();
   contractFailure.currentFailure = {

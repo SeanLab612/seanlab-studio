@@ -132,6 +132,7 @@ Treat semantic components and asset foundations as separate layers and apply the
    - Refuse unsupported numbers, incomplete matrices, missing identity evidence, placeholders, incomplete titles, or copy beyond the reviewed component capacity. A skipped visual is safer than invented or clipped content.
    - Freeze every valid component candidate before whole-video direction. The local-only `visual-direction` stage assigns hero/support/accent/none importance, enforces breathing, duration, density, coverage, and repetition budgets, and writes an auditable show/skip decision for every candidate. It may shorten, delay, replace, or skip a candidate but may not invent new semantic evidence or choose an unapproved component.
    - When the manifest supplies authored screen recordings, probe and checksum them before planning, then resolve authored spoken-text anchors against punctuation-preserving captions in `scene-align`. A required resolved recording is a hard constraint: it suppresses overlapping semantic components, stays muted, and uses the edited speaker video as the single audio master plus a muted safe-area PIP. Never let the director guess, replace, or silently skip the requested asset.
+   - If a required recording anchor fails only because the final caption contains a small ASR/TTS expansion of the locked wording, production recovery may ask the pinned Agent to choose among exact current-caption candidates that were prevalidated against the complete scene timeline. It may update only that scene's spoken anchors, must retain the same required asset, re-run ordering/overlap/duration validation, and write project-local repair evidence before resuming. It must not invent wording, select another asset, use speaker fallback, or continue when no unambiguous validated candidate exists.
    - Treat legacy version 4 authored section, beat, animation, and material plans as upstream references. New creator
      projects intentionally hand off an empty visual storyboard because the writing stage no longer owns visual design. Reference
      entries may be replaced, moved, omitted, or supplemented by downstream semantic planning and must never block
@@ -215,7 +216,7 @@ npm run workflow -- --project projects/<project-id>/project.json --until deliver
 
 Delivery must re-verify the approved evidence hashes before rendering. `delivery-validate` then checks codec, source dimensions, audio, expected EDL duration, full-file decode, byte size, and SHA-256. A render is not a successful delivery until this stage passes.
 
-Studio delivery may select 1080p, 2K, 4K, or source resolution and 30fps, 60fps, or source fps. New projects default to
+Studio delivery may select 720p preview, 1080p, 2K, 4K, or source resolution and 30fps, 60fps, or source fps. New projects default to
 1080p60. The current format remains MP4/H.264. Never upscale beyond source resolution or duplicate frames above source
 fps; surface the effective output and historical time/disk estimate before starting.
 

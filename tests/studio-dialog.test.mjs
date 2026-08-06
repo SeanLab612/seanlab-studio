@@ -124,8 +124,10 @@ test("Studio continues through Agent self-review without exposing an intermediat
   const contracts = await readFile(new URL("../studio/contracts.js", import.meta.url), "utf8");
   assert.match(source, /制作 Agent 自主复核/);
   assert.match(source, /action: "production"/);
-  assert.match(source, /targetGate: "delivery-acceptance"/);
-  assert.match(source, /审核最终成片/);
+  assert.match(source, /targetGate: "delivery-specification"/);
+  assert.match(source, /选择渲染规格/);
+  assert.match(source, /index === 4 && Boolean\(state\.staticReview\?\.available\)/);
+  assert.match(source, /720p（快速预览）/);
   assert.doesNotMatch(source, /id="workflow-refresh" aria-label="重新校验已有进度"/);
   assert.match(source, /workflow-workbench-actions/);
   assert.doesNotMatch(source, /workflow-progress-note/);

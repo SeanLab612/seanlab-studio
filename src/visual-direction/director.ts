@@ -20,7 +20,7 @@ export const DEFAULT_VISUAL_DIRECTION_POLICY: VisualDirectionPolicy = Object.fre
   maximumContinuousVisualSeconds: 32,
   repetitionWindowSeconds: 12,
   minimumHeroGapSeconds: 42,
-  maximumVisualCoverageRatio: 0.95,
+  maximumVisualCoverageRatio: 1,
   maximumAnimationCoverageRatio: 0.25,
   maximumChapterSeconds: 120,
   maximumChapterCandidates: 6,

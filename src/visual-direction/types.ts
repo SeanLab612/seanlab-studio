@@ -112,4 +112,11 @@ export type VisualDirectionPlan = {
   }>;
   decisions: VisualDirectionDecision[];
   titleCues?: WholeVideoTitleCue[];
+  coverageFillCues?: Array<{
+    id: string;
+    start: number;
+    end: number;
+    componentId: "editorial-statement";
+    source: "deterministic-caption-gap-fill";
+  }>;
 };

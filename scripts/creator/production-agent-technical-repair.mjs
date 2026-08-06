@@ -4,6 +4,7 @@ import { copyFile, cp, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, sym
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { processTreeSpawnOptions, terminateProcessTree } from "../workflow/process-tree.mjs";
+import { canAttemptIsolatedSourceRepair } from "./production-agent-permissions.mjs";
 
 const allowedRepairRoots = ["schemas/", "scripts/", "src/", "studio/", "tests/"];
 const deniedRepairPaths = new Set(["package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock", ".gitignore"]);
@@ -21,25 +22,6 @@ const repairWorkspaceEntries = [
   "public",
   "regression-fixtures",
 ];
-const humanDecisionCategories = new Set(["approval", "creator-input", "input", "review-revision"]);
-const humanDecisionCodes = new Set([
-  "APPROVAL_REQUIRED",
-  "INPUT_SOURCE_MISSING",
-  "INPUT_SCENE_DURATION_UNSAFE",
-  "BINDING_ANCHOR_NOT_FOUND",
-  "REVISION_REQUEST_INVALID",
-  "REVISION_BASELINE_CONFLICT",
-]);
-const repairableTechnicalCategories = new Set([
-  "captions",
-  "configuration",
-  "internal",
-  "semantic-planning",
-  "studio-defect",
-  "transcription",
-  "visual-contract",
-  "workflow",
-]);
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const normalizedRepoPath = (value) => value.replaceAll("\\", "/").replace(/^\.\/+/, "");
@@ -111,12 +93,7 @@ const applyValidatedRepair = async ({ root, worktree, before, after, changedPath
   return { success: true };
 };
 
-export const isAutonomousTechnicalRepairEligible = (failure = {}) => {
-  if (!failure.code || humanDecisionCodes.has(failure.code)) return false;
-  if (humanDecisionCategories.has(failure.category)) return false;
-  if (failure.stage === "human-approval") return false;
-  return repairableTechnicalCategories.has(failure.category);
-};
+export const isAutonomousTechnicalRepairEligible = (failure = {}) => canAttemptIsolatedSourceRepair(failure);
 
 export const validateAutonomousRepairPaths = (paths) => {
   const normalized = [...new Set(paths.map(normalizedRepoPath))];
@@ -178,6 +155,12 @@ const repairPrompt = ({ projectId, recovery }) =>
     `Project: ${projectId}`,
     JSON.stringify(
       {
+        authority: {
+          level: "isolated-source-repair",
+          projectWrites: false,
+          sourceWrites: "schemas/, scripts/, src/, studio/, and tests/ inside the isolated snapshot only",
+          activation: "only after the full validation suite passes and the live source snapshot remains unchanged",
+        },
         failure: recovery.failure,
         stage: recovery.stage,
         preserved: recovery.preserved,

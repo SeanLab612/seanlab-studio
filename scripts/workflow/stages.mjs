@@ -583,6 +583,7 @@ export const TARGET_STAGE = {
   recut: "recut-review",
   plan: "validate",
   review: "agent-review",
+  approval: "human-approval",
   delivery: "delivery-validate",
 };
 

@@ -68,6 +68,7 @@ test("editorial statement policy caps share and consecutive use without failing 
   const result = applyEditorialStatementPolicy(
     [cue("a", 0, 8), cue("b", 8, 16), cue("c", 16, 24), cue("specialized", 24, 30, "process-steps"), cue("d", 30, 38)],
     80,
+    { maximumCoverageRatio: 0.25 },
   );
   assert.deepEqual(
     result.cues.map((item) => item.generatedVisual.segment.id),
@@ -75,4 +76,19 @@ test("editorial statement policy caps share and consecutive use without failing 
   );
   assert.deepEqual(result.suppressedCueIds, ["c"]);
   assert.equal(result.coverageRatio, 0.25);
+});
+
+test("a real primary visual resets the editorial consecutive-use counter", () => {
+  const cue = (id: string, start: number, end: number) => ({
+    start,
+    end,
+    generatedVisual: { component: { id: "editorial-statement" }, segment: { id } },
+  });
+  const result = applyEditorialStatementPolicy([cue("a", 0, 5), cue("b", 5, 10), cue("c", 15, 20)], 100, {
+    resetIntervals: [{ start: 10, end: 15 }],
+  });
+  assert.deepEqual(
+    result.cues.map((item) => item.generatedVisual.segment.id),
+    ["a", "b", "c"],
+  );
 });

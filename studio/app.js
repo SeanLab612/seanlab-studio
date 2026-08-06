@@ -911,6 +911,7 @@ const renderSteps = (status, viewedStep) => {
       (index === 1 && current >= 1 && state.detail?.narration) ||
       (index === 2 && current >= 2) ||
       (index === 3 && Boolean(state.detail?.project.video.manifest)) ||
+      (index === 4 && Boolean(state.staticReview?.available)) ||
       (index === 5 && Boolean(state.delivery?.approval?.approved));
     const className = `${index < current ? "done" : ""} ${index === viewedStep ? "active" : ""} ${canView ? "clickable" : ""}`;
     const content = `<span class="step-number">${index < current ? "✓" : index + 1}</span><span class="step-copy"><b>${label}</b><small>${description}</small></span>`;
@@ -1806,7 +1807,7 @@ const recutReviewView = (project, workflow) => {
     <div class="panel review-header"><div><div class="eyebrow">INTELLIGENT RECUT 2.0</div><h2>过程预览</h2><p>这里只展示 Agent 已处理的粗剪结果，不是用户审核门。</p></div><span class="status-pill">${workflow.recutApproved ? "已完成" : "处理中"}</span></div>
     <div class="recut-metrics"><div><b>${Number(summary.originalDurationSeconds ?? 0).toFixed(1)}s</b><span>原始口播</span></div><div><b>${Number(summary.proposedDurationSeconds ?? 0).toFixed(1)}s</b><span>建议成片</span></div><div><b>${Number(summary.proposedSavingsSeconds ?? 0).toFixed(1)}s</b><span>预计节省</span></div><div><b>${summary.removalCount ?? 0}</b><span>建议删除</span></div></div>
     <div class="panel recut-player"><video id="recut-preview" controls preload="metadata" src="${escapeHtml(recut.previewUrl)}"></video><details class="technical-details"><summary>查看审核版本标识</summary><code>${escapeHtml(recut.screenSha256)}</code></details></div>
-    ${workflow.recutApproved ? `<div class="panel approval-success"><h3>${staticReviewReady ? "Agent 质检证据已生成" : "粗剪过程已完成"}</h3><p>${staticReviewReady ? "已完成字幕、录屏、视觉组件和显示完整性检查。" : "Agent 会继续完成视觉制作、自检和渲染。"}</p></div>` : `<div class="panel recut-actions-panel"><h3>制作 Agent 正在内部核对</h3><p>安全删减、口播锚点和连续预览由 Agent 自行处理。</p></div>`}
+    ${workflow.recutApproved ? `<div class="panel approval-success"><h3>${staticReviewReady ? "Agent 质检证据已生成" : "粗剪过程已完成"}</h3><p>${staticReviewReady ? "已完成字幕、录屏、视觉组件和显示完整性检查。" : "Agent 会继续完成视觉制作和自检，之后等待你选择渲染规格。"}</p></div>` : `<div class="panel recut-actions-panel"><h3>制作 Agent 正在内部核对</h3><p>安全删减、口播锚点和连续预览由 Agent 自行处理。</p></div>`}
   </section>`;
 };
 const workflowProductionProgress = (workflow) => {
@@ -1832,8 +1833,8 @@ const workflowNextRun = (workflow) => {
   const started = workflow.stages.some((stage) => stage.status !== "pending");
   return {
     action: "production",
-    targetGate: "delivery-acceptance",
-    label: started ? "由 Agent 继续制作" : "开始制作并生成成片",
+    targetGate: "delivery-specification",
+    label: started ? "由 Agent 继续制作" : "开始制作并完成自检",
   };
 };
 const latestWorkflowReadiness = (projectId, targetGate, profile) =>
@@ -1912,18 +1913,18 @@ const workflowReadinessCard = (project, workflow) => {
       : blocked
         ? "制作 Agent 正在检查开始条件。"
       : workflow?.reviewApproved
-      ? "制作、Agent 自检和成片技术验收已完成，请审核最终成片。"
+      ? "制作和 Agent 自检已完成，请选择渲染规格。"
       : awaitingPlanConfirmation
         ? "制作 Agent 已完成整体画面规划，请查看大概方向并确认开始制作。"
       : task?.status === "queued"
         ? "任务已经进入队列，开始后会自动更新进度。"
         : task?.status === "running"
-          ? "正在制作、自检并渲染本期视频，完成后只需你审核最终成片。"
-          : "先做一次快速检查，之后制作 Agent 会连续完成制作、自检与渲染。";
+          ? "正在制作并自检本期视频，完成后由你选择渲染规格。"
+          : "先做一次快速检查，之后制作 Agent 会连续完成制作和自检。";
   const action = failed || autonomousProduction
     ? '<p class="guide-note">无需处理技术错误；详细诊断仅保留在高级详情中。</p>'
     : workflow?.reviewApproved
-      ? '<button type="button" class="primary" id="open-delivery">审核最终成片</button>'
+      ? '<button type="button" class="primary" id="open-delivery">选择渲染规格</button>'
         : next && !readiness
           ? '<button type="button" class="primary" id="workflow-readiness-check">检查并继续</button>'
           : blocked
@@ -1949,8 +1950,8 @@ const productionPlanView = (workflow) => {
     <div class="recut-metrics"><div><b>${summary.chapterCount ?? 0}</b><span>内容章节</span></div><div><b>${summary.selectedVisualCount ?? 0}</b><span>计划视觉段</span></div><div><b>${percentLabel(summary.animationCoverage)}</b><span>动画覆盖</span></div><div><b>${percentLabel(summary.visualCoverageRatio)}</b><span>预计视觉覆盖</span></div></div>
     <div class="production-plan-columns"><div><h3>章节方向</h3><ul class="compact-list">${(plan.chapters ?? []).map((chapter) => `<li><b>${escapeHtml(chapter.label)}</b><span>${chapter.selectedVisualCount} 个视觉段</span></li>`).join("") || "<li>由 Agent 按口播结构连续规划</li>"}</ul></div><div><h3>必须呈现的素材</h3><ul class="compact-list">${(plan.requiredMaterials ?? []).map((material) => `<li><b>${escapeHtml(material.label)}</b><span>${material.kind === "screen-recording" ? "录屏" : "图片"} · ${material.treatment === "trim" ? "允许裁剪" : material.treatment === "merge" ? "允许组合" : "直接呈现"}</span></li>`).join("") || "<li>本期没有指定必须呈现的上传素材</li>"}</ul></div></div>
     <div><h3>视觉时间线</h3><ul class="compact-list production-plan-timeline">${(plan.visualSegments ?? []).map((segment) => `<li><b>${formatReviewTime(segment.start)}–${formatReviewTime(segment.end)} · ${escapeHtml({component:"组件",image:"图片", "screen-demo":"录屏",animation:"手绘动画",annotation:"文字标注"}[segment.type] ?? "视觉")}</b><span>${escapeHtml(componentDisplayLabels[segment.componentId] ?? segment.animationPrototypeId ?? segment.label ?? segment.id)}</span></li>`).join("") || "<li>Agent 未选择额外视觉段</li>"}</ul></div>
-    <p class="guide-note">确认后，Agent 会连续完成制作、内部审核、自动修复和渲染；中间 QA 不再交给你处理。</p>
-    ${plan.confirmed ? '<div class="approval-success"><b>制作方向已确认</b><p>Agent 已自动进入制作、自检和渲染，无需再点击其他按钮。</p></div>' : `<label class="confirmation-row"><input type="checkbox" id="production-plan-confirm-check"/><span>我已查看制作方向，确认由 Agent 自主完成后续制作</span></label><div class="actions"><button type="button" class="primary" id="confirm-production-plan" data-plan-sha="${escapeHtml(plan.sha256)}">确认制作方向</button></div>`}
+    <p class="guide-note">确认后，Agent 会连续完成制作、内部审核和自动修复；中间 QA 不再交给你处理，完成后再由你选择渲染规格。</p>
+    ${plan.confirmed ? '<div class="approval-success"><b>制作方向已确认</b><p>Agent 已自动进入制作和自检；完成后会停在渲染规格选择页。</p></div>' : `<label class="confirmation-row"><input type="checkbox" id="production-plan-confirm-check"/><span>我已查看制作方向，确认由 Agent 自主完成制作和自检</span></label><div class="actions"><button type="button" class="primary" id="confirm-production-plan" data-plan-sha="${escapeHtml(plan.sha256)}">确认制作方向</button></div>`}
   </section>`;
 };
 const workflowTopActions = (project, workflow) => {
@@ -2340,7 +2341,7 @@ const deliveryStartView = (delivery) => {
     ? '<div class="delivery-readiness"><p>开始前先快速确认成片规格和可用空间。</p><button type="button" class="primary" id="delivery-readiness-check">检查并继续</button></div>'
     : `<div class="delivery-readiness ${escapeHtml(readiness.readinessStatus)}">${blocked ? `<p>${escapeHtml(readiness.issues?.[0]?.message ?? "当前规格暂时不能开始渲染。")} 制作 Agent 会检查可恢复范围。</p><div class="actions"><button type="button" class="primary" id="delivery-readiness-check">重新安全检查</button></div>` : `<p class="readiness-clear">当前规格可以安全生成成片。</p><label class="confirmation-row"><input type="checkbox" id="delivery-start-confirm"/><span>确认生成 ${escapeHtml(profileLabel)} 成片</span></label><div class="actions"><button type="button" class="primary" id="start-delivery" data-readiness-sha="${escapeHtml(readiness.readinessSha256)}">开始渲染</button></div>`}</div>`;
   return `<div class="panel delivery-start-panel"><h3>${delivery.status === "failed" ? "从已保存进度继续" : "开始最终成片渲染"}</h3><p>只运行最终渲染和技术验收，不会重新调用 Agent、翻译或语义理解。高于原片的规格会自动回退，避免无意义放大或补帧。</p>
-    <div class="delivery-profile-grid"><label>清晰度<select id="delivery-resolution"><option value="source" ${selected.resolution === "source" ? "selected" : ""}>跟随原片</option><option value="1080p" ${selected.resolution === "1080p" ? "selected" : ""}>1080p</option><option value="2k" ${selected.resolution === "2k" ? "selected" : ""}>2K</option><option value="4k" ${selected.resolution === "4k" ? "selected" : ""}>4K</option></select></label><label>帧率<select id="delivery-frame-rate"><option value="source" ${selected.frameRate === "source" ? "selected" : ""}>跟随原片</option><option value="30" ${selected.frameRate === 30 ? "selected" : ""}>30 fps</option><option value="60" ${selected.frameRate === 60 ? "selected" : ""}>60 fps</option></select></label></div>
+    <div class="delivery-profile-grid"><label>清晰度<select id="delivery-resolution"><option value="720p" ${selected.resolution === "720p" ? "selected" : ""}>720p（快速预览）</option><option value="source" ${selected.resolution === "source" ? "selected" : ""}>跟随原片</option><option value="1080p" ${selected.resolution === "1080p" ? "selected" : ""}>1080p</option><option value="2k" ${selected.resolution === "2k" ? "selected" : ""}>2K</option><option value="4k" ${selected.resolution === "4k" ? "selected" : ""}>4K</option></select></label><label>帧率<select id="delivery-frame-rate"><option value="source" ${selected.frameRate === "source" ? "selected" : ""}>跟随原片</option><option value="30" ${selected.frameRate === 30 ? "selected" : ""}>30 fps</option><option value="60" ${selected.frameRate === 60 ? "selected" : ""}>60 fps</option></select></label></div>
     <div id="delivery-estimate" class="delivery-estimate"></div>
     ${readinessView}</div>`;
 };

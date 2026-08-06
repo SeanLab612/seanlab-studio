@@ -9,15 +9,7 @@ const allowedWorkflowActions = {
   "replan-semantic": ["--replan-semantic", "--until", "review"],
   continue: ["--until", "review"],
   plan: ["--until", "plan", "--production-agent-auto-approve"],
-  production: [
-    "--until",
-    "delivery",
-    "--production-agent-auto-approve",
-    "--delivery-resolution",
-    "source",
-    "--delivery-frame-rate",
-    "source",
-  ],
+  production: ["--until", "approval", "--production-agent-auto-approve"],
   delivery: ["--until", "delivery"],
 };
 
@@ -26,6 +18,11 @@ export const workflowArgsForStudioAction = (action) => {
   if (!args) throw new Error("Studio 仅允许执行已登记的视频工作流动作");
   return [...args];
 };
+
+export const workflowArgsForStudioPlan = ({ semanticReplanRequired = false } = {}) =>
+  semanticReplanRequired
+    ? ["--from", "semantic-plan", "--replan-semantic", "--until", "plan", "--production-agent-auto-approve"]
+    : workflowArgsForStudioAction("plan");
 
 const readinessRecoveryStatuses = new Set(["failed", "interrupted", "stale"]);
 
@@ -37,25 +34,35 @@ export const confirmedProductionResumeStage = (stages = []) => {
   return stages.slice(validateIndex + 1).find((stage) => !completedStatuses.has(stage.status))?.name;
 };
 
-export const workflowArgsForConfirmedProduction = ({ stages = [] }, profile) => {
+export const workflowArgsForConfirmedProduction = ({ stages = [] }) => {
   const resumeStage = confirmedProductionResumeStage(stages);
-  const normalized = normalizeDeliveryProfile(profile);
-  return [
-    ...(resumeStage ? ["--from", resumeStage] : []),
-    "--until",
-    "delivery",
-    "--production-agent-auto-approve",
-    "--delivery-resolution",
-    normalized.resolution,
-    "--delivery-frame-rate",
-    String(normalized.frameRate),
-  ];
+  return [...(resumeStage ? ["--from", resumeStage] : []), "--until", "approval", "--production-agent-auto-approve"];
 };
 
 export const workflowArgsForStudioReadiness = (
-  { reviewApproved, semanticReplanRequired, productionPlan, stages = [] },
+  { reviewApproved, semanticReplanRequired, productionPlan, currentFailure, stages = [] },
   profile,
 ) => {
+  const failedUpstreamStage = stages.find(
+    (stage) =>
+      stage.status === "failed" && !["human-approval", "delivery-render", "delivery-validate"].includes(stage.name),
+  )?.name;
+  const upstreamRecoveryStage =
+    currentFailure?.stage && !["human-approval", "delivery-render", "delivery-validate"].includes(currentFailure.stage)
+      ? currentFailure.stage
+      : failedUpstreamStage;
+  if (upstreamRecoveryStage) {
+    const recoveryStage = semanticReplanRequired ? "semantic-plan" : upstreamRecoveryStage;
+    return [
+      "--from",
+      recoveryStage,
+      ...(semanticReplanRequired ? ["--replan-semantic"] : []),
+      "--until",
+      productionPlan?.confirmed ? "approval" : "plan",
+      "--production-agent-auto-approve",
+      "--dry-run",
+    ];
+  }
   if (reviewApproved) {
     const deliveryRecoveryStage = stages.find(
       (stage) =>
@@ -75,13 +82,13 @@ export const workflowArgsForStudioReadiness = (
     ];
   }
   if (productionPlan?.confirmed) {
-    const productionArgs = workflowArgsForConfirmedProduction({ stages }, profile);
-    const deliveryIndex = productionArgs.indexOf("--delivery-resolution");
-    return [...productionArgs.slice(0, deliveryIndex), "--dry-run", ...productionArgs.slice(deliveryIndex)];
+    return [...workflowArgsForConfirmedProduction({ stages }), "--dry-run"];
   }
   const visualPlanReady = stages.find((stage) => stage.name === "validate")?.status === "succeeded";
   if (!visualPlanReady) {
-    const recoveryStage = stages.find((stage) => readinessRecoveryStatuses.has(stage.status))?.name;
+    const recoveryStage = semanticReplanRequired
+      ? "semantic-plan"
+      : stages.find((stage) => readinessRecoveryStatuses.has(stage.status))?.name;
     return [
       ...(recoveryStage ? ["--from", recoveryStage] : []),
       ...(semanticReplanRequired ? ["--replan-semantic"] : []),
@@ -93,18 +100,13 @@ export const workflowArgsForStudioReadiness = (
   }
   const recoveryStage = stages.find((stage) => readinessRecoveryStatuses.has(stage.status))?.name;
   const scope = recoveryStage ? ["--from", recoveryStage] : [];
-  const normalized = normalizeDeliveryProfile(profile);
   return [
     ...scope,
     ...(semanticReplanRequired ? ["--replan-semantic"] : []),
     "--until",
-    "delivery",
+    "approval",
     "--production-agent-auto-approve",
     "--dry-run",
-    "--delivery-resolution",
-    normalized.resolution,
-    "--delivery-frame-rate",
-    String(normalized.frameRate),
   ];
 };
 

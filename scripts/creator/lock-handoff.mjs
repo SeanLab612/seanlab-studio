@@ -198,6 +198,7 @@ export const createVideoHandoff = async (projectId, { speakerAssetId }) => {
   manifest.policies.typography = project.typography ?? { version: "typography-2.0", mode: "system-only" };
   manifest.policies.animation = { mode: "per-cue", allowedTemplateIds: animationTemplateIds };
   manifest.policies.visualDirection.minimumVisualCoverageRatio = 0.8;
+  manifest.policies.visualDirection.maximumVisualCoverageRatio = 1;
   manifest.policies.visualDirection.maximumAnimationCoverageRatio = 0.25;
   manifest.paths.referenceScript = relative(
     dirname(outputPath),

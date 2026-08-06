@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { projectDir, writeJsonAtomic } from "./project-store.mjs";
+import { productionAgentAuthorityForFailure } from "./production-agent-permissions.mjs";
 import { resumeStageForStudio } from "./studio-contract.mjs";
 
 const terminalJobStatuses = new Set(["failed", "interrupted", "cancelled"]);
@@ -79,6 +80,7 @@ const recoveryCopyForAgent = (recovery) => ({
   resume: recovery.resume,
   latestJob: recovery.latestJob,
   readiness: recovery.readiness,
+  authority: recovery.authority,
 });
 
 export const buildStudioRecovery = ({ projectId, workflow, jobs = [], artifacts = [], agent }) => {
@@ -117,13 +119,15 @@ export const buildStudioRecovery = ({ projectId, workflow, jobs = [], artifacts 
     failure?.stage === "agent-review"
       ? "visual-input-preflight"
       : (failedStage ?? resumeStageForStudio(workflow.stages));
-  const resumeAction = workflow.reviewApproved
-    ? "delivery"
-    : workflow.reviewReady
-      ? undefined
-      : workflow.recutApproved
-        ? "continue"
-        : "recut";
+  const failedInsideDelivery = ["delivery-render", "delivery-validate"].includes(failure?.stage);
+  const resumeAction =
+    failedInsideDelivery || (!failure && workflow.reviewApproved)
+      ? "delivery"
+      : !failure && workflow.reviewReady
+        ? undefined
+        : workflow.recutApproved
+          ? "continue"
+          : "recut";
   const repairRequired = Boolean(failure && (failure.retryable === false || productRepairCodes.has(failure.code)));
   const status = activeJob
     ? "busy"
@@ -189,6 +193,7 @@ export const buildStudioRecovery = ({ projectId, workflow, jobs = [], artifacts 
     summary,
     stage: snapshot.stage,
     failure,
+    authority: productionAgentAuthorityForFailure(failure),
     latestJob: publicLatestJob(activeJob ?? terminalJob),
     preserved: {
       completedStages,
@@ -267,10 +272,11 @@ export const studioRecoveryDiagnosisPrompt = (recovery) => ({
     "Recommend the smallest safe next action.",
     "An exact checkpoint retry may be automated only when evidence proves it is retryable and approved artifacts remain unchanged.",
     "A narrowly scoped technical source defect may be repaired automatically in an isolated worktree only when the repair changes allowlisted source paths and passes the full validation suite.",
+    "Follow the supplied authority snapshot. checkpoint-retry may only re-run a verified checkpoint; validated-project-repair may use only its registered repairer and validator; isolated-source-repair may edit only the isolated source snapshot; human-decision and diagnose-only may not mutate anything.",
     "A BINDING_ANCHOR_NOT_FOUND failure may use repair-binding when the fixed Agent can select a semantically equivalent exact candidate from current captions, or safely fall back to the speaker while preserving review gates.",
     "A visual copy contract that rejects a product term literally grounded in the supplied narration may be a repair-code source defect; distinguish it from invented internal production language.",
     "A confirmed component beat that cannot satisfy its deterministic evidence contract may use repair-visual to remove only that invalid beat and fall back to the speaker; the later visual review remains human-controlled.",
-    "Configuration choices, missing creator media, narration or transcript meaning, broader visual and aesthetic decisions, review decisions, and delivery always require a human.",
+    "Missing creator media, narration or transcript meaning, required-media obligations, broader visual and aesthetic decisions, review decisions, credentials, publishing, and delivery acceptance always require a human.",
     "Return concise Simplified Chinese that matches the JSON Schema.",
   ].join("\n"),
   user: [

@@ -57,7 +57,7 @@ const option = (name) => {
 const manifestArg = option("--project");
 if (!manifestArg)
   throw new Error(
-    "Usage: npm run workflow -- --project <project.json> [--until recut|plan|review|delivery] [--from stage] [--force] [--replan-recut] [--replan-semantic] [--resume-semantic-attempt <id>] [--dry-run] [--approve-recut] [--approve] [--production-agent-auto-approve] [--waive-qa <reason>] [--delivery-resolution 1080p|2k|4k|source --delivery-frame-rate 30|60|source]",
+    "Usage: npm run workflow -- --project <project.json> [--until recut|plan|review|approval|delivery] [--from stage] [--force] [--replan-recut] [--replan-semantic] [--resume-semantic-attempt <id>] [--dry-run] [--approve-recut] [--approve] [--production-agent-auto-approve] [--waive-qa <reason>] [--delivery-resolution 720p|1080p|2k|4k|source --delivery-frame-rate 30|60|source]",
   );
 const dryRun = flag("--dry-run");
 const replanSemantic = flag("--replan-semantic");
