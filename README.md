@@ -116,7 +116,9 @@ Animation uses a single hand-drawn editorial language. The production agent sele
 
 ## Current status
 
-SeanLab Studio is a developer preview, not yet a packaged desktop application. The end-to-end workflow, approval boundaries, recovery path, and rendering pipeline are operational, but installation still requires the command line and the current release is limited to Apple Silicon Macs.
+Version 0.2.0 is the first stable end-to-end workflow release: a project can proceed from source understanding and narration approval through autonomous production, self-review, recovery, rendering, and final creator review. SeanLab Studio remains a developer preview rather than a packaged desktop application; installation still requires the command line and the current release is limited to Apple Silicon Macs.
+
+See [CHANGELOG.md](CHANGELOG.md) for release details.
 
 ## Development
 

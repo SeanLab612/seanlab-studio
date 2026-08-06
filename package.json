@@ -1,6 +1,6 @@
 {
   "name": "seanlab-studio",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Local, review-gated AI workflow for producing talking-head videos with Remotion.",
   "license": "MIT",
