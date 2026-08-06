@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "editorial-statement-candidate",
+  "canvas": { "width": 1920, "height": 1080 },
+  "cases": [
+    {
+      "id": "editorial-statement",
+      "composition": "ReviewEditorialStatement",
+      "frame": 120
+    }
+  ]
+}

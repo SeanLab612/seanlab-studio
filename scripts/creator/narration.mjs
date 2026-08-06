@@ -25,6 +25,39 @@ const categoryGuidance = {
 
 export const NARRATION_EDITORIAL_METHOD_VERSION = "1.0";
 
+const sourceObserverPatterns = [
+  /(?:从|根据)(?:这|该|上传的|提供的)?(?:一|这)?(?:张|段|份)?(?:录屏|截图|图片|材料|资料)(?:中|里)?(?:可以|能够|能|可)?(?:看到|看出|得知|发现)/gu,
+  /(?:这|该|上传的|提供的)?(?:一|这)?(?:张|段|份)?(?:录屏|截图|图片|材料|资料)(?:中|里)?(?:显示|表明|反映|说明|告诉我们)/gu,
+];
+const genericAiScaffoldingPatterns = [
+  /值得注意的是/gu,
+  /不难发现/gu,
+  /综上所述/gu,
+  /从某种意义上(?:来说|说)/gu,
+  /这无疑(?:是|会)/gu,
+];
+
+export const auditNarrationPerspective = (narration) => {
+  const text = narrationClaimText(narration);
+  const signals = [];
+  for (const pattern of sourceObserverPatterns) {
+    for (const match of text.matchAll(pattern))
+      signals.push({ kind: "source-observer", phrase: match[0], index: match.index ?? -1 });
+  }
+  for (const pattern of genericAiScaffoldingPatterns) {
+    for (const match of text.matchAll(pattern))
+      signals.push({ kind: "generic-ai-scaffolding", phrase: match[0], index: match.index ?? -1 });
+  }
+  const observationPhrases = text.match(/(?:我们|你|大家)?(?:可以|能够|能)(?:清楚地|直接)?看到/gu) ?? [];
+  if (observationPhrases.length > 2)
+    signals.push({
+      kind: "repetitive-observation",
+      phrase: observationPhrases.join("、"),
+      count: observationPhrases.length,
+    });
+  return { signals, needsReview: signals.length > 0 };
+};
+
 const editorialMethodPrompt = `编辑方法（版本 ${NARRATION_EDITORIAL_METHOD_VERSION}）：
 - 写正文前先在内部确定一个核心问题或判断：观众为什么现在要听、这篇稿只解决什么、现有资料能证明到哪里。不要输出这份内部提纲。
 - opening 和 overview 一起用具体问题、变化、结果或疑问建立听下去的理由；不要套用频道欢迎语，不要先列功能目录，不要制造来源不支持的悬念。
@@ -55,7 +88,7 @@ export const buildNarrationPrompt = (
   const creatorEditorialDirection = project.brief.editorialBrief
     ? editorialBriefPrompt(project.brief.category, project.brief.editorialBrief)
     : [];
-  const materialPolicy = `\n\n${editorialMethodPrompt}\n\n素材语义契约：\n- materials 中 required=true 的截图和录屏已经由创作者确认，必须在成片中真实呈现；required=false 的素材不得进入 section.materialIds。\n- 写稿时要自然考虑每份必用素材能够证明或展示的内容。每个 required 素材 id 必须且只能写入一个语义最匹配的 section.materialIds；一个 section 可以承接多份相关素材。\n- section.materialIds 只是不可见的语义交接，不是视觉方案。不要决定时间码、布局、组件、动画、裁剪方式或素材出现顺序。\n- visualOpportunities 一律输出空数组，visualIntent 一律使用 semantic-visual，recordingInstruction 一律为 null。正式视觉方案由口播稿锁定后的生产 Agent 根据全文、素材理解和实际音频独立生成。\n- 不要为迁就素材重复观点或编造事实；应当用素材能够支持的真实内容自然组织口播。`;
+  const materialPolicy = `\n\n${editorialMethodPrompt}\n\n素材语义契约：\n- materials 中 required=true 的截图和录屏已经由创作者确认，必须在成片中真实呈现；required=false 的素材不得进入 section.materialIds。\n- 写稿时要自然考虑每份必用素材能够证明或展示的内容。每个 required 素材 id 必须且只能写入一个语义最匹配的 section.materialIds；一个 section 可以承接多份相关素材。\n- section.materialIds 只是不可见的语义交接，不是视觉方案。不要决定时间码、布局、组件、动画、裁剪方式或素材出现顺序。\n- 录屏演示可以直接讲界面、用户动作和操作结果，例如打开页面、选择模板、输入需求、看到生成结果；不要因为素材来自录屏就删掉这条叙事链。\n- 默认不要说“从录屏中可以看到”“这段材料反映”“根据上传截图可知”等 Agent 读取素材的过程。应直接描述产品或操作本身；只有当录屏、截图或材料本身就是本期讨论对象时才保留。\n- visualOpportunities 一律输出空数组，visualIntent 一律使用 semantic-visual，recordingInstruction 一律为 null。正式视觉方案由口播稿锁定后的生产 Agent 根据全文、素材理解和实际音频独立生成。\n- 不要为迁就素材重复观点或编造事实；应当用素材能够支持的真实内容自然组织口播。`;
   const mode = `${materialPolicy}${
     currentNarration
       ? `\n\n这是需要重写的当前稿件：\n${JSON.stringify(currentNarration, null, 2)}\n\n创作者的修改意见：\n${rewriteInstructions}`
@@ -159,6 +192,30 @@ export const buildNarrationEvidenceReviewPrompt = ({ originalPrompt, draft }) =>
   `${originalPrompt}\n\n这是写稿 Agent 的独立第二遍事实审核。请对照上面的冻结资料、创作者方向和已确认素材理解，逐句复核下面草稿中的项目事实。\n` +
   `审核规则：\n- 这是事实审核，不是风格重写；保留已有结构、角度和有证据的表达。\n- 对每个外部事实进行语义对照，允许中英文翻译、同义改写和不改变含义的口语化表达。\n- 无法在资料中直接支持的能力、评价、因果、范围或推荐，由你自行删除或缩小，不要交给用户解决。\n- 不得改动创作者明确提供的第一人称经历和写作方向；不得新增资料外事实。\n- 如果草稿已经有依据，原样返回。严格输出符合原 JSON Schema 的完整对象，不输出审核说明。\n\n` +
   `待审核草稿：\n${JSON.stringify(draft, null, 2)}`;
+
+export const buildNarrationPerspectiveReviewPrompt = ({ originalPrompt, draft, audit }) =>
+  `${originalPrompt}\n\n这是已经通过事实审核的口播稿。只进行一次非阻塞的口播视角整理。\n` +
+  `整理规则：\n- 保留全部事实、数字、限制、结论边界、section id、section title、materialIds、visualIntent、visualOpportunities、recordingInstruction 和 shootingGuide。\n- 允许并保留演示型叙事：直接描述界面、用户动作和可见结果，例如“打开 Open Design”“点击模板”“输入需求”“进入设计”。\n- “我们可以看到 Open Design 的界面”是正常讲解，不要机械删除。只改写 Agent 观察素材的表达，例如“从上传录屏中可以看到”“这段材料反映”“根据截图可知”。\n- 删除不提供信息的报告腔和重复 AI 过渡语，但不要为了变化而改写已经自然的句子。\n- 不得增加、删除或推断任何产品能力，不得生成视觉方案。\n- 严格输出符合原 JSON Schema 的完整对象，不输出解释。\n` +
+  `本地审计信号：${JSON.stringify(audit.signals)}\n\n待整理稿件：\n${JSON.stringify(draft, null, 2)}`;
+
+const perspectiveStructure = (narration) => ({
+  schemaVersion: narration.schemaVersion,
+  title: narration.title,
+  sections: narration.sections.map((section) => ({
+    id: section.id,
+    title: section.title,
+    visualIntent: section.visualIntent,
+    visualOpportunities: section.visualOpportunities,
+    materialIds: section.materialIds,
+    recordingInstruction: section.recordingInstruction,
+  })),
+  shootingGuide: narration.shootingGuide,
+});
+
+export const assertPerspectiveRewritePreservesProductionContract = (before, after) => {
+  if (JSON.stringify(perspectiveStructure(before)) !== JSON.stringify(perspectiveStructure(after)))
+    throw new Error("口播视角整理改动了素材绑定或生产字段");
+};
 
 export const loadSourceContext = async (projectId) => {
   try {
@@ -275,21 +332,86 @@ export const completeNarration = async ({
       phase: "evidence-review",
       message: `正在由 ${project.agent.id} 独立复核每句项目事实，有问题将自动收窄`,
     });
-    const narration = await completeValidatedCandidate({
+    const evidenceNarration = await completeValidatedCandidate({
       prompt: buildNarrationEvidenceReviewPrompt({ originalPrompt, draft: initialNarration }),
       stage: "evidence-review-validation",
       validationPercent: 88,
     });
+    const evidenceReport = report;
+    const perspectiveAudit = auditNarrationPerspective(evidenceNarration);
+    let narration = evidenceNarration;
+    let perspectiveAuditInput = null;
+    let perspectiveProviderReport = null;
+    let perspectiveReviewFallbackReason = null;
+    if (perspectiveAudit.needsReview) {
+      const perspectiveAdapter = adapterFactory({
+        config: { provider: project.agent.id, model: project.agent.model, timeoutSeconds: 90, maxRetries: 0 },
+        schemaPath,
+      });
+      onProgress({
+        percent: 92,
+        phase: "perspective-review",
+        message: `正在由 ${project.agent.id} 整理口播视角；失败时会保留已通过审核的版本`,
+      });
+      try {
+        const candidate = await perspectiveAdapter.completeJson({
+          system: "You make evidence-grounded Chinese narration sound natural without changing production metadata.",
+          user: buildNarrationPerspectiveReviewPrompt({
+            originalPrompt,
+            draft: evidenceNarration,
+            audit: perspectiveAudit,
+          }),
+        });
+        perspectiveProviderReport = perspectiveAdapter.getLastRunMetadata();
+        if (!candidate || typeof candidate !== "object" || Array.isArray(candidate))
+          throw new Error("Agent 返回的口播视角整理结果不是结构化对象");
+        if (!Array.isArray(candidate.sections)) throw new Error("Agent 返回的口播视角整理结果缺少 sections 段落数组");
+        const reviewed = validateNarrationScriptPackage({
+          ...candidate,
+          fullScript: composeNarrationScript(candidate),
+        });
+        assertPerspectiveRewritePreservesProductionContract(evidenceNarration, reviewed);
+        assertNarrationDeterministicGrounding({
+          narration: reviewed,
+          project,
+          sourceContext,
+          materialUnderstanding,
+        });
+        assertNarrationMaterialCoverage(reviewed, project);
+        narration = reviewed;
+        perspectiveAuditInput = { narration: evidenceNarration, report: evidenceReport };
+      } catch (error) {
+        try {
+          perspectiveProviderReport ??= perspectiveAdapter.getLastRunMetadata();
+        } catch {
+          perspectiveProviderReport = null;
+        }
+        perspectiveReviewFallbackReason = String(error?.message ?? error);
+        narration = evidenceNarration;
+        onProgress({
+          percent: 94,
+          phase: "perspective-review-fallback",
+          message: "口播视角整理未采用，已自动保留通过事实审核的稳定版本",
+        });
+      }
+    }
     return {
       narration,
       report: {
-        ...report,
+        ...evidenceReport,
         mode: currentNarration ? "rewrite" : "initial",
         evidenceReviewCount: 1,
-        evidenceReviewChangedDraft: JSON.stringify(narration) !== JSON.stringify(initialNarration),
+        evidenceReviewChangedDraft: JSON.stringify(evidenceNarration) !== JSON.stringify(initialNarration),
+        perspectiveAudit,
+        perspectiveReviewCount: perspectiveAudit.needsReview ? 1 : 0,
+        perspectiveReviewChangedDraft: JSON.stringify(narration) !== JSON.stringify(evidenceNarration),
+        perspectiveReviewFallback: Boolean(perspectiveReviewFallbackReason),
+        perspectiveReviewFallbackReason,
+        perspectiveProviderReport,
         validationRepairCount: repairHistory.length,
       },
       auditInput,
+      perspectiveAuditInput,
       repairHistory,
     };
   }
@@ -316,6 +438,19 @@ const recordNarrationEvidenceAuditInput = async ({ project, projectId, auditInpu
     narration: auditInput.narration,
     report: { ...auditInput.report, evidenceReviewInput: true },
     kind: "evidence-review-input",
+    status: "superseded",
+    instructions,
+  });
+};
+
+const recordNarrationPerspectiveAuditInput = async ({ project, projectId, auditInput, instructions }) => {
+  if (!auditInput) return null;
+  return recordNarrationAttempt({
+    project,
+    projectId,
+    narration: auditInput.narration,
+    report: { ...auditInput.report, perspectiveReviewInput: true },
+    kind: "perspective-review-input",
     status: "superseded",
     instructions,
   });
@@ -488,7 +623,7 @@ export const generateNarration = async (projectId, { fixture, onProgress = () =>
       phase: "inputs-ready",
       message: "已载入人工确认的素材理解卡和冻结资料",
     });
-    const { narration, report, repairHistory, auditInput } = await completeNarration({
+    const { narration, report, repairHistory, auditInput, perspectiveAuditInput } = await completeNarration({
       project,
       sourceContext,
       fixture,
@@ -496,6 +631,11 @@ export const generateNarration = async (projectId, { fixture, onProgress = () =>
       onProgress,
     });
     const evidenceReviewInputAttempt = await recordNarrationEvidenceAuditInput({ project, projectId, auditInput });
+    const perspectiveReviewInputAttempt = await recordNarrationPerspectiveAuditInput({
+      project,
+      projectId,
+      auditInput: perspectiveAuditInput,
+    }).catch(() => null);
     auditInputRecorded = Boolean(auditInput);
     await recordAutomaticNarrationRepairs({ project, projectId, repairHistory });
     recordedRepairCount = repairHistory.length;
@@ -503,7 +643,11 @@ export const generateNarration = async (projectId, { fixture, onProgress = () =>
       project,
       projectId,
       narration,
-      report: { ...report, evidenceReviewInputAttemptId: evidenceReviewInputAttempt?.attemptId ?? null },
+      report: {
+        ...report,
+        evidenceReviewInputAttemptId: evidenceReviewInputAttempt?.attemptId ?? null,
+        perspectiveReviewInputAttemptId: perspectiveReviewInputAttempt?.attemptId ?? null,
+      },
       kind: "initial",
     });
     narrationPersisted = true;
@@ -546,7 +690,7 @@ export const rewriteNarration = async (projectId, { instructions, fixture, onPro
   try {
     const sourceContext = await resolveAndValidateSources(projectId, project, onProgress);
     const materialUnderstanding = await loadMaterialUnderstanding(projectId, project);
-    const { narration, report, repairHistory, auditInput } = await completeNarration({
+    const { narration, report, repairHistory, auditInput, perspectiveAuditInput } = await completeNarration({
       project,
       sourceContext,
       fixture,
@@ -561,6 +705,12 @@ export const rewriteNarration = async (projectId, { instructions, fixture, onPro
       auditInput,
       instructions: normalizedInstructions,
     });
+    const perspectiveReviewInputAttempt = await recordNarrationPerspectiveAuditInput({
+      project,
+      projectId,
+      auditInput: perspectiveAuditInput,
+      instructions: normalizedInstructions,
+    }).catch(() => null);
     auditInputRecorded = Boolean(auditInput);
     await recordAutomaticNarrationRepairs({
       project,
@@ -577,6 +727,7 @@ export const rewriteNarration = async (projectId, { instructions, fixture, onPro
         ...report,
         rewriteInstructions: normalizedInstructions,
         evidenceReviewInputAttemptId: evidenceReviewInputAttempt?.attemptId ?? null,
+        perspectiveReviewInputAttemptId: perspectiveReviewInputAttempt?.attemptId ?? null,
       },
       kind: "rewrite",
       instructions: normalizedInstructions,

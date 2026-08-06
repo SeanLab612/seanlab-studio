@@ -1,4 +1,84 @@
 {
   "schemaVersion": "1.0",
-  "fixtures": []
+  "profileId": "foundation-0.1.13",
+  "fixtures": [
+    {
+      "id": "approved-components-19",
+      "status": "approved",
+      "title": "Public approved component suite",
+      "canvas": { "width": 1920, "height": 1080 },
+      "sources": [
+        {
+          "kind": "generated-composition-suite",
+          "path": "regression-fixtures/expected/component-suite.json",
+          "sha256": "717002dbf176b0956bcc0351e32d4d9fcebc37a5a1fd2fc902f3a5234a4b8551",
+          "gitPolicy": "tracked",
+          "redistributable": true,
+          "rights": "Project-authored deterministic component manifest, released with this repository.",
+          "provenance": "Generated from the public SeanLab Studio component registry."
+        },
+        {
+          "kind": "structured-data",
+          "path": "regression-fixtures/baselines/components-16x9.json",
+          "sha256": "87814faa61c4fce8dbf765c7d2642eac65a316664a59018a499bf80b8ba3ea3e",
+          "gitPolicy": "tracked",
+          "redistributable": true,
+          "rights": "Project-authored visual baseline metadata, released with this repository.",
+          "provenance": "Human-approved hashes for the tracked public component review frames."
+        }
+      ],
+      "coverage": ["numbers-units", "comparison", "process", "quotation", "screenshot"],
+      "expectedManifest": "regression-fixtures/expected/component-suite.json",
+      "approvedBaseline": "regression-fixtures/baselines/components-16x9.json"
+    },
+    {
+      "id": "editorial-statement-candidate",
+      "status": "candidate",
+      "title": "Editorial statement component candidate",
+      "canvas": { "width": 1920, "height": 1080 },
+      "sources": [
+        {
+          "kind": "generated-composition-suite",
+          "path": "regression-fixtures/expected/editorial-statement-candidate.json",
+          "sha256": "3ccc04819fcfba9d04117009ee6c31819405ae4f7b8e9c451f9af7b251a06a03",
+          "gitPolicy": "tracked",
+          "redistributable": true,
+          "rights": "Project-authored deterministic component manifest, released with this repository.",
+          "provenance": "Public review composition for the editorial-statement component; awaiting baseline approval."
+        }
+      ],
+      "coverage": ["all-components"],
+      "expectedManifest": "regression-fixtures/expected/editorial-statement-candidate.json"
+    },
+    {
+      "id": "portable-workflow-edge-cases",
+      "status": "candidate",
+      "title": "Portable workflow edge cases",
+      "canvas": { "width": 1920, "height": 1080 },
+      "sources": [
+        {
+          "kind": "structured-data",
+          "path": "regression-fixtures/expected/portable-workflow-edge-cases.json",
+          "sha256": "748d1ce9a603925c5f533ee93be7d433effa30e38489615b26c0394b72ade032",
+          "gitPolicy": "tracked",
+          "redistributable": true,
+          "rights": "Project-authored synthetic test cases, released with this repository.",
+          "provenance": "Synthetic face-position, lighting, caption-speed, and terminology inputs with no creator data."
+        }
+      ],
+      "coverage": [
+        "speaker-left",
+        "speaker-center",
+        "speaker-right",
+        "lighting-dark",
+        "lighting-bright",
+        "rapid-speech",
+        "long-caption",
+        "terminology-ai",
+        "terminology-finance",
+        "terminology-laboratory"
+      ],
+      "expectedManifest": "regression-fixtures/expected/portable-workflow-edge-cases.json"
+    }
+  ]
 }

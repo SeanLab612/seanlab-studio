@@ -74,6 +74,16 @@ evidence. Qualifier words and cross-language phrasing remain audit signals; they
 Speaker footage added for the shooting handoff is production input, not writing evidence, and must not invalidate an
 already confirmed material-understanding card.
 
+After evidence review, inspect the spoken text for source-observer leakage and repetitive generic AI scaffolding. A
+screen-led walkthrough may directly describe the product interface, the creator or viewer's supported action, and the
+visible result, for example opening a page, choosing a template, entering a requirement, or seeing the generated
+output. Do not rewrite those actions merely because a screen recording supports them. Rewrite only narration that
+talks about how the Agent read the production input, such as "the uploaded recording shows" or "this material
+reflects" when the recording or material itself is not the topic. One optional perspective-editing call may run when
+such signals exist. It must preserve facts, section ids, material ids, and all non-spoken production metadata. Failure,
+invalid structure, or changed bindings must fall back to the already validated evidence-reviewed draft and must never
+become a creator-facing blocker.
+
 ## Review and lock
 
 Present the script and shooting guide for creator editing. Ask the creator to edit the generated draft directly; the

@@ -11,6 +11,11 @@
 - Avoid “首先、其次、最后”, exaggerated claims, fake suspense, and generic AI phrasing.
 - State evidence before judgment. Mark inference and personal opinion clearly.
 - Keep technical nouns accurate; do not simplify away necessary product or biomedical terminology.
+- In a screen-led walkthrough, directly describe the product interface, supported user action, and visible result.
+  Phrases such as opening the page, choosing a template, entering a request, and seeing the result are valid narration.
+- Treat screenshots, recordings, and reference files as silent evidence by default. Do not narrate how the Agent read
+  an uploaded asset (for example, "the recording shows" or "this material reflects") unless that source medium is
+  itself the subject. This rule must not suppress a genuine interface walkthrough.
 - Give the whole narration one audience-facing question or judgment. Do not treat the source inventory as an outline.
 - Let each section perform one main reasoning job. Split sections that mix comparison, process, cause, and conclusion.
 - Use concrete situations to explain capability; mention internal technologies only when the audience needs them.
@@ -37,7 +42,10 @@ sources cannot support. The conclusion must resolve the opening premise without 
 
 ## Authored media
 
-Uploaded screen recordings and screenshots begin as candidates. The draft may recommend or bind a candidate when it directly supports the spoken section, but it must not use every candidate merely because it exists. The creator confirms placement after the draft. The system derives the verbatim spoken anchor at lock; the creator is never asked to know that anchor during upload. Unbound candidates remain optional and stay out of the production manifest.
+Uploaded screen recordings and screenshots begin as intake inputs. Material understanding may recommend keeping,
+excluding, merging, or trimming them, and the creator confirms that disposition before drafting. Every item confirmed as
+required must bind exactly once to the most relevant spoken section; excluded items remain absent. The system derives
+the verbatim spoken anchor at lock, so the creator is never asked to know that anchor during upload.
 
 Before drafting, the pinned project Agent inspects original images and six-frame recording contact sheets, combines
 them with frozen text sources, and produces one understanding card per input. The creator confirms these cards as an
@@ -45,9 +53,15 @@ intake gate. The confirmation binds the source/material inventory and original a
 input invalidates the gate. A recording card must distinguish sampled visible evidence from actions that were not
 observed between frames.
 
-For screen recordings and screenshots, describe what the creator should show and what the narration should explain. Do not assign absolute timecodes and do not choose Remotion components. The downstream workflow aligns the final spoken words to the recorded video.
+For screen recordings and screenshots, write the supported interface, action, and result from the creator or viewer's
+perspective. Keep the asset reference in non-spoken metadata instead of announcing that the Agent saw it in a recording.
+Do not assign absolute timecodes and do not choose Remotion components. The downstream workflow aligns the final spoken
+words to the recorded video.
 
-At draft level, `section.materialIds` remains an optional preferred recording or screenshot hint. The deterministic visual planner may additionally bind materials to exact non-overlapping beats inside that section. A screen-demo beat binds exactly one recording. An image beat may bind one to three directly related screenshots as a single grouped presentation. The same registered material may be reused by several beats, with each placement frozen to its own spoken quote at lock.
+At draft level, `section.materialIds` is the required non-spoken handoff for materials confirmed as required. The
+deterministic visual planner binds them to exact non-overlapping beats inside that section. A screen-demo beat binds
+exactly one recording. An image beat may group one to three directly related screenshots. The narration package binds
+each required material once; downstream layout may create the grouped presentation without changing that ownership.
 
 ## Visual-aware authoring
 

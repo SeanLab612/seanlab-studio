@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "portable-workflow-edge-cases",
+  "cases": [
+    {
+      "id": "speaker-left-dark",
+      "coverage": ["speaker-left", "lighting-dark"],
+      "input": { "faceCenterX": 0.25, "luminance": 0.18 },
+      "expected": { "layoutId": "speaker-left-overlay-right", "lighting": "dark" }
+    },
+    {
+      "id": "speaker-center-bright",
+      "coverage": ["speaker-center", "lighting-bright"],
+      "input": { "faceCenterX": 0.5, "luminance": 0.82 },
+      "expected": { "layoutId": "speaker-center-left", "lighting": "bright" }
+    },
+    {
+      "id": "speaker-right",
+      "coverage": ["speaker-right"],
+      "input": { "faceCenterX": 0.75, "luminance": 0.5 },
+      "expected": { "layoutId": "speaker-right-overlay-left", "lighting": "neutral" }
+    },
+    {
+      "id": "rapid-ai-caption",
+      "coverage": ["rapid-speech", "terminology-ai"],
+      "input": { "text": "Gemini 负责理解上下文并生成结构化结果。", "durationSeconds": 1.8 },
+      "expected": { "mustContain": ["Gemini", "结构化结果"], "maximumLines": 2 }
+    },
+    {
+      "id": "long-finance-caption",
+      "coverage": ["long-caption", "terminology-finance"],
+      "input": {
+        "text": "市值变化不能单独证明一家公司的产品能力，还要结合收入、利润和时间范围判断。",
+        "durationSeconds": 5.2
+      },
+      "expected": { "mustContain": ["市值", "收入", "利润"], "maximumLines": 2 }
+    },
+    {
+      "id": "laboratory-terminology",
+      "coverage": ["terminology-laboratory"],
+      "input": { "text": "SEC-HPLC 检查聚集体比例，流动相和基线状态必须同时记录。", "durationSeconds": 4.6 },
+      "expected": { "mustContain": ["SEC-HPLC", "流动相", "基线"], "maximumLines": 2 }
+    }
+  ]
+}
