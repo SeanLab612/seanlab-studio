@@ -19,13 +19,6 @@ const boundedText = (value: unknown, label: string, maximum: number) => {
   if (String(value).length > maximum) throw new Error(`${label} must be at most ${maximum} characters`);
 };
 
-const validateIdentityItems = (items: Array<Record<string, unknown>>, label: string) => {
-  for (const [index, item] of items.entries()) {
-    nonEmpty(item.entityId, `${label}[${index}].entityId`);
-    nonEmpty(item.entityKind, `${label}[${index}].entityKind`);
-  }
-};
-
 export const validateMaterializedBriefContent = (brief: GeneratedVisualBrief) => {
   nonEmpty(brief.narrative.title, "narrative.title");
   if (brief.narrative.title.length > 18 || brief.narrative.title.includes("…"))
@@ -65,8 +58,17 @@ export const validateMaterializedBriefContent = (brief: GeneratedVisualBrief) =>
       break;
     case "media-comparison": {
       const items = objectArray(props.items, "media items");
-      validateIdentityItems(items, "media items");
       items.forEach((item, index) => {
+        const hasLocalImage =
+          typeof item.imageSrc === "string" && item.imageSrc.trim() && !item.imageSrc.startsWith("http");
+        const hasIdentity =
+          typeof item.entityId === "string" &&
+          item.entityId.trim() &&
+          typeof item.entityKind === "string" &&
+          item.entityKind.trim();
+        const hasIcon = typeof item.iconId === "string" && item.iconId.trim();
+        if (!hasLocalImage && !hasIdentity && !hasIcon)
+          throw new Error(`media items[${index}] must resolve to a local image, registered identity, or icon`);
         boundedText(item.caption, `media items[${index}].caption`, 36);
       });
       break;

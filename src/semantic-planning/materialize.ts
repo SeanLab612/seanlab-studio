@@ -127,6 +127,16 @@ const entityFields = (item: SemanticItem) => {
   return resolved ? { entityId: resolved.entityId, entityKind: resolved.kind } : {};
 };
 
+const mediaComparisonFields = (item: SemanticItem, imageEvidenceInventory: readonly ProbedImageEvidence[]) => {
+  const image = imageEvidenceInventory.find((asset) => asset.id === item.entityId);
+  if (image)
+    return {
+      imageSrc: image.publicSrc,
+      source: image.sourceLabel,
+    };
+  return entityFields(item);
+};
+
 const incompleteTitle = /(?:的情|与|及|和|需要权|连接研究与大|the new)$/i;
 
 const rhetoricEyebrows: Readonly<Record<SemanticNarrativeSegment["rhetoric"], string>> = {
@@ -556,7 +566,7 @@ const propsFor = (
           label: item.label,
           source: item.label,
           caption: compactDesignCopy(item.detail, 36, item.label),
-          ...entityFields(item),
+          ...mediaComparisonFields(item, imageEvidenceInventory),
         })),
         relation: "VS",
         takeaway,

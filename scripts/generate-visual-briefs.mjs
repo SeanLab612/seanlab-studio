@@ -30,6 +30,7 @@ import {
 } from "../src/semantic-planning/index.ts";
 import { visualRhetoricByComponent } from "../src/visual-brief/component-rhetoric.ts";
 import { generateVisualBrief, validateComponentProps } from "../src/visual-brief/generator.ts";
+import { summarizeCandidateOutcomes } from "../src/visual-direction/candidate-outcomes.ts";
 import { authoredVisualEntryIsLocked, resolveExactSpokenQuoteCaptionRange } from "../src/visual-production/timeline.ts";
 import { createMimoJsonAdapter, groupCaptionSegments } from "./workflow/mimo-adapter.mjs";
 
@@ -236,6 +237,9 @@ if (semanticConfig.provider === "fixture") {
     ),
   );
   const narrativePlan = parseSemanticNarrativePlan(rawPlan, semanticCaptions);
+  const assignedMaterialIds = new Set(
+    (narrativePlan.materialAssignments ?? []).map((assignment) => assignment.assetId),
+  );
   visualDecisions = narrativePlan.visualDecisions ?? [];
   informationConstraintOwners = selectInformationConstraintOwners({
     constraints: authoredVisualConstraints,
@@ -297,6 +301,8 @@ if (semanticConfig.provider === "fixture") {
       `segment-${index + 1}`,
     );
     if (evidenceBounds.status === "blocked") {
+      const assignedAssetId = constrainedSourceIntent.imageEvidence?.assetId;
+      const supersededByRequiredMaterial = assignedAssetId && assignedMaterialIds.has(assignedAssetId);
       directionCandidates.push({
         id: `segment-${index + 1}`,
         semanticIndex: index,
@@ -308,10 +314,25 @@ if (semanticConfig.provider === "fixture") {
         confidence: intent.confidence,
         rhetoric: intent.rhetoric,
         reason: intent.reason,
-        materializationStatus: "blocked",
-        materializationReason: evidenceBounds.reason,
+        materializationStatus: supersededByRequiredMaterial ? "skipped" : "blocked",
+        materializationReason: supersededByRequiredMaterial
+          ? `Required image ${assignedAssetId} is already placed by the Production Agent material assignment.`
+          : evidenceBounds.reason,
+        ...(supersededByRequiredMaterial
+          ? {
+              handling: {
+                status: "superseded",
+                code: "required-material-assignment",
+                reason: `The registered image remains mandatory and is rendered by its primary material assignment; the redundant component candidate was omitted.`,
+              },
+            }
+          : {}),
       });
-      console.log(`blocked visual segment-${index + 1}: ${evidenceBounds.reason}`);
+      console.log(
+        supersededByRequiredMaterial
+          ? `superseded visual segment-${index + 1}: required image ${assignedAssetId} uses its material assignment`
+          : `blocked visual segment-${index + 1}: ${evidenceBounds.reason}`,
+      );
       continue;
     }
     const boundedIntent = evidenceBounds.intent;
@@ -769,6 +790,7 @@ if (config.componentCandidatesFile) {
         reviewProps,
         deliveryProps,
         candidates: directionCandidates,
+        candidateOutcomes: summarizeCandidateOutcomes(directionCandidates),
       },
       null,
       2,

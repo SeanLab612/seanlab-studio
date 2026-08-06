@@ -349,6 +349,7 @@ export const loadStaticReview = async (projectId) => {
       titleCues: directionPlan.titleCues ?? [],
       importanceUsage: directionReport.importanceUsage ?? {},
       componentUsage: directionReport.componentUsage ?? {},
+      candidateOutcomes: directionReport.candidateOutcomes ?? null,
     },
     qa: {
       status: qaReport.status,

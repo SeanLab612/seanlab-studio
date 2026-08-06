@@ -74,3 +74,20 @@ test("filler is a no-op when the coverage target is already satisfied", () => {
   assert.equal(result.report.status, "not-needed");
   assert.deepEqual(result.cues, []);
 });
+
+test("filler may close a long speaker-only gap after minimum coverage is already satisfied", () => {
+  const result = planEditorialCoverageFill({
+    captions,
+    coveredIntervals: [
+      { start: 0, end: 80 },
+      { start: 98, end: 100 },
+    ],
+    durationSeconds: 100,
+    minimumCoverageRatio: 0.8,
+    maximumSpeakerOnlyGapSeconds: 15,
+  });
+  assert.equal(result.report.deficitSeconds, 0);
+  assert.equal(result.report.longGapFillSeconds, 3);
+  assert.ok(result.cues.length >= 1);
+  assert.ok(result.report.predictedCoveredSeconds > 82);
+});

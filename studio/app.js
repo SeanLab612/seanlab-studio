@@ -2043,6 +2043,17 @@ const directionSummary = (review) => {
   const summary = review.summary ?? {};
   const componentUsage = Object.entries(review.direction?.componentUsage ?? {});
   const importanceUsage = Object.entries(review.direction?.importanceUsage ?? {});
+  const candidateOutcomes = review.direction?.candidateOutcomes?.counts ?? {};
+  const candidateOutcomeText = [
+    ["可用候选", candidateOutcomes.materialized],
+    ["由必用素材接管", candidateOutcomes.superseded],
+    ["主动略过", candidateOutcomes["intentionally-skipped"]],
+    ["安全略过", candidateOutcomes["safely-skipped"]],
+    ["仍未解决", candidateOutcomes.blocked],
+  ]
+    .filter(([, value]) => Number(value) > 0)
+    .map(([label, value]) => `${label} ${value}`)
+    .join(" · ");
   return `<div class="review-summary-grid">
     <div><b>${summary.chapterCount ?? 0}</b><span>内容章节</span></div>
     <div><b>${summary.selectedCount ?? 0} / ${(summary.selectedCount ?? 0) + (summary.skippedCount ?? 0)}</b><span>采用的候选画面</span></div>
@@ -2055,6 +2066,7 @@ const directionSummary = (review) => {
     <div><strong>画面层级</strong><p>${importanceUsage.length ? importanceUsage.map(([key, value]) => `${key === "hero" ? "重点" : key === "support" ? "辅助" : "点缀"} ${value}`).join(" · ") : "本期没有额外视觉层级"}</p></div>
     <div><strong>组件使用</strong><p>${componentUsage.length ? componentUsage.map(([key, value]) => `${escapeHtml(componentDisplayLabels[key] ?? "视觉组件")} × ${value}`).join(" · ") : "本期没有选择语义组件"}</p></div>
     <div><strong>标题连续性</strong><p>${review.direction?.titleCues?.length ?? 0} 处总结标题，用于保持纯口播段落的画面信息。</p></div>
+    <div><strong>内部候选处理</strong><p>${candidateOutcomeText || "本期候选均按计划处理"}</p></div>
   </div>`;
 };
 const qaSummary = (review) => {

@@ -119,6 +119,61 @@ const fuzzyAnchorRange = ({
   return best;
 };
 
+const globalAnchorRange = ({
+  anchors,
+  captions,
+}: {
+  anchors: readonly string[];
+  captions: readonly ImageEvidenceCaption[];
+}) => {
+  const exact = anchors.flatMap((anchor) => {
+    const ranges: Array<{ startCue: number; endCue: number; score: number; exact: true }> = [];
+    for (let startCue = 0; startCue < captions.length; startCue += 1) {
+      let combined = "";
+      for (let endCue = startCue; endCue < captions.length; endCue += 1) {
+        combined += captions[endCue]?.zh ?? "";
+        if (normalized(combined).includes(anchor)) {
+          ranges.push({ startCue, endCue, score: 1, exact: true });
+          break;
+        }
+        if (normalized(combined).length > anchor.length * 2.2 + 12) break;
+      }
+    }
+    return ranges;
+  });
+  exact.sort(
+    (left, right) => left.endCue - left.startCue - (right.endCue - right.startCue) || left.startCue - right.startCue,
+  );
+  const bestExact = exact[0];
+  if (bestExact) {
+    const distinctExact = exact.find(
+      (candidate) => candidate.endCue < bestExact.startCue || candidate.startCue > bestExact.endCue,
+    );
+    return distinctExact ? undefined : bestExact;
+  }
+
+  const fuzzy: Array<{ startCue: number; endCue: number; score: number; exact: false }> = [];
+  for (let startCue = 0; startCue < captions.length; startCue += 1) {
+    let combined = "";
+    for (let endCue = startCue; endCue < captions.length; endCue += 1) {
+      combined += captions[endCue]?.zh ?? "";
+      const score = Math.max(...anchors.map((anchor) => anchorRecall(anchor, normalized(combined))));
+      fuzzy.push({ startCue, endCue, score, exact: false });
+      if (normalized(combined).length > Math.max(...anchors.map((anchor) => anchor.length)) * 2.2 + 12) break;
+    }
+  }
+  fuzzy.sort(
+    (left, right) => right.score - left.score || left.endCue - left.startCue - (right.endCue - right.startCue),
+  );
+  const best = fuzzy[0];
+  if (!best || best.score < 0.56) return undefined;
+  const distinctRunnerUp = fuzzy.find(
+    (candidate) => candidate.endCue < best.startCue || candidate.startCue > best.endCue,
+  );
+  if (distinctRunnerUp && best.score - distinctRunnerUp.score < 0.08) return undefined;
+  return best;
+};
+
 const expandForReadability = ({
   captions,
   bounds,
@@ -180,18 +235,26 @@ export const boundImageEvidenceIntentToCaptions = (
         startCue: sourceIntent.startCue,
         endCue: sourceIntent.endCue,
       });
-  if (!exactBounds && !fuzzyBounds)
+  const globalBounds =
+    exactBounds || fuzzyBounds
+      ? undefined
+      : globalAnchorRange({
+          anchors: [anchor, normalized(asset.description ?? "")].filter((value) => value.length >= 4),
+          captions,
+        });
+  if (!exactBounds && !fuzzyBounds && !globalBounds)
     return {
       status: "blocked",
       reason: `Registered image evidence anchor could not be resolved: ${asset.anchorText}`,
     };
-  const matchedBounds = exactBounds ?? (fuzzyBounds as { startCue: number; endCue: number });
+  const matchedBounds = exactBounds ?? fuzzyBounds ?? (globalBounds as { startCue: number; endCue: number });
+  const globalMatch = Boolean(globalBounds);
   const bounds = expandForReadability({
     captions,
     bounds: matchedBounds,
     minimumReadableSeconds,
-    minimumStartCue: sourceIntent.startCue,
-    maximumEndCue: sourceIntent.endCue,
+    minimumStartCue: globalMatch ? 0 : sourceIntent.startCue,
+    maximumEndCue: globalMatch ? captions.length - 1 : sourceIntent.endCue,
   });
   const evidenceSegment = segmentFor(segmentId, captions, matchedBounds.startCue, matchedBounds.endCue);
   const displaySegment = segmentFor(segmentId, captions, bounds.startCue, bounds.endCue);
@@ -200,6 +263,11 @@ export const boundImageEvidenceIntentToCaptions = (
   const boundReasons = [
     ...(fuzzyBounds
       ? [`Local image evidence fuzzy anchor match: ${matchedBounds.startCue}-${matchedBounds.endCue}.`]
+      : []),
+    ...(globalBounds
+      ? [
+          `${globalBounds.exact ? "Exact" : "Fuzzy"} image evidence anchor recovered outside the proposed segment: ${matchedBounds.startCue}-${matchedBounds.endCue}.`,
+        ]
       : []),
     ...(bounds.startCue !== matchedBounds.startCue || bounds.endCue !== matchedBounds.endCue
       ? [`Local image evidence readable bounds: ${bounds.startCue}-${bounds.endCue}.`]

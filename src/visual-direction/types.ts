@@ -51,6 +51,11 @@ export type VisualDirectionCandidate = {
   reason: string;
   materializationStatus: "planned" | "skipped" | "blocked";
   materializationReason?: string;
+  handling?: {
+    status: "materialized" | "superseded" | "intentionally-skipped" | "safely-skipped" | "blocked";
+    code: string;
+    reason: string;
+  };
   creatorConstraint?: {
     sectionId: string;
     mode: "information" | "speaker" | "speaker-only" | "material";

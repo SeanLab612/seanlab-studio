@@ -25,10 +25,13 @@ export type EditorialCoverageFillReport = {
   targetSeconds: number;
   existingCoveredSeconds: number;
   deficitSeconds: number;
+  longGapFillSeconds: number;
+  planningTargetSeconds: number;
   editorialBudgetSeconds: number;
   plannedSeconds: number;
   predictedCoveredSeconds: number;
   remainingSeconds: number;
+  remainingPlanningSeconds: number;
   cueIds: string[];
 };
 
@@ -86,6 +89,7 @@ export const planEditorialCoverageFill = ({
   minimumDurationSeconds = 4,
   maximumDurationSeconds = 8,
   maximumConsecutive = 2,
+  maximumSpeakerOnlyGapSeconds = Number.POSITIVE_INFINITY,
   faceCenterX = 0.5,
 }: {
   captions: readonly SemanticCaption[];
@@ -97,12 +101,18 @@ export const planEditorialCoverageFill = ({
   minimumDurationSeconds?: number;
   maximumDurationSeconds?: number;
   maximumConsecutive?: number;
+  maximumSpeakerOnlyGapSeconds?: number;
   faceCenterX?: number;
 }): { cues: EditorialCoverageFillCue[]; report: EditorialCoverageFillReport } => {
   const covered = mergeIntervals(coveredIntervals, durationSeconds);
   const existingCoveredSeconds = covered.reduce((total, interval) => total + interval.end - interval.start, 0);
   const targetSeconds = Math.max(0, durationSeconds * minimumCoverageRatio);
   const deficitSeconds = Math.max(0, targetSeconds - existingCoveredSeconds);
+  const gaps = uncoveredIntervals(covered, durationSeconds);
+  const longGapFillSeconds = Number.isFinite(maximumSpeakerOnlyGapSeconds)
+    ? gaps.reduce((total, gap) => total + Math.max(0, gap.end - gap.start - maximumSpeakerOnlyGapSeconds), 0)
+    : 0;
+  const planningTargetSeconds = Math.max(deficitSeconds, longGapFillSeconds);
   const existingEditorialSeconds = mergeIntervals(existingEditorialCues, durationSeconds).reduce(
     (total, interval) => total + interval.end - interval.start,
     0,
@@ -113,8 +123,8 @@ export const planEditorialCoverageFill = ({
   );
   const potentialCues: EditorialCoverageFillCue[] = [];
 
-  if (deficitSeconds > 0.001 && editorialBudgetSeconds >= minimumDurationSeconds) {
-    for (const gap of uncoveredIntervals(covered, durationSeconds)) {
+  if (planningTargetSeconds > 0.001 && editorialBudgetSeconds >= minimumDurationSeconds) {
+    for (const gap of gaps) {
       let consecutive = 0;
       const eligible = captions
         .map((caption, index) => ({ ...caption, index }))
@@ -237,13 +247,13 @@ export const planEditorialCoverageFill = ({
     if (
       consecutive >= maximumConsecutive ||
       plannedSeconds + minimumDurationSeconds > editorialBudgetSeconds ||
-      plannedSeconds + 0.001 >= deficitSeconds
+      plannedSeconds + 0.001 >= planningTargetSeconds
     )
       continue;
     const acceptedDuration = Math.min(
       event.cue.end - event.cue.start,
       editorialBudgetSeconds - plannedSeconds,
-      Math.max(minimumDurationSeconds, deficitSeconds - plannedSeconds),
+      Math.max(minimumDurationSeconds, planningTargetSeconds - plannedSeconds),
     );
     if (acceptedDuration < minimumDurationSeconds - 0.001) continue;
     const accepted = {
@@ -264,17 +274,26 @@ export const planEditorialCoverageFill = ({
 
   const predictedCoveredSeconds = Math.min(durationSeconds, existingCoveredSeconds + plannedSeconds);
   const remainingSeconds = Math.max(0, targetSeconds - predictedCoveredSeconds);
+  const remainingPlanningSeconds = Math.max(0, planningTargetSeconds - plannedSeconds);
   return {
     cues,
     report: {
-      status: deficitSeconds <= 0.001 ? "not-needed" : remainingSeconds <= 0.001 ? "filled" : "partially-filled",
+      status:
+        planningTargetSeconds <= 0.001
+          ? "not-needed"
+          : remainingSeconds <= 0.001 && remainingPlanningSeconds <= 0.001
+            ? "filled"
+            : "partially-filled",
       targetSeconds: rounded(targetSeconds),
       existingCoveredSeconds: rounded(existingCoveredSeconds),
       deficitSeconds: rounded(deficitSeconds),
+      longGapFillSeconds: rounded(longGapFillSeconds),
+      planningTargetSeconds: rounded(planningTargetSeconds),
       editorialBudgetSeconds: rounded(editorialBudgetSeconds),
       plannedSeconds: rounded(plannedSeconds),
       predictedCoveredSeconds: rounded(predictedCoveredSeconds),
       remainingSeconds: rounded(remainingSeconds),
+      remainingPlanningSeconds: rounded(remainingPlanningSeconds),
       cueIds: cues.map((cue) => cue.generatedVisual.segment.id),
     },
   };

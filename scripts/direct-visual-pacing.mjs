@@ -374,6 +374,7 @@ const editorialCoverageFill = planEditorialCoverageFill({
   minimumCoverageRatio: minimumVisualCoverageRatio,
   maximumEditorialCoverageRatio: 1,
   maximumConsecutive: 2,
+  maximumSpeakerOnlyGapSeconds: 15,
   faceCenterX: Number(layoutManifest.faceCenterX ?? 0.5),
 });
 const combinedOverlayCues = [...initialAnnotationDedupe.overlayCues, ...editorialCoverageFill.cues].sort(
@@ -395,10 +396,11 @@ const appliedCoverageFillSeconds = appliedCoverageFillCues.reduce(
 const appliedCoverageFillReport = {
   ...editorialCoverageFill.report,
   status:
-    editorialCoverageFill.report.deficitSeconds <= 0.001
+    editorialCoverageFill.report.planningTargetSeconds <= 0.001
       ? "not-needed"
       : editorialCoverageFill.report.existingCoveredSeconds + appliedCoverageFillSeconds + 0.001 >=
-          editorialCoverageFill.report.targetSeconds
+            editorialCoverageFill.report.targetSeconds &&
+          appliedCoverageFillSeconds + 0.001 >= editorialCoverageFill.report.planningTargetSeconds
         ? "filled"
         : "partially-filled",
   plannedSeconds: Number(appliedCoverageFillSeconds.toFixed(3)),
@@ -414,6 +416,9 @@ const appliedCoverageFillReport = {
         editorialCoverageFill.report.existingCoveredSeconds -
         appliedCoverageFillSeconds,
     ).toFixed(3),
+  ),
+  remainingPlanningSeconds: Number(
+    Math.max(0, editorialCoverageFill.report.planningTargetSeconds - appliedCoverageFillSeconds).toFixed(3),
   ),
   cueIds: appliedCoverageFillCues.map((cue) => cue.generatedVisual.segment.id),
 };
@@ -457,6 +462,7 @@ directionReport.executionDecisions = {
   decisions: visualDecisions,
   usedReferenceBeatIds: [...usedReferenceBeatIds],
 };
+directionReport.candidateOutcomes = bundle.candidateOutcomes ?? null;
 const maximumAnimationCoverageRatio = Number(config.visualDirection?.maximumAnimationCoverageRatio ?? 0.25);
 if (
   minimumVisualCoverageRatio > 0 &&
@@ -620,6 +626,7 @@ const markdown = [
   `- Status: ${directionReport.editorialCoverageFill.status}`,
   `- Added: ${directionReport.editorialCoverageFill.plannedSeconds.toFixed(1)}s across ${directionReport.editorialCoverageFill.cueIds.length} editorial-statement cues`,
   `- Remaining deficit: ${directionReport.editorialCoverageFill.remainingSeconds.toFixed(1)}s`,
+  `- Remaining long-gap fill: ${directionReport.editorialCoverageFill.remainingPlanningSeconds.toFixed(1)}s`,
   "",
   "## Chapters",
   "",

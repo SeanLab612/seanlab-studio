@@ -347,6 +347,8 @@ test("Studio keeps the evidence-bound static review gallery as Agent audit evide
   assert.match(app, /review-zoom-in/);
   assert.match(app, /AGENT SELF REVIEW/);
   assert.match(app, /这里仅供查看审计证据/);
+  assert.match(app, /内部候选处理/);
+  assert.match(app, /由必用素材接管/);
   assert.doesNotMatch(app, /<button[^>]+id="approve-static-review"/);
   assert.doesNotMatch(app, /<button[^>]+id="reject-static-review"/);
   assert.match(app, /录屏与图片转场/);

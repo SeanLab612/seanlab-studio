@@ -838,6 +838,49 @@ test("local image evidence binding clamps timing and viewer copy to the anchored
   }
 });
 
+test("media comparison binds registered screenshots before identity fallback", () => {
+  const result = materializeSemanticIntent(
+    segment,
+    intent({
+      rhetoric: "media-comparison",
+      items: [
+        { ...emptyItem, label: "项目入口", detail: "填写项目目标", entityId: "asset-entry", entityKind: "design" },
+        { ...emptyItem, label: "成果页面", detail: "查看生成结果", entityId: "asset-result", entityKind: "design" },
+      ],
+    }),
+    undefined,
+    [
+      {
+        id: "asset-entry",
+        publicSrc: "projects/demo/entry.png",
+        description: "项目入口",
+        sourceLabel: "Open Design",
+        orientation: "landscape",
+        fit: "contain",
+        focalPoint: { x: 0.5, y: 0.5 },
+      },
+      {
+        id: "asset-result",
+        publicSrc: "projects/demo/result.png",
+        description: "成果页面",
+        sourceLabel: "Open Design",
+        orientation: "landscape",
+        fit: "contain",
+        focalPoint: { x: 0.5, y: 0.5 },
+      },
+    ],
+    { captions: [{ start: 0, end: 12, zh: segment.text }], originSeconds: 0, preserveExplicitRhetoric: true },
+  );
+  assert.equal(result.status, "planned");
+  if (result.status === "planned") {
+    assert.equal(result.brief.component.id, "media-comparison");
+    assert.deepEqual(
+      (result.brief.props.items as Array<{ imageSrc?: string }>).map((item) => item.imageSrc),
+      ["projects/demo/entry.png", "projects/demo/result.png"],
+    );
+  }
+});
+
 test("image evidence binding accepts a conservative paraphrase and expands display time without expanding claims", () => {
   const bounded = boundImageEvidenceIntentToCaptions(
     intent({
@@ -901,6 +944,47 @@ test("image evidence binding fails closed when its registered anchor cannot be r
   );
   assert.equal(bounded.status, "blocked");
   if (bounded.status === "blocked") assert.match(bounded.reason, /anchor/i);
+});
+
+test("image evidence binding recovers one unambiguous anchor outside the proposed segment", () => {
+  const bounded = boundImageEvidenceIntentToCaptions(
+    intent({
+      startCue: 0,
+      endCue: 0,
+      rhetoric: "image-evidence",
+      imageEvidence: { assetId: "quickbrief", purpose: "show", caption: "Quickbrief" },
+    }),
+    [
+      { start: 0, end: 3, zh: "先介绍项目入口。" },
+      { start: 3, end: 6, zh: "正式制作前，Agent 会通过 Quickbrief 补充关键信息。" },
+      { start: 6, end: 9, zh: "确认后继续生成。" },
+    ],
+    [{ id: "quickbrief", anchorText: "通过 Quickbrief 补充关键信息" }],
+  );
+  assert.equal(bounded.status, "bounded");
+  if (bounded.status === "bounded") {
+    assert.equal(bounded.intent.startCue, 1);
+    assert.equal(bounded.intent.endCue, 1);
+    assert.match(bounded.intent.reason, /recovered outside the proposed segment/);
+  }
+});
+
+test("image evidence binding rejects an ambiguous global anchor", () => {
+  const bounded = boundImageEvidenceIntentToCaptions(
+    intent({
+      startCue: 1,
+      endCue: 1,
+      rhetoric: "image-evidence",
+      imageEvidence: { assetId: "repeat", purpose: "show", caption: "项目首页" },
+    }),
+    [
+      { start: 0, end: 3, zh: "这里展示项目首页。" },
+      { start: 3, end: 6, zh: "中间解释工作流。" },
+      { start: 6, end: 9, zh: "最后再次展示项目首页。" },
+    ],
+    [{ id: "repeat", anchorText: "展示项目首页" }],
+  );
+  assert.equal(bounded.status, "blocked");
 });
 
 test("required image evidence coverage blocks review when a registered screenshot is not selected", () => {
