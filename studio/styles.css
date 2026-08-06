@@ -87,7 +87,7 @@ h1 { font-size:21px; margin:4px 0 0; letter-spacing:-.5px; }
 .empty-state p { color:var(--muted); max-width:420px; line-height:1.7; margin-bottom:22px; }
 .inspector { display:flex; flex-direction:column; }
 .inspector-head { min-height:58px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; border-bottom:1px solid var(--line); font-weight:700; font-size:14px; }
-.status-pill { font-size:11px; color:var(--mint-deep); background:#e9f8f0; padding:6px 9px; border-radius:999px; }
+.status-pill { flex:none; white-space:nowrap; font-size:11px; color:var(--mint-deep); background:#e9f8f0; padding:6px 9px; border-radius:999px; }
 .inspector-body { overflow:auto; padding:18px; }
 .muted,.hint { color:var(--muted); line-height:1.6; }
 .panel { border:1px solid var(--line); border-radius:14px; background:#fff; padding:18px; margin-bottom:14px; }

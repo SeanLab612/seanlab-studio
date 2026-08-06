@@ -1876,7 +1876,8 @@ const workflowReadinessCard = (project, workflow) => {
   const task = latestJob(project.project.id, "video-workflow");
   const workflowProgress = workflowProductionProgress(workflow);
   const taskPercent = Math.max(0, Math.min(100, Number(task?.progress?.percent ?? 0)));
-  const percent = ["queued", "running"].includes(task?.status)
+  const taskInProgress = ["queued", "running"].includes(task?.status);
+  const percent = taskInProgress
     ? Math.max(workflowProgress.percent, taskPercent)
     : workflowProgress.percent;
   const failed = workflow?.currentFailure || ["failed", "interrupted", "cancelled"].includes(task?.status);
@@ -1893,6 +1894,8 @@ const workflowReadinessCard = (project, workflow) => {
   const hasWarning = Boolean(blocked && !internallyRecovering && !requiresUserAttention);
   const status = internallyRecovering
     ? "制作中"
+    : taskInProgress
+      ? "制作中"
     : failed
       ? "未生成结果"
     : blocked && !autonomousProduction
@@ -1906,6 +1909,10 @@ const workflowReadinessCard = (project, workflow) => {
         : "准备中";
   const message = internallyRecovering
     ? "制作 Agent 正在内部重新检查并从有效断点继续。"
+    : taskInProgress
+      ? task?.action === "delivery"
+        ? "正在生成本期成片，完成后只需审核最终结果。"
+        : "正在制作并自检本期视频，完成后由你选择渲染规格。"
     : failed
       ? "本次暂未生成可审核版本，所有有效进度已保留。"
     : blocked && autonomousProduction
@@ -1921,7 +1928,9 @@ const workflowReadinessCard = (project, workflow) => {
         : task?.status === "running"
           ? "正在制作并自检本期视频，完成后由你选择渲染规格。"
           : "先做一次快速检查，之后制作 Agent 会连续完成制作和自检。";
-  const action = failed || autonomousProduction
+  const action = taskInProgress
+    ? '<p class="guide-note">任务已经开始，当前只显示进度，无需再次确认。</p>'
+    : failed || autonomousProduction
     ? '<p class="guide-note">无需处理技术错误；详细诊断仅保留在高级详情中。</p>'
     : workflow?.reviewApproved
       ? '<button type="button" class="primary" id="open-delivery">选择渲染规格</button>'

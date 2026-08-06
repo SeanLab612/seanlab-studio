@@ -615,6 +615,7 @@ test("Studio curates uploaded visuals before narration and treats confirmed asse
 
 test("Studio exposes narration-only editing and a hash-bound read-only production direction", async () => {
   const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../studio/styles.css", import.meta.url), "utf8");
   const server = await readFile(new URL("../scripts/studio-server.mjs", import.meta.url), "utf8");
   const narrationSchema = JSON.parse(
     await readFile(new URL("../schemas/narration-script-package.schema.json", import.meta.url), "utf8"),
@@ -626,6 +627,9 @@ test("Studio exposes narration-only editing and a hash-bound read-only productio
   assert.match(app, /id="confirm-production-plan"/);
   assert.match(server, /workflow\/production-plan\/confirm/);
   assert.match(app, /human-confirm-production-direction/);
+  assert.match(app, /const taskInProgress = \["queued", "running"\]\.includes\(task\?\.status\)/);
+  assert.match(app, /任务已经开始，当前只显示进度，无需再次确认/);
+  assert.match(styles, /\.status-pill \{[^}]*white-space:nowrap/);
   assert.doesNotMatch(server, /request\.method === "PUT" && action === "visual-storyboard"/);
   assert.equal(narrationSchema.properties.sections.items.properties.visualReview, undefined);
 });
