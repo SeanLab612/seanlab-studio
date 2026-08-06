@@ -518,10 +518,15 @@ test("Studio replans animation image ingredients as a reviewable Agent draft", a
 
 test("Studio component catalog count follows the current 20-item allowlist", async () => {
   const app = await readFile(new URL("../studio/app.js", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../studio/styles.css", import.meta.url), "utf8");
   const contracts = await import(`../studio/contracts.js?catalog=${Date.now()}`);
   assert.equal(contracts.visualComponentCatalog.length, 20);
   assert.match(app, /\$\{visualComponentCatalog\.length\} 个组件/);
   assert.doesNotMatch(app, /查看全部 21 个组件|21 个组件预览/);
+  assert.match(styles, /\.schematic-editorial\s*\{[^}]*background:rgba\(255,255,255,\.88\)/);
+  assert.match(styles, /\.schematic-editorial > small,\.schematic-editorial > span,\.schematic-editorial > b\s*\{[^}]*width:100%/);
+  assert.match(styles, /\.schematic-editorial > b \.schematic-line\s*\{[^}]*background:#81d8d0/);
+  assert.doesNotMatch(styles, /\.schematic-editorial\s*\{[^}]*background:#111715/);
 });
 
 test("Studio exposes evidence inspectors, typed revision preview, and operations recovery", async () => {

@@ -860,12 +860,13 @@ textarea { min-height:130px; resize:vertical; line-height:1.7; }
 .schematic-annotation { position:relative; width:72%; padding:13px; background:#fff; }
 .schematic-annotation > b { position:absolute; left:6%; right:8%; bottom:9px; height:7px; border-radius:50%; border-bottom:3px solid #42a47a; transform:rotate(-2deg); }
 .schematic-annotation > i { position:absolute; top:5px; right:2px; width:24px; height:18px; border:2px solid #42a47a; border-left-color:transparent; border-radius:50%; transform:rotate(-11deg); }
-.schematic-editorial { display:grid; align-content:center; justify-items:start; gap:6px; width:78%; height:72%; padding:10px 12px; border-radius:7px; background:#111715; }
-.schematic-editorial .schematic-line { background:#7d8b85; }
+.schematic-editorial { display:grid; align-content:center; justify-items:start; gap:6px; width:78%; height:72%; padding:10px 12px; border:1px solid #c9ded3; border-radius:7px; background:rgba(255,255,255,.88); box-shadow:0 3px 8px rgba(34,94,68,.06); }
+.schematic-editorial .schematic-line { background:#cbd8d1; }
+.schematic-editorial > small,.schematic-editorial > span,.schematic-editorial > b { display:block; width:100%; }
 .schematic-editorial > small { opacity:.72; }
 .schematic-editorial > span { opacity:.5; text-decoration:line-through; text-decoration-color:#d96868; text-decoration-thickness:2px; }
-.schematic-editorial > b { padding:3px 5px; border-radius:3px; background:#59d98e; }
-.schematic-editorial > b .schematic-line { background:#173125; }
+.schematic-editorial > b { width:100%; padding:0; background:transparent; }
+.schematic-editorial > b .schematic-line { height:6px; background:#81d8d0; box-shadow:0 0 0 2px rgba(129,216,208,.14); }
 .schematic-editorial > i { opacity:.7; }
 .source-evidence li.pending { background:#f4f7f5; color:#65736c; }
 @media (max-width: 860px) {
