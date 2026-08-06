@@ -239,7 +239,7 @@ export const approvedComponentRegistry = {
       "more than one claim or long prose",
     ],
     requiredFields: ["emphasis"],
-    optionalModules: ["leadIn", "denied", "prefix", "support", "accent"],
+    optionalModules: ["leadIn", "denied", "prefix", "support"],
     bestDurationSeconds: [4, 8],
     safeArea: "left-column",
   },

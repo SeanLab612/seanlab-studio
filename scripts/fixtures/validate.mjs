@@ -18,7 +18,7 @@ for (const fixture of registry.fixtures) {
   const expected = JSON.parse(await readFile(resolve(fixture.expectedManifest), "utf8"));
   if (expected.fixtureId !== fixture.id)
     throw new Error(`${fixture.id} expected manifest points to ${expected.fixtureId}.`);
-  if (fixture.id === "approved-components-19" || fixture.id === "editorial-statement-candidate") {
+  if (fixture.id === "approved-components-19" || fixture.id === "editorial-statement-20") {
     const ids = expected.cases.map((item) => item.id);
     if (new Set(ids).size !== ids.length) throw new Error(`${fixture.id} contains duplicate component cases.`);
     for (const id of ids) {

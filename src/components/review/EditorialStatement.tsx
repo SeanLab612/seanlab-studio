@@ -1,6 +1,6 @@
 import type React from "react";
 import { interpolate } from "remotion";
-import { resolveComponentAccent } from "../../design-tokens";
+import { colorTokens } from "../../design-tokens";
 import { useTypographyDecision } from "../../typography-policy";
 import { enter, palette, rise } from "./shared";
 
@@ -12,7 +12,6 @@ export type EditorialStatementProps = {
   denied?: string;
   prefix?: string;
   support?: string;
-  accent?: string;
   reducedMotion?: boolean;
   compact?: boolean;
   zone?: { left: number; top: number; width: number; minHeight: number };
@@ -29,12 +28,10 @@ export const EditorialStatement: React.FC<EditorialStatementProps> = ({
   denied,
   prefix = denied ? "而是" : undefined,
   support,
-  accent,
   reducedMotion = false,
   compact = false,
   zone = { left: 74, top: 224, width: 780, minHeight: 500 },
 }) => {
-  const approvedAccent = resolveComponentAccent(accent, palette.mint);
   const leadProgress = staged(frame, fps, 5, reducedMotion);
   const deniedProgress = staged(frame, fps, 14, reducedMotion);
   const statementProgress = staged(frame, fps, denied ? 28 : 16, reducedMotion);
@@ -42,12 +39,6 @@ export const EditorialStatement: React.FC<EditorialStatementProps> = ({
   const strikeProgress = reducedMotion
     ? 1
     : interpolate(frame, [18, 18 + Math.round(fps * 0.52)], [0, 1], {
-        extrapolateLeft: "clamp",
-        extrapolateRight: "clamp",
-      });
-  const highlightProgress = reducedMotion
-    ? 1
-    : interpolate(frame, [denied ? 32 : 20, (denied ? 32 : 20) + Math.round(fps * 0.42)], [0, 1], {
         extrapolateLeft: "clamp",
         extrapolateRight: "clamp",
       });
@@ -134,24 +125,12 @@ export const EditorialStatement: React.FC<EditorialStatementProps> = ({
           style={{
             position: "relative",
             display: "inline-block",
-            padding: compact ? "5px 12px 7px" : "7px 16px 10px",
-            color: palette.ink,
+            padding: 0,
+            color: colorTokens.tiffany,
             fontFamily: emphasisTypography.family,
             fontWeight: emphasisTypography.fontWeight,
-            isolation: "isolate",
           }}
         >
-          <span
-            style={{
-              position: "absolute",
-              inset: 0,
-              zIndex: -1,
-              background: approvedAccent,
-              borderRadius: 5,
-              transform: `scaleX(${highlightProgress})`,
-              transformOrigin: "left center",
-            }}
-          />
           {emphasis}
         </span>
       </div>

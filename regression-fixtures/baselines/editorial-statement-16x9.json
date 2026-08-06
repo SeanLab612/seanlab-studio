@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "editorial-statement-20",
+  "canvas": {
+    "width": 1920,
+    "height": 1080
+  },
+  "hammingThreshold": 10,
+  "approvedBy": "project-reviewer",
+  "approvedAt": "2026-08-06T07:48:22.433360+00:00",
+  "sourceReportSha256": "58f56bb99a9d2c5aa1dcf962a8660a2eafd6d923933c1947ac53800d520b9c0f",
+  "entries": [
+    {
+      "id": "editorial-statement",
+      "composition": "ReviewEditorialStatement",
+      "frame": 120,
+      "dhash": "80808080c0000068",
+      "sourceSha256": "847375a9e759704aac80063eba74c814d517166d915c5d680f201b6a42193902",
+      "reviewProxy": "regression-fixtures/golden/16x9/editorial-statement/editorial-statement.jpg"
+    }
+  ]
+}
