@@ -90,6 +90,12 @@ The Studio includes 20 information components for evidence, key numbers, timelin
 
 ![Production component renders, group 5](docs/assets/components-group-05.jpg)
 
+### Component 20: editorial statement
+
+The twentieth component covers plain-language claims that do not have a stronger semantic structure. It keeps the sentence readable and changes only the emphasized words to Tiffany blue.
+
+![Component 20: Tiffany-blue editorial statement](regression-fixtures/golden/16x9/editorial-statement/editorial-statement.jpg)
+
 ![SeanLab Studio visual resource library](docs/assets/studio-resource-library.png)
 
 It also includes 10 chart patterns for comparisons, time series, proportions, waterfalls, scatter plots, ranges, funnels, before-and-after views, and risk/reward framing.
