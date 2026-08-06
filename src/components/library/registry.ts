@@ -240,7 +240,7 @@ export const approvedComponentRegistry = {
     ],
     requiredFields: ["emphasis"],
     optionalModules: ["leadIn", "denied", "prefix", "support"],
-    bestDurationSeconds: [4, 8],
+    bestDurationSeconds: [2, 8],
     safeArea: "left-column",
   },
 } as const satisfies Record<ApprovedComponentId, ApprovedComponentDefinition>;

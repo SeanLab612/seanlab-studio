@@ -35,8 +35,8 @@ export const validateMaterializedBriefContent = (brief: GeneratedVisualBrief) =>
       const branches = objectArray(props.branches, "branches");
       if (branches.length !== 2) throw new Error("scenario branches must contain exactly two outcomes");
       for (const [index, item] of branches.entries()) {
-        boundedText(item.label, `branches[${index}].label`, 18);
-        boundedText(item.detail, `branches[${index}].detail`, 36);
+        boundedText(item.label, `branches[${index}].label`, 24);
+        boundedText(item.detail, `branches[${index}].detail`, 48);
       }
       break;
     }
@@ -69,7 +69,7 @@ export const validateMaterializedBriefContent = (brief: GeneratedVisualBrief) =>
         const hasIcon = typeof item.iconId === "string" && item.iconId.trim();
         if (!hasLocalImage && !hasIdentity && !hasIcon)
           throw new Error(`media items[${index}] must resolve to a local image, registered identity, or icon`);
-        boundedText(item.caption, `media items[${index}].caption`, 36);
+        boundedText(item.caption, `media items[${index}].caption`, 48);
       });
       break;
     }
@@ -118,11 +118,11 @@ export const validateMaterializedBriefContent = (brief: GeneratedVisualBrief) =>
       });
       break;
     case "editorial-statement":
-      boundedText(props.emphasis, "editorial statement emphasis", 18);
+      boundedText(props.emphasis, "editorial statement emphasis", 42);
       if (props.leadIn) boundedText(props.leadIn, "editorial statement leadIn", 12);
-      if (props.denied) boundedText(props.denied, "editorial statement denied", 18);
+      if (props.denied) boundedText(props.denied, "editorial statement denied", 30);
       if (props.prefix) boundedText(props.prefix, "editorial statement prefix", 8);
-      if (props.support) boundedText(props.support, "editorial statement support", 30);
+      if (props.support) boundedText(props.support, "editorial statement support", 72);
       break;
     default: {
       const collection = Array.isArray(props.items)
@@ -131,7 +131,7 @@ export const validateMaterializedBriefContent = (brief: GeneratedVisualBrief) =>
           ? objectArray(props.nodes, "nodes")
           : [];
       for (const [index, item] of collection.entries())
-        boundedText(item.label ?? item.title, `${brief.component.id} item ${index + 1}`, 24);
+        boundedText(item.label ?? item.title, `${brief.component.id} item ${index + 1}`, 40);
     }
   }
   return true;

@@ -34,7 +34,7 @@ export const ProcessSteps: React.FC<ProcessStepsProps> = ({
   if (items.length < 3 || items.length > 6)
     throw new Error(`ProcessSteps expects 3-6 items, received ${items.length}.`);
   const current = Math.max(0, Math.min(items.length - 1, activeIndex));
-  const rowHeight = Math.min(102, Math.floor(430 / items.length));
+  const rowHeight = Math.min(112, Math.floor(560 / items.length));
   const intro = enter(frame, fps, 7);
   const accents = chartAccentPair(
     items[current]?.accent,
@@ -108,18 +108,26 @@ export const ProcessSteps: React.FC<ProcessStepsProps> = ({
               <div style={{ minWidth: 0 }}>
                 <div
                   style={{
-                    fontSize: rowHeight < 82 ? 29 : 36,
+                    fontSize: item.title.length > 18 ? 24 : rowHeight < 94 ? 27 : 34,
                     fontWeight: 880,
-                    lineHeight: 1.05,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
+                    lineHeight: 1.12,
+                    whiteSpace: "normal",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   <EmphasisText text={item.title.trim()} />
                 </div>
                 {item.detail ? (
-                  <div style={{ fontSize: 22, fontWeight: 680, color: palette.muted, marginTop: 8, lineHeight: 1.2 }}>
+                  <div
+                    style={{
+                      fontSize: items.length >= 5 ? 19 : 22,
+                      fontWeight: 680,
+                      color: palette.muted,
+                      marginTop: 6,
+                      lineHeight: 1.18,
+                      overflowWrap: "anywhere",
+                    }}
+                  >
                     <EmphasisText text={item.detail} />
                   </div>
                 ) : null}

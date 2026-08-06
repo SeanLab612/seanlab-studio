@@ -90,7 +90,7 @@ export const RankedMetricList: React.FC<RankedMetricListProps> = ({
     .map(({ item }) => item);
   const winnerId = highlightId ?? sortedItems[0].id;
   const values = sortedItems.map((item) => item.value);
-  const rowHeight = Math.min(compact ? 78 : 76, Math.floor((compact ? 455 : 450) / sortedItems.length));
+  const rowHeight = Math.min(compact ? 82 : 80, Math.max(62, Math.floor((compact ? 510 : 520) / sortedItems.length)));
 
   return (
     <div
@@ -183,12 +183,12 @@ export const RankedMetricList: React.FC<RankedMetricListProps> = ({
                 padding="0px"
                 radius={17}
                 style={{
-                  height: rowHeight,
+                  minHeight: rowHeight,
                 }}
               >
                 <div
                   style={{
-                    height: "100%",
+                    minHeight: rowHeight,
                     display: "grid",
                     gridTemplateColumns: compact ? "184px 1fr 60px" : "232px 1fr 78px",
                     alignItems: "center",
@@ -215,11 +215,11 @@ export const RankedMetricList: React.FC<RankedMetricListProps> = ({
                     <div style={{ minWidth: 0 }}>
                       <div
                         style={{
-                          fontSize: compact ? 22 : rowHeight < 65 ? 20 : 22,
+                          fontSize: compact ? 20 : rowHeight < 68 ? 18 : 21,
                           fontWeight: 850,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
+                          lineHeight: 1.08,
+                          whiteSpace: "normal",
+                          overflowWrap: "anywhere",
                           color: isWinner ? accent : palette.paper,
                         }}
                       >
@@ -228,14 +228,14 @@ export const RankedMetricList: React.FC<RankedMetricListProps> = ({
                       {item.sublabel ? (
                         <div
                           style={{
-                            fontSize: 20,
+                            fontSize: rowHeight < 68 ? 16 : 18,
                             fontWeight: 750,
                             opacity: 0.76,
                             letterSpacing: 0.9,
                             marginTop: 3,
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
+                            lineHeight: 1.08,
+                            whiteSpace: "normal",
+                            overflowWrap: "anywhere",
                           }}
                         >
                           {item.sublabel}

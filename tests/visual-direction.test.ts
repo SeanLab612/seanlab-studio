@@ -570,3 +570,40 @@ test("whole-video identity titles use eligible gaps without a fixed count or rep
   );
   assert.ok(titleCues.every((cue, index) => index === 0 || cue.start - titleCues[index - 1].end >= 28));
 });
+
+test("whole-video identity titles fall back to a complete safe-area title", () => {
+  const titleCues = planWholeVideoTitleCues({
+    identity: {
+      eyebrow: "PROJECT OVERVIEW",
+      title: "把分散环节搭成一个本地运行的 SeanLab Studio",
+      subject: "SeanLab Studio",
+      startCue: 0,
+      endCue: 20,
+      confidence: 0.9,
+    },
+    decisions: [
+      {
+        candidateId: "long-title-gap",
+        semanticIndex: 0,
+        startCue: 0,
+        endCue: 5,
+        sourceStart: 0,
+        sourceEnd: 14,
+        displayStart: null,
+        displayEnd: null,
+        action: "skip",
+        importance: "none",
+        rhetoric: "none",
+        componentId: null,
+        chapterId: "chapter-1",
+        boundaryActions: [],
+        adjustments: [],
+        reasons: ["speaker-only"],
+      },
+    ],
+    screenScenes: [],
+    durationSeconds: 40,
+  });
+  assert.equal(titleCues[0]?.title, "SeanLab Studio 项目概览");
+  assert.ok(Array.from((titleCues[0]?.title ?? "").replace(/\s/g, "")).length <= 24);
+});

@@ -302,6 +302,7 @@ const selectedOverlayCues = bundle.candidates.flatMap((candidate) => {
 });
 const nonComponentResetIntervals = [...primaryVisualIntervals, ...screenScenes, ...annotationCues, ...titleCues];
 const initialEditorialStatementPolicy = applyEditorialStatementPolicy(selectedOverlayCues, durationSeconds, {
+  maximumConsecutive: 3,
   resetIntervals: nonComponentResetIntervals,
 });
 const initialAnnotationDedupe = dedupeAgentRoughAnnotations({
@@ -373,7 +374,7 @@ const editorialCoverageFill = planEditorialCoverageFill({
   durationSeconds,
   minimumCoverageRatio: minimumVisualCoverageRatio,
   maximumEditorialCoverageRatio: 1,
-  maximumConsecutive: 2,
+  maximumConsecutive: 3,
   maximumSpeakerOnlyGapSeconds: 15,
   faceCenterX: Number(layoutManifest.faceCenterX ?? 0.5),
 });
@@ -381,6 +382,7 @@ const combinedOverlayCues = [...initialAnnotationDedupe.overlayCues, ...editoria
   (left, right) => left.start - right.start || left.end - right.end,
 );
 const editorialStatementPolicy = applyEditorialStatementPolicy(combinedOverlayCues, durationSeconds, {
+  maximumConsecutive: 3,
   resetIntervals: nonComponentResetIntervals,
 });
 const annotationDedupe = dedupeAgentRoughAnnotations({
@@ -433,13 +435,16 @@ directionReport.annotationDedupe = {
   userAnnotationCount: annotationCues.length,
   removedAgentItemCount: annotationDedupe.removedItemCount,
   removedAgentCueCount: annotationDedupe.removedCueCount,
+  removedAgentCueIds: annotationDedupe.removedCueIds,
 };
 directionReport.editorialStatement = {
   maximumCoverageRatio: 1,
-  maximumConsecutive: 2,
+  maximumConsecutive: 3,
   coverageSeconds: editorialStatementPolicy.coverageSeconds,
   coverageRatio: editorialStatementPolicy.coverageRatio,
-  suppressedCueIds: editorialStatementPolicy.suppressedCueIds,
+  suppressedCueIds: [
+    ...new Set([...initialEditorialStatementPolicy.suppressedCueIds, ...editorialStatementPolicy.suppressedCueIds]),
+  ],
 };
 directionReport.editorialCoverageFill = appliedCoverageFillReport;
 directionReport.requiredImageEvidence = evaluateRequiredImageEvidenceCoverage(

@@ -9,6 +9,7 @@ import {
   recordStudioRecoveryConfirmation,
   studioRecoveryDiagnosisPrompt,
 } from "../scripts/creator/studio-recovery.mjs";
+import { workflowExecutionForStudioRecovery } from "../scripts/creator/studio-contract.mjs";
 
 const baseWorkflow = () => ({
   recutApproved: true,
@@ -270,6 +271,41 @@ test("an approved workflow treats an old failed stage as history after later pro
   });
   assert.equal(recovery.status, "healthy");
   assert.equal(recovery.failure, undefined);
+});
+
+test("a registered semantic-plan recovery replans before an unconfirmed production direction", () => {
+  const execution = workflowExecutionForStudioRecovery({
+    recovery: {
+      authority: { registeredRepairKind: "validated-semantic-plan-repair" },
+      failure: { code: "SEMANTIC_PLAN_INVALID", stage: "visual-direction", retryable: true },
+      resume: { action: "continue", stage: "visual-direction" },
+    },
+    snapshot: { productionPlan: { confirmed: false } },
+  });
+  assert.equal(execution.action, "plan");
+  assert.equal(execution.expectedTargetStage, "validate");
+  assert.deepEqual(execution.workflowArgs, [
+    "--from",
+    "semantic-plan",
+    "--replan-semantic",
+    "--until",
+    "plan",
+    "--production-agent-auto-approve",
+  ]);
+});
+
+test("recovery targets the direction gate when the production direction is not confirmed", () => {
+  const execution = workflowExecutionForStudioRecovery({
+    recovery: {
+      authority: {},
+      failure: { code: "PROVIDER_REQUEST_TIMEOUT", stage: "visual-direction", retryable: true },
+      resume: { action: "continue", stage: "visual-direction" },
+    },
+    snapshot: { productionPlan: { confirmed: false } },
+  });
+  assert.equal(execution.action, "continue");
+  assert.equal(execution.expectedTargetStage, "validate");
+  assert.deepEqual(execution.workflowArgs, ["--from", "visual-direction", "--until", "review"]);
 });
 
 test("recovery confirmation is written before a state-changing resume", async () => {

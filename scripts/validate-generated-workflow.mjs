@@ -144,6 +144,7 @@ if (["codex-cli", "claude-code"].includes(config.semanticPlanning?.provider)) {
     assert.ok(cue.contentScale >= 0.82 && cue.contentScale <= 1, "Every Codex cue must persist a safe content scale.");
   }
   const directionPlan = JSON.parse(await readFile(resolve(config.visualDirectionPlanFile), "utf8"));
+  const directionReport = JSON.parse(await readFile(resolve(config.visualDirectionReportFile), "utf8"));
   validateVisualDirectionPlan(directionPlan);
   assertVisualDirectionQuality({
     plan: directionPlan,
@@ -154,10 +155,25 @@ if (["codex-cli", "claude-code"].includes(config.semanticPlanning?.provider)) {
     // Component-candidate materialization is no longer a separate blocking quota.
     minimumMaterializationRatio: 0,
   });
-  assert.equal(
-    directionPlan.decisions.filter((decision) => decision.action === "show").length,
-    plan.overlayCues.length,
-    "Directed show decisions must match final overlay cues.",
+  const directedShowIds = new Set(
+    directionPlan.decisions.filter((decision) => decision.action === "show").map((decision) => decision.candidateId),
+  );
+  const finalDirectedIds = new Set(
+    plan.overlayCues.filter((cue) => cue.coverageFill !== true).map((cue) => cue.generatedVisual.segment.id),
+  );
+  const intentionallyRemovedIds = new Set([
+    ...(directionReport.editorialStatement?.suppressedCueIds ?? []),
+    ...(directionReport.annotationDedupe?.removedAgentCueIds ?? []),
+  ]);
+  assert.deepEqual(
+    [...finalDirectedIds].filter((id) => !directedShowIds.has(id)),
+    [],
+    "Every final directed overlay must retain a show decision.",
+  );
+  assert.deepEqual(
+    [...directedShowIds].filter((id) => !finalDirectedIds.has(id) && !intentionallyRemovedIds.has(id)),
+    [],
+    "Every omitted show decision must have a recorded suppression reason.",
   );
 }
 assert.ok(

@@ -42,7 +42,7 @@ test("plain-language claims route to the approved editorial statement", () => {
   assert.equal(result.brief.props.emphasis, "用代码重新搭建模型");
 });
 
-test("editorial statement copy stays inside its approved capacity", () => {
+test("editorial statement wraps complete copy inside its expanded capacity", () => {
   assert.equal(
     validateComponentProps("editorial-statement", {
       leadIn: "它不是从图片里",
@@ -53,29 +53,45 @@ test("editorial statement copy stays inside its approved capacity", () => {
     }),
     undefined,
   );
+  assert.doesNotThrow(() =>
+    validateComponentProps("editorial-statement", {
+      emphasis: "这是一句超过十八个字符但能够完整换行展示的观点陈述文字",
+    }),
+  );
+  assert.throws(() => validateComponentProps("editorial-statement", { emphasis: "这是一句已经被错误截断的观点陈述…" }));
   assert.throws(
-    () => validateComponentProps("editorial-statement", { emphasis: "这是一句明显超过十八个展示字符的观点陈述文字" }),
+    () =>
+      validateComponentProps("editorial-statement", {
+        emphasis: "这是一句明显超过四十二个展示字符而且无法在当前观点陈述组件中保持完整可读并且仍然继续增加长度的文字",
+      }),
     /component-text-overflow/,
   );
 });
 
-test("editorial statement policy caps share and consecutive use without failing production", () => {
+test("editorial statement policy allows three consecutive cues and suppresses the fourth", () => {
   const cue = (id: string, start: number, end: number, componentId = "editorial-statement") => ({
     start,
     end,
     generatedVisual: { component: { id: componentId }, segment: { id } },
   });
   const result = applyEditorialStatementPolicy(
-    [cue("a", 0, 8), cue("b", 8, 16), cue("c", 16, 24), cue("specialized", 24, 30, "process-steps"), cue("d", 30, 38)],
+    [
+      cue("a", 0, 8),
+      cue("b", 8, 16),
+      cue("c", 16, 24),
+      cue("d", 24, 32),
+      cue("specialized", 32, 38, "process-steps"),
+      cue("e", 38, 46),
+    ],
     80,
-    { maximumCoverageRatio: 0.25 },
+    { maximumCoverageRatio: 1 },
   );
   assert.deepEqual(
     result.cues.map((item) => item.generatedVisual.segment.id),
-    ["a", "b", "specialized", "d"],
+    ["a", "b", "c", "specialized", "e"],
   );
-  assert.deepEqual(result.suppressedCueIds, ["c"]);
-  assert.equal(result.coverageRatio, 0.25);
+  assert.deepEqual(result.suppressedCueIds, ["d"]);
+  assert.equal(result.coverageRatio, 0.4);
 });
 
 test("a real primary visual resets the editorial consecutive-use counter", () => {
@@ -91,4 +107,32 @@ test("a real primary visual resets the editorial consecutive-use counter", () =>
     result.cues.map((item) => item.generatedVisual.segment.id),
     ["a", "b", "c"],
   );
+});
+
+test("editorial statements accept a two-second synchronized coverage cue", () => {
+  const cue = (id: string, start: number, end: number) => ({
+    start,
+    end,
+    generatedVisual: { component: { id: "editorial-statement" }, segment: { id } },
+  });
+  const result = applyEditorialStatementPolicy([cue("two-seconds", 0, 2), cue("too-short", 3, 4.5)], 10);
+  assert.deepEqual(
+    result.cues.map((item) => item.generatedVisual.segment.id),
+    ["two-seconds"],
+  );
+  assert.deepEqual(result.suppressedCueIds, ["too-short"]);
+});
+
+test("editorial statement policy defaults to three consecutive cues", () => {
+  const cue = (id: string, start: number, end: number) => ({
+    start,
+    end,
+    generatedVisual: { component: { id: "editorial-statement" }, segment: { id } },
+  });
+  const result = applyEditorialStatementPolicy([cue("a", 0, 2), cue("b", 2, 4), cue("c", 4, 6), cue("d", 6, 8)], 10);
+  assert.deepEqual(
+    result.cues.map((item) => item.generatedVisual.segment.id),
+    ["a", "b", "c"],
+  );
+  assert.deepEqual(result.suppressedCueIds, ["d"]);
 });

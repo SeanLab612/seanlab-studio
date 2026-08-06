@@ -297,6 +297,7 @@ const inferCode = (message, stage) => {
     return "QA_CONTRACT_MISSING";
   if (/Missing motion profile|Missing motion recipe|registry is incomplete|unsupported .* registry/i.test(message))
     return "REGISTRY_CONTRACT_INVALID";
+  if (/component-text-(?:overflow|incomplete)/i.test(message)) return "SEMANTIC_PLAN_INVALID";
   if (
     /VisualBrief|visual props|generated visual|component props/i.test(message) &&
     /invalid|required|unsupported|must|exceed/i.test(message)

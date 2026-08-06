@@ -9,6 +9,20 @@ import {
 const overlaps = (start: number, end: number, otherStart: number, otherEnd: number) =>
   start < otherEnd && end > otherStart;
 
+const visibleLength = (value: string) => Array.from(value.replace(/\s/g, "")).length;
+
+const safeContinuityTitle = (identity: VideoIdentity) => {
+  const title = identity.title.trim();
+  if (visibleLength(title) <= 24) return title;
+  const clause = title
+    .split(/[。！？!?;；，,]/)
+    .map((value) => value.trim())
+    .find((value) => value.length >= 4 && visibleLength(value) <= 24);
+  if (clause) return clause;
+  const subjectTitle = `${identity.subject.trim()} 项目概览`.trim();
+  return visibleLength(subjectTitle) <= 24 ? subjectTitle : "项目核心概览";
+};
+
 const mergeSpeakerOnlyGaps = (decisions: VisualDirectionDecision[]) => {
   const gaps: Array<{ start: number; end: number; candidateIds: string[] }> = [];
   for (const decision of [...decisions].sort((a, b) => a.sourceStart - b.sourceStart)) {
@@ -56,7 +70,7 @@ export const planWholeVideoTitleCues = ({
       start: Number(start.toFixed(3)),
       end: Number(end.toFixed(3)),
       eyebrow: identity.eyebrow,
-      title: identity.title,
+      title: safeContinuityTitle(identity),
       accent: "#59D98E",
       sourceStartCue: identity.startCue,
       sourceEndCue: identity.endCue,

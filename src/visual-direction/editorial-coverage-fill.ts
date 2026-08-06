@@ -79,6 +79,12 @@ const exactEnglishText = (captions: readonly SemanticCaption[], startCue: number
     .filter(Boolean)
     .join(" ");
 
+const coverageTitleFor = (text: string) =>
+  text
+    .split(/[。！？!?;；，,]/)
+    .map((clause) => clause.trim())
+    .find((clause) => clause.length >= 4 && clause.length <= 18) ?? "这一段的核心判断";
+
 export const planEditorialCoverageFill = ({
   captions,
   coveredIntervals,
@@ -86,9 +92,9 @@ export const planEditorialCoverageFill = ({
   durationSeconds,
   minimumCoverageRatio,
   maximumEditorialCoverageRatio = 1,
-  minimumDurationSeconds = 4,
+  minimumDurationSeconds = 2,
   maximumDurationSeconds = 8,
-  maximumConsecutive = 2,
+  maximumConsecutive = 3,
   maximumSpeakerOnlyGapSeconds = Number.POSITIVE_INFINITY,
   faceCenterX = 0.5,
 }: {
@@ -145,7 +151,7 @@ export const planEditorialCoverageFill = ({
         let last = first;
         let next = cursor + 1;
         while (
-          last.end - first.start < minimumDurationSeconds &&
+          last.end - first.start < maximumDurationSeconds &&
           next < eligible.length &&
           eligible[next].index === last.index + 1 &&
           eligible[next].end - first.start <= maximumDurationSeconds + 0.001
@@ -167,9 +173,10 @@ export const planEditorialCoverageFill = ({
         }
         const props = compactComponentProps("editorial-statement", {
           leadIn: "这一段的重点",
-          emphasis: text,
+          emphasis: coverageTitleFor(text),
           support: text,
         });
+        const title = coverageTitleFor(text);
         const layoutTemplateId = selectLayoutTemplate({
           componentId: "editorial-statement",
           faceCenterX,
@@ -180,7 +187,7 @@ export const planEditorialCoverageFill = ({
           start: first.start,
           end,
           eyebrow: "CORE IDEA",
-          title: String(props.emphasis),
+          title,
           subtitle: String(props.support),
           subtitleEn,
           accent: "#6EA8FF",
@@ -204,7 +211,7 @@ export const planEditorialCoverageFill = ({
             motion: resolveMotionSelection({ componentId: "editorial-statement", intent: "emphasize" }),
             narrative: {
               eyebrow: "CORE IDEA",
-              title: String(props.emphasis),
+              title,
               subtitleZh: String(props.support),
               subtitleEn,
               takeaway: text,

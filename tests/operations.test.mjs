@@ -57,6 +57,8 @@ test("production failures are classified into creator-facing recovery classes", 
     ["Confirmed animation section anchor was not found: overview", "BINDING_ANCHOR_NOT_FOUND"],
     ["Missing motion profile for process-steps", "REGISTRY_CONTRACT_INVALID"],
     ["VisualBrief props items are invalid", "VISUAL_PROPS_INVALID"],
+    ["component-text-incomplete: items[0].label ends with a generated ellipsis", "SEMANTIC_PLAN_INVALID"],
+    ["component-text-overflow: items[0].detail exceeds 72 display characters", "SEMANTIC_PLAN_INVALID"],
     ["Missing component QA contract: process-steps", "QA_CONTRACT_MISSING"],
     ["Agent semantic provider request timed out", "PROVIDER_REQUEST_TIMEOUT"],
     [

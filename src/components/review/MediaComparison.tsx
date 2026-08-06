@@ -103,7 +103,7 @@ export const MediaComparison: React.FC<MediaComparisonProps> = ({
                     <Shimmer progress={shimmerProgress} borderRadius={14} />
                   ) : null}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 14 }}>
                   {item.entityId && item.entityKind ? (
                     <IdentityMark
                       entityId={item.entityId}
@@ -118,11 +118,11 @@ export const MediaComparison: React.FC<MediaComparisonProps> = ({
                   <div style={{ minWidth: 0 }}>
                     <div
                       style={{
-                        fontSize: 28,
+                        fontSize: items.length === 3 ? 23 : 27,
                         fontWeight: 850,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
+                        lineHeight: 1.15,
+                        whiteSpace: "normal",
+                        overflowWrap: "anywhere",
                       }}
                     >
                       <EmphasisText text={item.label} />

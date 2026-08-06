@@ -54,7 +54,7 @@ export const MarketCapLines: React.FC<{
   const sortedLabels = series
     .map((item, index) => ({ index, rawY: endY(item), labelY: endY(item) }))
     .sort((a, b) => a.rawY - b.rawY);
-  const labelGap = 34;
+  const labelGap = series.length <= 4 ? 44 : 34;
   sortedLabels.forEach((label, index) => {
     label.labelY =
       index === 0 ? Math.max(18, label.rawY) : Math.max(label.rawY, sortedLabels[index - 1].labelY + labelGap);
@@ -114,10 +114,20 @@ export const MarketCapLines: React.FC<{
               />
               <circle cx={582} cy={y} r={index === 0 ? 7 : 5} fill={color} />
               <line x1="588" y1={y} x2="602" y2={labelY} stroke={color} strokeWidth="2" opacity="0.6" />
-              <text x="610" y={labelY + 8} fill={color} fontSize="26" fontWeight="850">
-                {item.name}
-              </text>
-              <text x="714" y={labelY + 8} fill={palette.paper} fontSize="22" fontWeight="750">
+              <foreignObject x="606" y={labelY - 18} width="104" height="42">
+                <div
+                  style={{
+                    color,
+                    fontSize: item.name.length > 8 ? 18 : 22,
+                    fontWeight: 850,
+                    lineHeight: 1.05,
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {item.name}
+                </div>
+              </foreignObject>
+              <text x="748" y={labelY + 8} textAnchor="end" fill={palette.paper} fontSize="22" fontWeight="750">
                 {item.valueLabel}
               </text>
             </g>
