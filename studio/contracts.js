@@ -41,6 +41,7 @@ export const visualFormCatalog = {
   "tradeoff-or-positioning": { label: "取舍与定位", component: "决策矩阵", alternatives: ["取舍天平"] },
   "source-backed-evidence": { label: "来源证据", component: "证据展示", alternatives: ["引用来源"] },
   "text-emphasis": { label: "文字标注", component: "手绘标注", alternatives: [] },
+  "plain-language-claim": { label: "观点陈述", component: "观点陈述", alternatives: [] },
 };
 
 export const visualComponentCatalog = [
@@ -63,6 +64,7 @@ export const visualComponentCatalog = [
   ["capability-surface-grid", "能力网格", ["multi-dimension-comparison"]],
   ["tradeoff-scale", "取舍天平", ["tradeoff-or-positioning"]],
   ["rough-annotation", "手绘标注", ["text-emphasis"]],
+  ["editorial-statement", "观点陈述", ["plain-language-claim"]],
 ].map(([id, label, forms]) => ({
   id,
   label,

@@ -32,6 +32,14 @@ test("workflow preview reports a blocked next gate without treating it as runnab
   assert.equal(summary.execution.agentCalls, 0);
 });
 
+test("production approval stops at delivery specification selection", () => {
+  const summary = summarizeWorkflowPreview({
+    targetStage: "human-approval",
+    preview: [{ stage: "human-approval", action: "run", executionClass: "local" }],
+  });
+  assert.equal(summary.nextHumanGate, "delivery-specification");
+});
+
 test("workflow readiness blocks before a long job when project preflight fails", () => {
   const summary = summarizeWorkflowPreview({
     targetStage: "recut-review",

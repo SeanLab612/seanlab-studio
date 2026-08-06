@@ -45,6 +45,8 @@
         "repetitionWindowSeconds": {"type": "number", "exclusiveMinimum": 0},
         "minimumHeroGapSeconds": {"type": "number", "exclusiveMinimum": 0},
         "maximumVisualCoverageRatio": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "minimumVisualCoverageRatio": {"type": "number", "minimum": 0, "maximum": 1},
+        "maximumAnimationCoverageRatio": {"type": "number", "minimum": 0, "maximum": 1},
         "maximumChapterSeconds": {"type": "number", "exclusiveMinimum": 0},
         "maximumChapterCandidates": {"type": "integer", "minimum": 1},
         "heroConfidence": {"type": "number", "minimum": 0, "maximum": 1},

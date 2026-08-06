@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { resolveAuthoredScenes } from "../../src/supplemental-media/alignment.ts";
 import { resolveLockedVisualBeatTimeline } from "../../src/visual-production/timeline.ts";
 import { projectDir, writeJsonAtomic } from "./project-store.mjs";
 
@@ -35,7 +36,10 @@ const diceSimilarity = (left, right) => {
 
 export const bindingTargetId = (failure = {}) => {
   const text = [failure.message, failure.details?.logTail].filter(Boolean).join("\n");
-  return /Confirmed visual beat anchor was not found in semantic captions:\s*([a-z0-9-]+)/i.exec(text)?.[1];
+  return (
+    /Confirmed visual beat anchor was not found in semantic captions:\s*([a-z0-9-]+)/i.exec(text)?.[1] ??
+    /Recording scene preflight failed:\s*(scene-[a-z0-9-]+):/i.exec(text)?.[1]
+  );
 };
 
 const patchedBeat = (beat, quote) => ({
@@ -84,13 +88,79 @@ export const buildBindingCandidates = ({ plan, captions, targetId, limit = 6 }) 
     .slice(0, limit);
 };
 
+const bigramRecall = (needle, candidate) => {
+  const expected = bigrams(needle);
+  const actual = new Map();
+  for (const value of bigrams(candidate)) actual.set(value, (actual.get(value) ?? 0) + 1);
+  if (!expected.length) return 0;
+  let matched = 0;
+  for (const value of expected) {
+    const count = actual.get(value) ?? 0;
+    if (!count) continue;
+    matched += 1;
+    actual.set(value, count - 1);
+  }
+  return matched / expected.length;
+};
+
+const patchedScene = (scene, quote) => ({
+  ...scene,
+  startAnchor: { text: quote },
+  endAnchor: { text: quote },
+});
+
+export const buildSceneBindingCandidates = ({ plan, captions, assets, targetId, limit = 6 }) => {
+  const sceneIndex = (plan.scenes ?? []).findIndex((scene) => scene.id === targetId);
+  if (sceneIndex < 0) return [];
+  const target = plan.scenes[sceneIndex];
+  if (normalizeSpokenText(target.startAnchor.text) !== normalizeSpokenText(target.endAnchor.text)) return [];
+  const intended = target.startAnchor.text;
+  const targetLength = normalizeSpokenText(intended).length;
+  const candidates = [];
+  for (let startCue = 0; startCue < captions.length; startCue += 1) {
+    let quote = "";
+    for (let endCue = startCue; endCue < Math.min(captions.length, startCue + 8); endCue += 1) {
+      quote += captions[endCue].zh;
+      const length = normalizeSpokenText(quote).length;
+      if (length < Math.max(4, Math.floor(targetLength * 0.7))) continue;
+      if (length > Math.max(targetLength * 4, targetLength + 18)) break;
+      const similarity = diceSimilarity(intended, quote);
+      const targetCoverage = bigramRecall(intended, quote);
+      if (similarity < 0.32 || targetCoverage < 0.7) continue;
+      const nextPlan = structuredClone(plan);
+      nextPlan.scenes[sceneIndex] = patchedScene(nextPlan.scenes[sceneIndex], quote);
+      const resolved = resolveAuthoredScenes({ plan: nextPlan, captions, assets });
+      if (resolved.status === "blocked" || !resolved.scenes.some((scene) => scene.id === targetId)) continue;
+      candidates.push({
+        candidateId: `caption-${startCue}-${endCue}`,
+        startCue,
+        endCue,
+        start: captions[startCue].start,
+        end: captions[endCue].end,
+        quote,
+        similarity: Number(similarity.toFixed(4)),
+        targetCoverage: Number(targetCoverage.toFixed(4)),
+      });
+    }
+  }
+  return candidates
+    .sort(
+      (left, right) =>
+        right.targetCoverage - left.targetCoverage ||
+        right.similarity - left.similarity ||
+        left.startCue - right.startCue,
+    )
+    .filter((candidate, index, all) => all.findIndex((item) => item.quote === candidate.quote) === index)
+    .slice(0, limit);
+};
+
 const repairPrompt = ({ targets, candidates, issue }) => ({
   system: [
     "You are the fixed production Agent repairing one stale spoken-text binding in SeanLab Studio.",
     "The creator has delegated this technical binding repair to you.",
     "Choose only one supplied target and only from the supplied, locally verified caption candidates; never invent or rewrite spoken text.",
     "Use rebind when one candidate clearly preserves the intended meaning and location despite ASR spelling or punctuation differences.",
-    "Use speaker-fallback when no candidate is semantically reliable. This removes only the failed visual beat and keeps the speaker on screen.",
+    "Use speaker-fallback only for a non-required visual beat when no candidate is semantically reliable. Required uploaded recordings must be rebound and may never be silently removed.",
     "Do not alter narration, captions, media, approvals, delivery, Agent selection, or any other visual beat.",
     "Return concise Simplified Chinese that matches the JSON Schema.",
   ].join("\n"),
@@ -102,15 +172,17 @@ const repairPrompt = ({ targets, candidates, issue }) => ({
         targets: targets.map((target) => ({
           id: target.id,
           sectionId: target.sectionId,
-          primaryVisualType: target.primaryVisualType,
-          intendedSpokenQuote: target.exactSpokenQuote,
+          primaryVisualType: target.primaryVisualType ?? target.type,
+          intendedSpokenQuote: target.exactSpokenQuote ?? target.startAnchor?.text,
+          required: target.required ?? false,
         })),
-        candidates: candidates.map(({ candidateId, start, end, quote, similarity }) => ({
+        candidates: candidates.map(({ candidateId, start, end, quote, similarity, targetCoverage }) => ({
           candidateId,
           start,
           end,
           quote,
           similarity,
+          ...(targetCoverage === undefined ? {} : { targetCoverage }),
         })),
       },
       null,
@@ -144,15 +216,93 @@ const applyAgentChoice = ({ plan, response, candidates, allowedTargetIds }) => {
   return { targetId: response.targetId, action: response.action, previous, replacement: null, candidate: null };
 };
 
-export const repairProductionBinding = async ({ projectId, recovery, adapter }) => {
+const applySceneAgentChoice = ({ plan, response, candidates, targetId }) => {
+  if (response.targetId !== targetId) throw new Error("Agent selected a recording scene outside the issue");
+  const sceneIndex = (plan.scenes ?? []).findIndex((scene) => scene.id === targetId);
+  if (sceneIndex < 0) throw new Error("Agent selected a missing recording scene");
+  const previous = plan.scenes[sceneIndex];
+  if (response.action !== "rebind") {
+    if (previous.required) throw new Error("Required recording scenes cannot fall back to the speaker");
+    throw new Error("Recording scene repair requires an exact caption rebind");
+  }
+  const candidate = candidates.find((item) => item.candidateId === response.candidateId);
+  if (!candidate) throw new Error("Agent selected an invalid recording-scene binding candidate");
+  plan.scenes[sceneIndex] = patchedScene(previous, candidate.quote);
+  return {
+    targetId,
+    action: "rebind",
+    previous,
+    replacement: plan.scenes[sceneIndex],
+    candidate,
+  };
+};
+
+export const repairProductionBinding = async ({ projectId, recovery, adapter, projectRoot }) => {
   const targetId = bindingTargetId(recovery.failure);
   if (!targetId) return { kind: "validated-binding-repair", success: false, reason: "unsupported-binding-failure" };
-  const root = projectDir(projectId);
+  const root = projectRoot ?? projectDir(projectId);
   const runtime = JSON.parse(await readFile(resolve(root, "video/workspace/runtime-config.json"), "utf8"));
-  const planPath = resolve(runtime.authoredVisualPlanFile);
   const captionsPath = resolve(runtime.semanticCaptionSourceFile);
-  const plan = JSON.parse(await readFile(planPath, "utf8"));
   const captions = JSON.parse(await readFile(captionsPath, "utf8"));
+  const scenePlanPath = runtime.authoredScenePlanFile ? resolve(runtime.authoredScenePlanFile) : undefined;
+  const scenePlan = scenePlanPath
+    ? JSON.parse(await readFile(scenePlanPath, "utf8"))
+    : { schemaVersion: "1.0", scenes: [] };
+  const sceneIndex = (scenePlan.scenes ?? []).findIndex((scene) => scene.id === targetId);
+  if (sceneIndex >= 0) {
+    const supplemental = JSON.parse(await readFile(resolve(runtime.supplementalMediaManifestFile), "utf8"));
+    const nextPlan = structuredClone(scenePlan);
+    const candidates = buildSceneBindingCandidates({
+      plan: nextPlan,
+      captions,
+      assets: supplemental.assets ?? [],
+      targetId,
+    });
+    if (!candidates.length)
+      return { kind: "validated-binding-repair", success: false, reason: "no-verified-scene-candidates", targetId };
+    const response = await adapter.completeJson(
+      repairPrompt({
+        targets: [nextPlan.scenes[sceneIndex]],
+        candidates,
+        issue: { kind: "recording-scene-anchor", targetId },
+      }),
+    );
+    const modification = applySceneAgentChoice({ plan: nextPlan, response, candidates, targetId });
+    const resolved = resolveAuthoredScenes({ plan: nextPlan, captions, assets: supplemental.assets ?? [] });
+    if (resolved.status === "blocked" || !resolved.scenes.some((scene) => scene.id === targetId))
+      throw new Error("Recording-scene repair did not pass full timeline validation");
+    await writeJsonAtomic(scenePlanPath, nextPlan);
+    const createdAt = new Date().toISOString();
+    const evidencePath = resolve(
+      root,
+      "review/production-agent-binding-repairs",
+      `${createdAt.replaceAll(/[:.]/g, "-")}-${targetId}.json`,
+    );
+    await writeJsonAtomic(evidencePath, {
+      schemaVersion: "1.0",
+      kind: "production-agent-binding-repair",
+      projectId,
+      createdAt,
+      targetId,
+      targetKind: "recording-scene",
+      responses: [response],
+      modifications: [modification],
+      candidates,
+      validation: resolved.summary,
+    });
+    return {
+      kind: "validated-binding-repair",
+      success: true,
+      action: modification.action,
+      targetId,
+      targetKind: "recording-scene",
+      modifications: [{ targetId, action: modification.action }],
+      evidencePath,
+    };
+  }
+
+  const planPath = resolve(runtime.authoredVisualPlanFile);
+  const plan = JSON.parse(await readFile(planPath, "utf8"));
   const beatIndex = (plan.beats ?? []).findIndex((beat) => beat.id === targetId);
   if (beatIndex < 0) return { kind: "validated-binding-repair", success: false, reason: "target-not-found", targetId };
   const nextPlan = structuredClone(plan);

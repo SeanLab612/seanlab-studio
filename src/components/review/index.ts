@@ -46,3 +46,5 @@ export { selectReviewComponent } from "./selection";
 export { ReviewStage } from "./shared";
 export type { RoughAnnotationEffect, RoughAnnotationItem, RoughAnnotationProps } from "./RoughAnnotation";
 export { RoughAnnotation } from "./RoughAnnotation";
+export type { EditorialStatementProps } from "./EditorialStatement";
+export { EditorialStatement } from "./EditorialStatement";

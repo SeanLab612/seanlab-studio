@@ -6,19 +6,11 @@ import {
   sha256Text,
   validateNarrationScriptPackage,
 } from "../../src/creator-workflow/contract.ts";
-import {
-  narrationStoryboardSection,
-  narrationStoryboardSections,
-} from "../../src/creator-workflow/storyboard-sections.ts";
-import {
-  resolveTextAnnotationQuoteRange,
-  resolveVisualBeatQuoteRange,
-  sha256VisualText,
-} from "../../src/visual-production/contract.ts";
-import { recommendAnimationIntent, recommendPrimaryVisualType } from "../../src/visual-production/recommendation.ts";
+import { narrationStoryboardSections } from "../../src/creator-workflow/storyboard-sections.ts";
+import { recommendPrimaryVisualType } from "../../src/visual-production/recommendation.ts";
 import { validateArtifactSchema } from "../operations/artifact-schema.mjs";
 import { createManifest, writeManifest } from "../workflow/manifest.mjs";
-import { loadNarration, saveNarrationDraft } from "./narration.mjs";
+import { assertNarrationMaterialCoverage, loadNarration, saveNarrationDraft } from "./narration.mjs";
 import {
   loadCreatorProject,
   projectDir,
@@ -27,8 +19,9 @@ import {
   validateCreatorAssetKind,
   writeJsonAtomic,
 } from "./project-store.mjs";
-import { loadVisualStoryboard, saveVisualStoryboard } from "./visual-storyboard.mjs";
+import { loadVisualStoryboard } from "./visual-storyboard.mjs";
 import { getPromotedImageAsset, resolveImageAssetPreview } from "./generated-assets.mjs";
+import { loadMaterialUnderstanding } from "./material-understanding.mjs";
 
 const anchorText = (text, fromEnd = false) => {
   const compact = text.replace(/\s+/g, "").trim();
@@ -50,25 +43,24 @@ const resolvedStoryboardMode = (review, section) => {
 
 export const bindAuthoredMediaToNarration = (project, narration, { lockedMaterialIds = new Set() } = {}) => {
   let changed = false;
+  const requiredMaterialIds = new Set(
+    project.materials.filter((item) => item.required && authoredMediaKinds.has(item.kind)).map((item) => item.id),
+  );
+  for (const materialId of lockedMaterialIds) requiredMaterialIds.add(materialId);
   for (const section of narration.sections) {
-    const lockedIds = section.materialIds.filter((materialId) => lockedMaterialIds.has(materialId));
-    if (!lockedIds.length) continue;
-    if (lockedIds.length !== 1)
-      throw new Error(`Locked section ${section.id} must reference exactly one material before locking`);
-    const material = project.materials.find((item) => item.id === lockedIds[0]);
-    if (!material?.assetId) throw new Error(`Section ${section.id} references an unavailable material`);
-    if (!authoredMediaKinds.has(material.kind) || material.kind !== section.visualIntent)
-      throw new Error(`Section ${section.id} must bind a ${section.visualIntent} material`);
+    for (const materialId of section.materialIds) {
+      const material = project.materials.find((item) => item.id === materialId);
+      if (!material?.assetId) throw new Error(`Section ${section.id} references an unavailable material`);
+      if (!authoredMediaKinds.has(material.kind))
+        throw new Error(`Section ${section.id} references a non-visual material`);
+      if (!requiredMaterialIds.has(material.id))
+        throw new Error(`Section ${section.id} references an excluded material: ${material.id}`);
+    }
   }
   for (const material of project.materials.filter((item) => authoredMediaKinds.has(item.kind))) {
-    const boundSections = narration.sections.filter(
-      (section) => section.visualIntent === material.kind && section.materialIds.includes(material.id),
-    );
-    const nextRequired = lockedMaterialIds.has(material.id);
-    if (material.required !== nextRequired) {
-      material.required = nextRequired;
-      changed = true;
-    }
+    const boundSections = narration.sections.filter((section) => section.materialIds.includes(material.id));
+    if (material.required && boundSections.length !== 1)
+      throw new Error(`Required material ${material.id} must bind exactly one narration section`);
     if (material.kind !== "screenshot") continue;
     const nextAnchors = boundSections.map((section) => anchorText(section.narration));
     if (boundSections.some((_section, index) => !nextAnchors[index]))
@@ -105,118 +97,50 @@ export const updateNarration = async (projectId, input) => {
 export const lockNarration = async (projectId, input) => {
   const narration = input ? await updateNarration(projectId, input) : await loadNarration(projectId);
   const project = await loadCreatorProject(projectId);
-  const storyboard = await loadVisualStoryboard(projectId, narration);
-  const storyboardNarrationSections = narrationStoryboardSections(narration);
-  for (const sectionId of storyboardNarrationSections.map((section) => section.id)) {
-    const review = storyboard.sections[sectionId] ?? { mode: "auto", status: "suggested" };
-    storyboard.sections[sectionId] = {
-      ...review,
-      status: "confirmed",
-      ...(review.beats?.length ? { beats: review.beats.map((beat) => ({ ...beat, status: "confirmed" })) } : {}),
-      ...(review.annotations?.length
-        ? { annotations: review.annotations.map((annotation) => ({ ...annotation, status: "confirmed" })) }
-        : {}),
-    };
-  }
-  // Version 4 gives downstream production full freedom over every visual and
-  // material. Only explicit user text annotations become execution locks.
+  assertNarrationMaterialCoverage(narration, project);
   bindAuthoredMediaToNarration(project, narration);
-  await saveVisualStoryboard(projectId, storyboard, narration);
-  const confirmedAnnotationEntries = Object.entries(storyboard.sections).flatMap(([sectionId, review]) => {
-    const spokenText = narrationStoryboardSection(narration, sectionId)?.narration;
-    if (!spokenText?.trim()) return [];
-    return (review.annotations ?? [])
-      .filter((annotation) => annotation.status === "confirmed")
-      .map((annotation) => ({ sectionId, spokenText, annotation }));
-  });
   const scenes = [];
   const authoringDir = resolve(projectDir(projectId), "authoring");
   const finalPath = resolve(authoringDir, "final-script.md");
   const scenePath = resolve(authoringDir, "authored-scene-plan.json");
   const authoredVisualPath = resolve(authoringDir, "authored-visual-plan.json");
-  const authoredVisualSections = Object.entries(storyboard.sections)
-    .filter(([, review]) => review.status === "confirmed" && !review.beats?.length)
-    .map(([sectionId, review]) => {
-      const spokenText = narrationStoryboardSection(narration, sectionId)?.narration;
-      if (!spokenText?.trim()) throw new Error(`Confirmed storyboard section ${sectionId} has no spoken anchor`);
-      const narrationSection = narrationStoryboardSection(narration, sectionId);
-      const mode = resolvedStoryboardMode(review, narrationSection);
-      const animationIntent =
-        mode === "animation" ? (review.animationIntent ?? recommendAnimationIntent(narrationSection)) : undefined;
-      if (mode === "animation" && !animationIntent)
-        throw new Error(`Confirmed animation section ${sectionId} has no deterministic animation intent`);
-      return {
-        sectionId,
-        executionPolicy: "reference",
-        anchorText: anchorText(spokenText),
-        endAnchorText: anchorText(spokenText, true),
-        mode,
-        ...(review.form ? { form: review.form } : {}),
-        ...(review.componentId ? { componentId: review.componentId } : {}),
-        ...(review.materialId ? { materialId: review.materialId } : {}),
-        ...(review.materialDisplay ? { materialDisplay: review.materialDisplay } : {}),
-        ...(animationIntent
-          ? {
-              animationAnchorText: animationIntent.stages[0].spokenQuote,
-              animationEndAnchorText: animationIntent.stages.at(-1).spokenQuote,
-              animationIntent,
-            }
-          : {}),
-      };
-    });
   const finalScriptSha256 = sha256Text(narration.fullScript);
-  const authoredVisualBeats = Object.entries(storyboard.sections).flatMap(([sectionId, review]) => {
-    const spokenText = narrationStoryboardSection(narration, sectionId)?.narration;
-    if (!spokenText?.trim()) return [];
-    return (review.beats ?? [])
-      .filter((beat) => beat.status === "confirmed")
-      .map((beat) => {
-        const executionPolicy = "reference";
-        const quoteRange = resolveVisualBeatQuoteRange(beat, spokenText);
-        const materialIds = [...new Set([...(beat.materialIds ?? []), ...(beat.materialId ? [beat.materialId] : [])])];
-        const boundMaterials = materialIds.flatMap((materialId) => {
-          const material = project.materials.find((item) => item.id === materialId);
-          if (!material?.assetId) return [];
-          if (beat.primaryVisualType === "image" && material.kind !== "screenshot") return [];
-          if (beat.primaryVisualType === "screen-demo" && material.kind !== "screen-recording") return [];
-          return [material];
-        });
-        return {
-          ...beat,
-          executionPolicy,
-          sectionId,
-          quoteStart: quoteRange.start,
-          quoteEnd: quoteRange.end,
-          ...(boundMaterials[0] ? { materialAssetId: boundMaterials[0].assetId } : {}),
-          ...(boundMaterials.length ? { materialAssetIds: boundMaterials.map((item) => item.assetId) } : {}),
-          exactSpokenQuoteSha256: sha256VisualText(beat.exactSpokenQuote),
-          finalScriptSha256,
-        };
+  for (const section of narration.sections) {
+    const recordings = section.materialIds
+      .map((materialId) => project.materials.find((item) => item.id === materialId))
+      .filter((material) => material?.required && material.kind === "screen-recording" && material.assetId);
+    const sentences = [...section.narration.matchAll(/[^。！？!?]+[。！？!?]?/gu)]
+      .map((match) => match[0].trim())
+      .filter(Boolean);
+    recordings.forEach((material, index) => {
+      const spokenQuote = sentences[Math.min(index, Math.max(0, sentences.length - 1))] ?? section.narration;
+      const exactAnchor = anchorText(spokenQuote);
+      scenes.push({
+        id: `scene-${material.id}`,
+        type: "screen-evidence",
+        assetId: material.assetId,
+        startAnchor: { text: exactAnchor },
+        endAnchor: { text: exactAnchor },
+        required: true,
+        executionPolicy: "locked",
+        speakerPip: {
+          shape: "circle",
+          preferredPosition: "bottom-left",
+          size: 360,
+          objectPosition: "50% 38%",
+        },
       });
-  });
-  const authoredTextAnnotations = confirmedAnnotationEntries.map(({ sectionId, spokenText, annotation }) => {
-    const quoteRange = resolveTextAnnotationQuoteRange(annotation, spokenText);
-    const origin = annotation.origin ?? "user";
-    return {
-      ...annotation,
-      origin,
-      executionPolicy: origin === "user" ? "locked" : "reference",
-      sectionId,
-      quoteStart: quoteRange.start,
-      quoteEnd: quoteRange.end,
-      exactSpokenQuoteSha256: sha256VisualText(annotation.exactSpokenQuote),
-      finalScriptSha256,
-    };
-  });
+    });
+  }
   await writeFile(finalPath, `# ${narration.title}\n\n${narration.fullScript}\n`);
   await writeJsonAtomic(scenePath, { schemaVersion: "1.0", scenes });
   const authoredVisualPlan = {
     schemaVersion: "1.0",
     visualPlanContractVersion: "4.0",
     finalScriptSha256,
-    sections: authoredVisualSections,
-    beats: authoredVisualBeats,
-    annotations: authoredTextAnnotations,
+    sections: [],
+    beats: [],
+    annotations: [],
   };
   await validateArtifactSchema({
     schemaPath: "schemas/authored-visual-plan.schema.json",
@@ -250,19 +174,10 @@ export const createVideoHandoff = async (projectId, { speakerAssetId }) => {
   project = await loadCreatorProject(projectId);
   const narration = await loadNarration(projectId);
   const storyboard = await loadVisualStoryboard(projectId, narration);
+  const materialUnderstanding = await loadMaterialUnderstanding(projectId, project, { verifyContentHash: true });
+  const understoodMaterials = new Map((materialUnderstanding.materials ?? []).map((item) => [item.materialId, item]));
   if (bindAuthoredMediaToNarration(project, narration)) await saveCreatorProject(project);
   const storyboardNarrationSections = narrationStoryboardSections(narration);
-  const selectedMaterialIds = new Set(narration.sections.flatMap((section) => section.materialIds));
-  for (const section of storyboardNarrationSections) {
-    const review = storyboard.sections[section.id];
-    if (review?.status === "confirmed" && resolvedStoryboardMode(review, section) === "material" && review.materialId)
-      selectedMaterialIds.add(review.materialId);
-    for (const beat of review?.beats ?? []) {
-      if (beat.status !== "confirmed") continue;
-      for (const materialId of [...(beat.materialIds ?? []), ...(beat.materialId ? [beat.materialId] : [])])
-        selectedMaterialIds.add(materialId);
-    }
-  }
   const sourceMaterial = project.materials.find(
     (item) => item.assetId === speakerAssetId && item.kind === "speaker-video",
   );
@@ -282,6 +197,9 @@ export const createVideoHandoff = async (projectId, { speakerAssetId }) => {
   });
   manifest.policies.typography = project.typography ?? { version: "typography-2.0", mode: "system-only" };
   manifest.policies.animation = { mode: "per-cue", allowedTemplateIds: animationTemplateIds };
+  manifest.policies.visualDirection.minimumVisualCoverageRatio = 0.8;
+  manifest.policies.visualDirection.maximumVisualCoverageRatio = 1;
+  manifest.policies.visualDirection.maximumAnimationCoverageRatio = 0.25;
   manifest.paths.referenceScript = relative(
     dirname(outputPath),
     resolve(projectDir(projectId), project.authoring.finalScript),
@@ -326,7 +244,19 @@ export const createVideoHandoff = async (projectId, { speakerAssetId }) => {
     });
   }
   for (const material of project.materials.filter((item) => item.assetId && item.kind !== "speaker-video")) {
-    if (authoredMediaKinds.has(material.kind) && !selectedMaterialIds.has(material.id)) continue;
+    const understood = understoodMaterials.get(material.id);
+    const productionDescription = [
+      understood?.summary,
+      understood?.suggestedUse,
+      material.productionNote,
+      material.description,
+      material.label,
+    ]
+      .map((item) => item?.trim())
+      .filter(Boolean)
+      .filter((item, index, all) => all.indexOf(item) === index)
+      .join("；")
+      .slice(0, 1000);
     let resolvedMaterialPath;
     try {
       resolvedMaterialPath = await resolveCreatorAsset(projectId, material.assetId);
@@ -358,16 +288,16 @@ export const createVideoHandoff = async (projectId, { speakerAssetId }) => {
         .map((section) => ({ id: section.id, narration: section.narration, materialIds: section.materialIds }));
       const path = relative(dirname(outputPath), resolvedMaterialPath);
       for (const { beat } of boundBeats) {
-        const executionPolicy = "reference";
+        const executionPolicy = material.required ? "locked" : "reference";
         const evidenceId = `${material.assetId}-${beat.id}`;
         imageEvidence.push({
           id: evidenceId,
           path,
           role: material.evidenceRole ?? "interface",
-          description: material.description?.trim() || material.label,
+          description: productionDescription,
           sourceLabel: material.sourceLabel?.trim() || material.label,
           anchorText: beat.exactSpokenQuote,
-          required: executionPolicy === "locked",
+          required: material.required,
           fit: material.fit ?? "contain",
           focalPoint: material.focalPoint ?? { x: 0.5, y: 0.5 },
         });
@@ -380,15 +310,15 @@ export const createVideoHandoff = async (projectId, { speakerAssetId }) => {
         const repeated = boundSections.length > 1;
         const evidenceId = repeated ? `${material.assetId}-${section.id}` : material.assetId;
         const spokenAnchor = anchorText(section.narration);
-        const executionPolicy = "reference";
+        const executionPolicy = material.required ? "locked" : "reference";
         imageEvidence.push({
           id: evidenceId,
           path,
           role: material.evidenceRole ?? "interface",
-          description: material.description?.trim() || material.label,
+          description: productionDescription,
           sourceLabel: material.sourceLabel?.trim() || material.label,
           anchorText: spokenAnchor,
-          required: executionPolicy === "locked",
+          required: material.required,
           fit: material.fit ?? "contain",
           focalPoint: material.focalPoint ?? { x: 0.5, y: 0.5 },
         });
@@ -396,6 +326,18 @@ export const createVideoHandoff = async (projectId, { speakerAssetId }) => {
           manifest.policies.edit.protectedAnchors.push(
             imageEvidenceProtectedAnchor(material, spokenAnchor, repeated ? `-${section.id}` : ""),
           );
+      }
+      if (!boundBeats.length && !boundSections.length) {
+        imageEvidence.push({
+          id: material.assetId,
+          path,
+          role: material.evidenceRole ?? "interface",
+          description: productionDescription,
+          sourceLabel: material.sourceLabel?.trim() || material.label,
+          required: material.required,
+          fit: material.fit ?? "contain",
+          focalPoint: material.focalPoint ?? { x: 0.5, y: 0.5 },
+        });
       }
       continue;
     }
@@ -406,7 +348,8 @@ export const createVideoHandoff = async (projectId, { speakerAssetId }) => {
       orientation: "any",
       required: material.required,
       audioPolicy: "mute",
-      description: material.label,
+      description: productionDescription,
+      productionTreatment: material.productionTreatment ?? "direct",
     });
   }
   if (imageEvidence.length) manifest.imageEvidence = { version: "1.0", assets: imageEvidence };

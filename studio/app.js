@@ -67,44 +67,9 @@ const state = {
   editorial: { categories: [], questionnaires: {}, editingProjectId: null },
   activeNarrationSection: 0,
 };
-let visualStoryboardAutosaveQueue = Promise.resolve();
-let visualStoryboardAutosaveVersion = 0;
-const setVisualSaveStatus = (projectId, message, stateName) => {
-  if (state.selected !== projectId) return;
-  document.querySelectorAll("[data-visual-save-status]").forEach((status) => {
-    status.textContent = message;
-    status.dataset.state = stateName;
-  });
-};
-const autosaveVisualStoryboard = (projectId) => {
-  const storyboard = structuredClone(state.detail?.visualStoryboard);
-  if (!storyboard) return Promise.resolve(false);
-  const version = ++visualStoryboardAutosaveVersion;
-  setVisualSaveStatus(projectId, "正在保存…", "saving");
-  visualStoryboardAutosaveQueue = visualStoryboardAutosaveQueue
-    .catch(() => undefined)
-    .then(() =>
-      api(`/api/projects/${projectId}/visual-storyboard`, {
-        method: "PUT",
-        body: storyboard,
-        keepalive: true,
-      }),
-    )
-    .then(
-      () => {
-        if (version === visualStoryboardAutosaveVersion)
-          setVisualSaveStatus(projectId, "已自动保存", "saved");
-        return true;
-      },
-      (error) => {
-        if (version === visualStoryboardAutosaveVersion)
-          setVisualSaveStatus(projectId, "保存失败", "error");
-        if (state.selected === projectId) toast(`视觉方案保存失败：${error.message}`);
-        return false;
-      },
-    );
-  return visualStoryboardAutosaveQueue;
-};
+// Frozen legacy storyboard controls are no longer rendered or persisted. Keep their
+// dormant listeners harmless while older project detail payloads remain readable.
+const autosaveVisualStoryboard = async () => false;
 const categoryLabel = (categoryId) =>
   state.editorial.categories.find((category) => category.id === categoryId)?.label ??
   legacyCategoryLabels[categoryId] ??
@@ -946,6 +911,7 @@ const renderSteps = (status, viewedStep) => {
       (index === 1 && current >= 1 && state.detail?.narration) ||
       (index === 2 && current >= 2) ||
       (index === 3 && Boolean(state.detail?.project.video.manifest)) ||
+      (index === 4 && Boolean(state.staticReview?.available)) ||
       (index === 5 && Boolean(state.delivery?.approval?.approved));
     const className = `${index < current ? "done" : ""} ${index === viewedStep ? "active" : ""} ${canView ? "clickable" : ""}`;
     const content = `<span class="step-number">${index < current ? "✓" : index + 1}</span><span class="step-copy"><b>${label}</b><small>${description}</small></span>`;
@@ -1147,7 +1113,7 @@ const inferStructuralVisualForm = (text) => {
   if (/(?:对比|相比|不同|区别|而不是|前后|优点|缺点)/.test(value)) return "two-way-contrast";
   if (/(?:第一|首先|然后|接着|随后|最后|流程|步骤|阶段)/.test(value)) return "ordered-progression";
   if (/(?:分为|分成|类型|类别|包括).*(?:、|，)/.test(value)) return "category-map";
-  return "text-emphasis";
+  return "plain-language-claim";
 };
 const structuralStoryboardSection = (narration, index) => {
   const config = structuralStoryboardConfig[String(index)];
@@ -1218,6 +1184,7 @@ const componentPreviewMarkup = (component, compact = false) => {
     "capability-surface-grid": `<div class="schematic-grid">${Array.from({ length: 6 }, (_, index) => card(`<b>${index + 1}</b>${line(62)}`)).join("")}</div>`,
     "tradeoff-scale": `<div class="schematic-scale"><span>${line(64)}</span><b></b><span>${line(78)}</span></div>`,
     "rough-annotation": `<div class="schematic-annotation"><span>${line(84)}${line(68)}</span><b></b><i></i></div>`,
+    "editorial-statement": `<div class="schematic-editorial"><small>${line(38)}</small><span>${line(72)}</span><b>${line(58)}</b><i>${line(82)}</i></div>`,
   };
   return `<div class="component-schematic ${compact ? "compact" : ""}" role="img" aria-label="${escapeHtml(component.label)} UI 示意预览"><span class="schematic-kicker">${escapeHtml(component.label)}</span><div class="schematic-canvas">${previews[component.previewVariant] ?? textBlock()}</div></div>`;
 };
@@ -1603,10 +1570,28 @@ const materialUnderstandingView = (project) => {
     suggested:{ label:"素材已理解", tone:"ready" },
     confirmed:{ label:"素材已理解", tone:"ready" },
   }[status] ?? { label:"尚未理解", tone:"", action:"开始理解资料与素材" };
+  const reportById = new Map((report.materials ?? []).map((item) => [item.materialId,item]));
+  const decisionsById = new Map((report.productionDecisions ?? []).map((item) => [item.materialId,item]));
+  const recommendationLabels = { keep:"建议保留", exclude:"建议排除", merge:"建议合并展示", trim:"建议裁剪录屏" };
+  const visualMaterials = project.materials.filter((item) => ["screenshot","screen-recording"].includes(item.kind));
+  const materialReview = ["suggested","confirmed"].includes(report.status) && visualMaterials.length
+    ? `<div class="material-decision-list">${visualMaterials.map((material) => {
+        const understanding = reportById.get(material.id);
+        const recommendation = understanding?.productionRecommendation ?? { action:"keep", reason:"用户上传素材默认进入成片" };
+        const stored = decisionsById.get(material.id);
+        const disposition = stored?.disposition ?? (recommendation.action === "exclude" ? "excluded" : "required");
+        const treatment = stored?.treatment ?? (["merge","trim"].includes(recommendation.action) ? recommendation.action : "direct");
+        const preview = material.kind === "screenshot" && material.assetId
+          ? `<img src="/api/projects/${encodeURIComponent(project.project.id)}/assets/${encodeURIComponent(material.assetId)}" alt="${escapeHtml(material.label)}"/>`
+          : `<div class="material-file-kind">录屏</div>`;
+        return `<article class="material-decision-card">${preview}<div class="material-decision-copy"><div><b>${escapeHtml(material.label)}</b><span>${escapeHtml(recommendationLabels[recommendation.action] ?? "建议保留")}</span></div><p>${escapeHtml(recommendation.reason)}</p>${recommendation.clipGuidance ? `<small>建议保留：${escapeHtml(recommendation.clipGuidance)}</small>` : ""}</div><div class="material-decision-controls"><label>是否进入成片<select data-material-disposition="${escapeHtml(material.id)}" ${report.status === "confirmed" ? "disabled" : ""}><option value="required" ${disposition === "required" ? "selected" : ""}>必须呈现</option><option value="excluded" ${disposition === "excluded" ? "selected" : ""}>不进入成片</option></select></label><input type="hidden" data-material-treatment="${escapeHtml(material.id)}" value="${escapeHtml(treatment)}"/><label>补充说明<textarea data-material-feedback="${escapeHtml(material.id)}" maxlength="1000" ${report.status === "confirmed" ? "disabled" : ""} placeholder="例如：这是最终结果，不能删除。">${escapeHtml(stored?.note ?? material.productionNote ?? "")}</textarea></label></div></article>`;
+      }).join("")}</div>`
+    : "";
   return `<div class="panel intake-panel material-understanding-panel">
     <div class="intake-section-heading"><span>03</span><div><h3>素材理解</h3></div></div>
     <div class="understanding-state ${escapeHtml(presentation.tone)}"><span class="understanding-state-icon" aria-hidden="true">${status === "suggested" || status === "confirmed" ? "✓" : status === "stale" ? "!" : "·"}</span><strong>${escapeHtml(presentation.label)}</strong></div>
-    ${presentation.action || report.status === "suggested" ? `<div class="intake-form-actions">${presentation.action ? `<button class="secondary" id="analyze-materials" ${running ? "disabled" : ""}>${escapeHtml(presentation.action)}</button>` : ""}${report.status === "suggested" && !running ? `<button class="primary" id="confirm-material-understanding" data-input-sha="${escapeHtml(report.inputSha256)}">确认素材理解</button>` : ""}</div>` : ""}
+    ${materialReview}
+    ${presentation.action || report.status === "suggested" ? `<div class="intake-form-actions">${presentation.action ? `<button class="secondary" id="analyze-materials" ${running ? "disabled" : ""}>${escapeHtml(presentation.action)}</button>` : ""}${report.status === "suggested" && !running ? `<button class="primary" id="confirm-material-understanding" data-input-sha="${escapeHtml(report.inputSha256)}">确认素材安排并继续</button>` : ""}</div>` : ""}
   </div>`;
 };
 const postProductionIntakeView = (project) => {
@@ -1622,14 +1607,8 @@ const postProductionIntakeView = (project) => {
     <div class="panel intake-panel"><div class="intake-section-heading"><span>03</span><div><h3>补充网站与参考资料</h3></div></div><div class="intake-form-grid"><label>名称<input id="source-label" placeholder="例如项目官网"/></label><label>网址、文件路径或笔记<input id="source-value" placeholder="https://... 或绝对路径"/></label></div><div class="intake-form-actions"><button class="secondary" id="add-source">加入项目资料</button></div>${intakeInventory(project.sources.filter((item) => item.id !== "source-input-script"), sourceKindLabels, "份参考资料", project.project.id)}<p class="hint">网站会被实际读取；只有读取成功并冻结的正文会交给 Agent。</p></div>
     ${materialUnderstandingView(project)}
   </div>
-  <div class="actions"><button class="primary" id="prepare-existing-narration" ${canContinue ? "" : "disabled"}>${!hasScript ? "先选择口播稿" : !hasSpeakerVideo ? "先选择口播原片" : !understandingReady ? "先完成素材理解" : "进入口播审核与视觉方案"}</button></div>`;
+  <div class="actions"><button class="primary" id="prepare-existing-narration" ${canContinue ? "" : "disabled"}>${!hasScript ? "先选择口播稿" : !hasSpeakerVideo ? "先选择口播原片" : !understandingReady ? "先完成素材安排" : "进入口播文字审核"}</button></div>`;
 };
-const visualStoryboardMissing = () =>
-  Boolean(state.detail?.narration) && Object.keys(state.detail?.visualStoryboard?.sections ?? {}).length === 0;
-const visualPlanningRecoveryPanel = () =>
-  visualStoryboardMissing()
-    ? `<div class="panel visual-planning-recovery"><div><strong>口播稿已安全保存</strong><p>逐段视觉方案还没有生成完成。可以从这一步继续，不会重新调用 Agent 写稿。</p></div><button type="button" class="primary" id="resume-visual-storyboard">继续生成视觉方案</button></div>`
-    : "";
 const intakeView = (project) => {
   if ((project.project.workflowMode ?? "script-first") === "visual-post-production") return postProductionIntakeView(project);
   const running = ["queued", "running"].includes(latestNarrationJob(project.project.id)?.status);
@@ -1641,12 +1620,11 @@ const intakeView = (project) => {
       ? "先完成素材理解"
       : !editorialReady
         ? "先完成并保存写作方向"
-        : `由 ${project.agent.id === "codex-cli" ? "Codex CLI" : "Claude Code"} 生成口播稿与逐段视觉方案`;
+      : `由 ${project.agent.id === "codex-cli" ? "Codex CLI" : "Claude Code"} 生成口播稿`;
   return `
   ${jobFeedback(project)}
-  ${visualPlanningRecoveryPanel()}
   <div class="intake-stack">
-    <div class="panel intake-panel"><div class="intake-section-heading"><span>01</span><div><h3>上传图片、录屏与素材</h3></div></div><div class="asset-browser-row"><label>图片适配方式<select id="asset-fit"><option value="contain">完整显示</option><option value="cover">填满裁切</option></select></label><button class="secondary" id="browse-assets" type="button">浏览并加入（可多选）</button></div><details class="advanced-path-entry"><summary>也可以手动填写路径</summary><div class="intake-form-grid"><label class="wide">素材绝对路径<input id="asset-path" placeholder="/Users/.../录屏.mp4"/></label><label>素材类型<select id="asset-kind"><option value="screen-recording">录屏</option><option value="screenshot">图片或截图</option><option value="reference">参考文件</option><option value="speaker-video">人物口播原片</option></select></label><label>名称（可选）<input id="asset-label" placeholder="默认使用文件名"/></label></div><div class="intake-form-actions"><button class="secondary" id="add-asset" type="button">加入素材库</button></div></details>${intakeInventory(project.materials, materialKindLabels, "份素材", project.project.id, project.authoring.state === "not-started")}<p class="hint">Agent 会读取图片原图、录屏代表画面和参考文件，并在视觉规划时决定如何使用。</p></div>
+    <div class="panel intake-panel"><div class="intake-section-heading"><span>01</span><div><h3>上传图片、录屏与素材</h3></div></div><div class="asset-browser-row"><label>图片适配方式<select id="asset-fit"><option value="contain">完整显示</option><option value="cover">填满裁切</option></select></label><button class="secondary" id="browse-assets" type="button">浏览并加入（可多选）</button></div><details class="advanced-path-entry"><summary>也可以手动填写路径</summary><div class="intake-form-grid"><label class="wide">素材绝对路径<input id="asset-path" placeholder="/Users/.../录屏.mp4"/></label><label>素材类型<select id="asset-kind"><option value="screen-recording">录屏</option><option value="screenshot">图片或截图</option><option value="reference">参考文件</option><option value="speaker-video">人物口播原片</option></select></label><label>名称（可选）<input id="asset-label" placeholder="默认使用文件名"/></label></div><div class="intake-form-actions"><button class="secondary" id="add-asset" type="button">加入素材库</button></div></details>${intakeInventory(project.materials, materialKindLabels, "份素材", project.project.id, project.authoring.state === "not-started")}<p class="hint">上传的图片和录屏默认必须进入成片；Agent 会先建议保留、排除、合并或裁剪，确认后再写稿。</p></div>
     <div class="panel intake-panel"><div class="intake-section-heading"><span>02</span><div><h3>补充网页、文档与文字资料</h3></div></div><div class="intake-form-grid"><label>名称<input id="source-label" placeholder="例如 GitHub 仓库"/></label><label>网址、文件路径或笔记<input id="source-value" placeholder="https://... 或绝对路径"/></label></div><div class="intake-form-actions"><button class="secondary" id="add-source">加入项目资料</button></div>${intakeInventory(project.sources, sourceKindLabels, "份参考资料", project.project.id)}<p class="hint">资料用来核实项目能力、新闻事实和教程步骤，不替你决定稿件立场。</p></div>
     ${materialUnderstandingView(project)}
     ${editorialBriefView(project,"04")}
@@ -1706,23 +1684,25 @@ const narrationHistory = (project) => {
       ${attempt.status === "succeeded" && attempt.attemptId !== project.authoring.currentAttemptId && project.authoring.state === "drafted" ? `<button class="secondary compact" data-restore-narration="${escapeHtml(attempt.attemptId)}">恢复为新版本</button>` : attempt.attemptId === project.authoring.currentAttemptId ? `<span class="badge">当前版本</span>` : ""}
     </div>`).join("")}</div></details>`;
 };
+const narrationTextEditor = (narration) => `<div class="narration-text-editor">
+  <label class="narration-title-field">标题<input data-field="title" value="${escapeHtml(narration.title)}"/></label>
+  ${storyboardEntries(narration).map(({section,index},itemIndex) => `<article class="narration-text-card"><div><span>${String(itemIndex + 1).padStart(2,"0")}</span><strong>${escapeHtml(section.title)}</strong></div><textarea data-section-narration="${index}">${escapeHtml(section.narration)}</textarea></article>`).join("")}
+</div>`;
 const narrationView = (project, narration, sourceContext) => `
   ${jobFeedback(project)}
-  ${visualPlanningRecoveryPanel()}
   <div class="panel review-header"><div><div class="eyebrow">SCRIPT REVIEW</div><h2 style="margin-top:6px">${escapeHtml(narration.title)}</h2></div>${narrationExportControls()}</div>
   <details class="review-details narration-support-details">
     <summary>本期依据与素材</summary>
     <div class="narration-support-body">
       ${sourceEvidenceView(project, sourceContext)}
-      ${postDraftMaterialForm()}
       ${authoredMaterialPanel(project, narration)}
     </div>
   </details>
-  ${visualStoryboard(project, narration)}
-  <dialog id="component-catalog-dialog" class="component-catalog-dialog"><div class="dialog-head"><div><div class="eyebrow">COMPONENT CATALOG</div><h2>${visualComponentCatalog.length} 个组件预览</h2></div><button type="button" class="icon-button" data-close-component-catalog aria-label="关闭">×</button></div><p class="hint">预览展示组件的结构和动效逻辑，不绑定任何历史视频画面；只有与当前口播关系兼容的组件可以确认。</p><div class="component-catalog-grid">${visualComponentCatalog.map((item) => `<button type="button" class="component-catalog-card" data-catalog-component="${item.id}">${componentPreviewMarkup(item)}<span><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.id)}</small></span></button>`).join("")}</div></dialog>
+  <div class="panel autonomous-script-notice"><strong>这里只审核口播文字</strong><p>素材语义关系会随最终稿一起交给生产 Agent。组件、动画、时间线和呈现方式将在锁稿后统一规划。</p></div>
+  ${narrationTextEditor(narration)}
   <details class="review-details rewrite-panel"><summary>需要 Agent 重写</summary><div class="rewrite-panel-body"><label>修改意见<textarea id="rewrite-instructions" maxlength="2000" placeholder="写下需要调整的内容和表达方式。"></textarea></label><div class="actions"><button class="secondary" id="rewrite-script">交给 ${project.agent.id === "codex-cli" ? "Codex CLI" : "Claude Code"} 重写</button></div></div></details>
   ${narrationHistory(project)}
-  <div class="actions"><button class="secondary" id="save-script">保存修改</button><button class="primary" id="lock-script">确认最终稿并锁定</button></div>`;
+  <div class="actions"><button class="secondary" id="save-script">保存文字修改</button><button class="primary" id="lock-script">确认最终口播稿</button></div>`;
 const shootingGuide = (narration) => `
   <ol class="guide-list">${narration.shootingGuide.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ol>
   <p class="guide-note"><strong>用途说明：</strong>这份指导主要给你拍摄时查看。视频工作流使用的是锁稿后生成的结构化录屏场景计划，两者来自同一份最终稿。</p>`;
@@ -1797,7 +1777,7 @@ const workflowFeedback = (project) => {
 };
 const stageTimeline = (workflow) => `<div class="workflow-stage-grid">${workflow.stages.map((stage) => `<div class="workflow-stage ${escapeHtml(stage.status)}"><span></span><div><b>${escapeHtml(workflowStageLabels[stage.name] ?? "处理视频")}</b><small>${escapeHtml(workflowStatusLabels[stage.status] ?? stage.status)}${stage.elapsedMs ? ` · ${(stage.elapsedMs / 1000).toFixed(1)} 秒` : ""}</small></div></div>`).join("")}</div>`;
 const workflowWarningCount = (project, workflow) => {
-  return workflow?.recut?.unresolvedProtectedAnchors.length ?? 0;
+  return workflow?.currentFailure ? 1 : 0;
 };
 const workflowProgressContent = (project, workflow) => `
   ${workflowFeedback(project)}
@@ -1824,10 +1804,10 @@ const recutReviewView = (project, workflow) => {
   const rejected = recut.decision?.decision === "rejected";
   const staticReviewReady = workflow.reviewReady;
   return `<section class="recut-review">
-    <div class="panel review-header"><div><div class="eyebrow">INTELLIGENT RECUT 2.0</div><h2>粗剪审核</h2></div><span class="status-pill">${workflow.recutApproved ? "已批准" : rejected ? "已驳回" : "待审核"}</span></div>
+    <div class="panel review-header"><div><div class="eyebrow">INTELLIGENT RECUT 2.0</div><h2>过程预览</h2><p>这里只展示 Agent 已处理的粗剪结果，不是用户审核门。</p></div><span class="status-pill">${workflow.recutApproved ? "已完成" : "处理中"}</span></div>
     <div class="recut-metrics"><div><b>${Number(summary.originalDurationSeconds ?? 0).toFixed(1)}s</b><span>原始口播</span></div><div><b>${Number(summary.proposedDurationSeconds ?? 0).toFixed(1)}s</b><span>建议成片</span></div><div><b>${Number(summary.proposedSavingsSeconds ?? 0).toFixed(1)}s</b><span>预计节省</span></div><div><b>${summary.removalCount ?? 0}</b><span>建议删除</span></div></div>
     <div class="panel recut-player"><video id="recut-preview" controls preload="metadata" src="${escapeHtml(recut.previewUrl)}"></video><details class="technical-details"><summary>查看审核版本标识</summary><code>${escapeHtml(recut.screenSha256)}</code></details></div>
-    ${workflow.recutApproved ? `<div class="panel approval-success"><h3>${staticReviewReady ? "Agent 质检证据已生成" : "制作 Agent 已通过粗剪"}</h3><p>${staticReviewReady ? "已完成字幕、录屏、视觉组件和显示完整性检查。" : "Agent 会继续完成视觉制作、自检和渲染。"}</p></div>` : `<div class="panel recut-actions-panel"><h3>制作 Agent 正在审核粗剪</h3><p>安全删减、口播锚点和连续预览由 Agent 内部核对；未通过时会自动重新规划，不会把中间审批交给你。</p></div>`}
+    ${workflow.recutApproved ? `<div class="panel approval-success"><h3>${staticReviewReady ? "Agent 质检证据已生成" : "粗剪过程已完成"}</h3><p>${staticReviewReady ? "已完成字幕、录屏、视觉组件和显示完整性检查。" : "Agent 会继续完成视觉制作和自检，之后等待你选择渲染规格。"}</p></div>` : `<div class="panel recut-actions-panel"><h3>制作 Agent 正在内部核对</h3><p>安全删减、口播锚点和连续预览由 Agent 自行处理。</p></div>`}
   </section>`;
 };
 const workflowProductionProgress = (workflow) => {
@@ -1843,11 +1823,18 @@ const workflowProductionProgress = (workflow) => {
 };
 const workflowNextRun = (workflow) => {
   if (!workflow || workflow.reviewApproved) return undefined;
+  if (!workflow.productionPlan?.ready)
+    return {
+      action: "plan",
+      targetGate: "visual-confirmation",
+      label: "生成制作方向",
+    };
+  if (!workflow.productionPlan.confirmed) return undefined;
   const started = workflow.stages.some((stage) => stage.status !== "pending");
   return {
     action: "production",
-    targetGate: "delivery-acceptance",
-    label: started ? "由 Agent 继续制作" : "开始制作并生成成片",
+    targetGate: "delivery-specification",
+    label: started ? "由 Agent 继续制作" : "开始制作并完成自检",
   };
 };
 const latestWorkflowReadiness = (projectId, targetGate, profile) =>
@@ -1889,7 +1876,8 @@ const workflowReadinessCard = (project, workflow) => {
   const task = latestJob(project.project.id, "video-workflow");
   const workflowProgress = workflowProductionProgress(workflow);
   const taskPercent = Math.max(0, Math.min(100, Number(task?.progress?.percent ?? 0)));
-  const percent = ["queued", "running"].includes(task?.status)
+  const taskInProgress = ["queued", "running"].includes(task?.status);
+  const percent = taskInProgress
     ? Math.max(workflowProgress.percent, taskPercent)
     : workflowProgress.percent;
   const failed = workflow?.currentFailure || ["failed", "interrupted", "cancelled"].includes(task?.status);
@@ -1899,53 +1887,89 @@ const workflowReadinessCard = (project, workflow) => {
   const recovering = failed && ["queued", "running"].includes(recoveryTask?.status);
   const readiness = next ? latestWorkflowReadiness(project.project.id, next.targetGate) : undefined;
   const blocked = readiness?.readinessStatus === "blocked";
-  const status = failed || blocked
-    ? recovering
+  const awaitingPlanConfirmation = workflow?.productionPlan?.ready && !workflow.productionPlan.confirmed;
+  const autonomousProduction = Boolean(workflow?.productionPlan?.confirmed && !workflow?.reviewApproved);
+  const internallyRecovering = recovering || (autonomousProduction && (failed || blocked));
+  const requiresUserAttention = Boolean(failed && !internallyRecovering && !autonomousProduction);
+  const hasWarning = Boolean(blocked && !internallyRecovering && !requiresUserAttention);
+  const status = internallyRecovering
+    ? "制作中"
+    : taskInProgress
       ? "制作中"
-      : "未生成结果"
+    : failed
+      ? "未生成结果"
+    : blocked && !autonomousProduction
+      ? "准备中"
     : workflow?.reviewApproved
       ? "可以审核"
+      : awaitingPlanConfirmation
+        ? "等待确认"
       : ["queued", "running"].includes(task?.status)
         ? "制作中"
         : "准备中";
-  const message = failed
-    ? recovering
-      ? "制作 Agent 正在后台诊断、修改并重新检查。"
-      : "本次暂未生成可审核版本，所有有效进度已保留。"
-    : blocked
-      ? "开始前还有一项需要处理，打开故障恢复查看解决办法。"
+  const message = internallyRecovering
+    ? "制作 Agent 正在内部重新检查并从有效断点继续。"
+    : taskInProgress
+      ? task?.action === "delivery"
+        ? "正在生成本期成片，完成后只需审核最终结果。"
+        : "正在制作并自检本期视频，完成后由你选择渲染规格。"
+    : failed
+      ? "本次暂未生成可审核版本，所有有效进度已保留。"
+    : blocked && autonomousProduction
+      ? "制作 Agent 正在内部重新检查并从有效断点继续。"
+      : blocked
+        ? "制作 Agent 正在检查开始条件。"
       : workflow?.reviewApproved
-      ? "制作、Agent 自检和成片技术验收已完成，请审核最终成片。"
+      ? "制作和 Agent 自检已完成，请选择渲染规格。"
+      : awaitingPlanConfirmation
+        ? "制作 Agent 已完成整体画面规划，请查看大概方向并确认开始制作。"
       : task?.status === "queued"
         ? "任务已经进入队列，开始后会自动更新进度。"
         : task?.status === "running"
-          ? "正在制作、自检并渲染本期视频，完成后只需你审核最终成片。"
-          : "先做一次快速检查，之后制作 Agent 会连续完成制作、自检与渲染。";
-  const action = failed
+          ? "正在制作并自检本期视频，完成后由你选择渲染规格。"
+          : "先做一次快速检查，之后制作 Agent 会连续完成制作和自检。";
+  const action = taskInProgress
+    ? '<p class="guide-note">任务已经开始，当前只显示进度，无需再次确认。</p>'
+    : failed || autonomousProduction
     ? '<p class="guide-note">无需处理技术错误；详细诊断仅保留在高级详情中。</p>'
     : workflow?.reviewApproved
-      ? '<button type="button" class="primary" id="open-delivery">审核最终成片</button>'
+      ? '<button type="button" class="primary" id="open-delivery">选择渲染规格</button>'
         : next && !readiness
           ? '<button type="button" class="primary" id="workflow-readiness-check">检查并继续</button>'
           : blocked
-            ? '<p class="guide-note">制作 Agent 会先校验现有产物，不会覆盖有效结果。</p>'
+            ? '<p class="guide-note">开始条件由制作 Agent 内部处理。</p>'
             : next && readiness
               ? `<label class="confirmation-row"><input type="checkbox" id="workflow-readiness-confirm"/><span>确认继续“${escapeHtml(next.label)}”</span></label><button type="button" class="primary" id="workflow-readiness-start" data-action="${escapeHtml(next.action)}" data-readiness-sha="${escapeHtml(readiness.readinessSha256)}">${escapeHtml(next.label)}</button>`
               : "";
-  return `<section class="panel workflow-creator-status ${failed || blocked ? "needs-attention" : ""}">
+  const statusTone = requiresUserAttention ? "needs-attention" : hasWarning ? "warning" : "";
+  return `<section class="panel workflow-creator-status ${statusTone}">
     <div class="workflow-creator-status-head"><div><span class="creator-state">${escapeHtml(status)}</span><h3>${escapeHtml(message)}</h3></div><b>${percent}%</b></div>
     <div class="progress-track" aria-label="视频制作总体进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><span style="width:${percent}%"></span></div>
-    <div class="workflow-creator-status-foot"><span>总体进度 ${percent}%</span><span>预计剩余：${failed || blocked ? "等待问题解决" : escapeHtml(estimatedRemainingLabel(task, percent))}</span><div class="actions">${action}</div></div>
+    <div class="workflow-creator-status-foot"><span>总体进度 ${percent}%</span><span>预计剩余：${requiresUserAttention ? "等待用户决定" : escapeHtml(estimatedRemainingLabel(task, percent))}</span><div class="actions">${action}</div></div>
+  </section>`;
+};
+
+const percentLabel = (value) => `${Math.round(Math.max(0, Math.min(1, Number(value ?? 0))) * 100)}%`;
+const productionPlanView = (workflow) => {
+  const plan = workflow?.productionPlan;
+  if (!plan?.ready) return "";
+  const summary = plan.summary ?? {};
+  return `<section class="panel production-plan-review">
+    <div class="review-header"><div><div class="eyebrow">PRODUCTION AGENT DIRECTION</div><h2>制作方向</h2><p>这是制作 Agent 根据最终口播稿和全部素材形成的大概执行方向。它只用于确认整体思路，具体时间、布局、裁切和动画由 Agent 在制作中自行决定。</p></div><span class="status-pill">${plan.confirmed ? "已确认" : "待确认"}</span></div>
+    <div class="recut-metrics"><div><b>${summary.chapterCount ?? 0}</b><span>内容章节</span></div><div><b>${summary.selectedVisualCount ?? 0}</b><span>计划视觉段</span></div><div><b>${percentLabel(summary.animationCoverage)}</b><span>动画覆盖</span></div><div><b>${percentLabel(summary.visualCoverageRatio)}</b><span>预计视觉覆盖</span></div></div>
+    <div class="production-plan-columns"><div><h3>章节方向</h3><ul class="compact-list">${(plan.chapters ?? []).map((chapter) => `<li><b>${escapeHtml(chapter.label)}</b><span>${chapter.selectedVisualCount} 个视觉段</span></li>`).join("") || "<li>由 Agent 按口播结构连续规划</li>"}</ul></div><div><h3>必须呈现的素材</h3><ul class="compact-list">${(plan.requiredMaterials ?? []).map((material) => `<li><b>${escapeHtml(material.label)}</b><span>${material.kind === "screen-recording" ? "录屏" : "图片"} · ${material.treatment === "trim" ? "允许裁剪" : material.treatment === "merge" ? "允许组合" : "直接呈现"}</span></li>`).join("") || "<li>本期没有指定必须呈现的上传素材</li>"}</ul></div></div>
+    <div><h3>视觉时间线</h3><ul class="compact-list production-plan-timeline">${(plan.visualSegments ?? []).map((segment) => `<li><b>${formatReviewTime(segment.start)}–${formatReviewTime(segment.end)} · ${escapeHtml({component:"组件",image:"图片", "screen-demo":"录屏",animation:"手绘动画",annotation:"文字标注"}[segment.type] ?? "视觉")}</b><span>${escapeHtml(componentDisplayLabels[segment.componentId] ?? segment.animationPrototypeId ?? segment.label ?? segment.id)}</span></li>`).join("") || "<li>Agent 未选择额外视觉段</li>"}</ul></div>
+    <p class="guide-note">确认后，Agent 会连续完成制作、内部审核和自动修复；中间 QA 不再交给你处理，完成后再由你选择渲染规格。</p>
+    ${plan.confirmed ? '<div class="approval-success"><b>制作方向已确认</b><p>Agent 已自动进入制作和自检；完成后会停在渲染规格选择页。</p></div>' : `<label class="confirmation-row"><input type="checkbox" id="production-plan-confirm-check"/><span>我已查看制作方向，确认由 Agent 自主完成制作和自检</span></label><div class="actions"><button type="button" class="primary" id="confirm-production-plan" data-plan-sha="${escapeHtml(plan.sha256)}">确认制作方向</button></div>`}
   </section>`;
 };
 const workflowTopActions = (project, workflow) => {
-  const refresh = `<button type="button" class="workflow-refresh-icon refresh-help" id="workflow-refresh" aria-label="重新校验已有进度" aria-describedby="workflow-refresh-tip"><img src="/assets/icons/refresh.svg" alt=""/><span class="workflow-hover-tip" id="workflow-refresh-tip" role="tooltip">重新读取并校验已有步骤，不会启动工作流，也不会重新调用 Agent、翻译或渲染。</span></button>`;
   const task = latestJob(project.project.id, "video-workflow");
   const { percent: progressPercent } = workflowProductionProgress(workflow);
   const progress = `<button type="button" class="workflow-refresh-icon progress ${["queued", "running"].includes(task?.status) ? "active" : ""}" id="workflow-progress-open" aria-label="查看制作进度，已完成 ${progressPercent}%" title="制作进度 ${progressPercent}%"><img src="/assets/icons/progress.svg" alt=""/><span class="workflow-progress-badge" style="--workflow-progress:${progressPercent * 3.6}deg">${progressPercent}%</span></button>`;
   const warningCount = workflowWarningCount(project, workflow);
   const warning = `<button type="button" class="workflow-refresh-icon warning ${warningCount ? "active" : ""}" id="workflow-warning-open" aria-label="查看粗剪提示" title="粗剪提示"><img src="/assets/icons/warning.svg" alt=""/>${warningCount ? `<span>${warningCount}</span>` : ""}</button>`;
-  return `${refresh}${progress}${warning}`;
+  return `${progress}${warning}`;
 };
 const productionBaselineReviewView = (workflow) => {
   const baseline = workflow?.productionBaseline;
@@ -1963,6 +1987,7 @@ const productionBaselineReviewView = (workflow) => {
 const videoView = (project, workflow) => `
   <div class="panel workflow-workbench-header"><div><div class="eyebrow">VIDEO WORKFLOW</div><h2>视频制作工作台</h2></div><div class="workflow-workbench-actions">${workflowTopActions(project, workflow)}</div></div>
   ${workflowReadinessCard(project, workflow)}
+  ${productionPlanView(workflow)}
   ${workflow?.productionBaseline ? productionBaselineReviewView(workflow) : ""}
   ${workflow?.recutReady ? recutReviewView(project, workflow) : workflow?.recutApprovalStatus === "stale" ? `<div class="panel recut-actions-panel"><h3>需重新审核粗剪</h3><p>录屏定位句或粗剪保护范围已变化，上一次的 720p 审核结果不再适用。系统只会重新生成粗剪预览，不会重做转写和 Agent 理解。</p></div>` : `<div class="panel"><h3>智能粗剪 2.0</h3><p>就绪检查会同时展示执行计划，因此不再需要先启动一个独立的预览任务。</p></div>`}`;
 
@@ -1987,6 +2012,7 @@ const componentDisplayLabels = {
   "capability-surface-grid": "能力矩阵",
   "tradeoff-scale": "取舍权衡",
   "rough-annotation": "手绘语义标注",
+  "editorial-statement": "观点陈述",
 };
 const formatReviewTime = (seconds) => {
   const value = Math.max(0, Number(seconds ?? 0));
@@ -2017,6 +2043,17 @@ const directionSummary = (review) => {
   const summary = review.summary ?? {};
   const componentUsage = Object.entries(review.direction?.componentUsage ?? {});
   const importanceUsage = Object.entries(review.direction?.importanceUsage ?? {});
+  const candidateOutcomes = review.direction?.candidateOutcomes?.counts ?? {};
+  const candidateOutcomeText = [
+    ["可用候选", candidateOutcomes.materialized],
+    ["由必用素材接管", candidateOutcomes.superseded],
+    ["主动略过", candidateOutcomes["intentionally-skipped"]],
+    ["安全略过", candidateOutcomes["safely-skipped"]],
+    ["仍未解决", candidateOutcomes.blocked],
+  ]
+    .filter(([, value]) => Number(value) > 0)
+    .map(([label, value]) => `${label} ${value}`)
+    .join(" · ");
   return `<div class="review-summary-grid">
     <div><b>${summary.chapterCount ?? 0}</b><span>内容章节</span></div>
     <div><b>${summary.selectedCount ?? 0} / ${(summary.selectedCount ?? 0) + (summary.skippedCount ?? 0)}</b><span>采用的候选画面</span></div>
@@ -2029,6 +2066,7 @@ const directionSummary = (review) => {
     <div><strong>画面层级</strong><p>${importanceUsage.length ? importanceUsage.map(([key, value]) => `${key === "hero" ? "重点" : key === "support" ? "辅助" : "点缀"} ${value}`).join(" · ") : "本期没有额外视觉层级"}</p></div>
     <div><strong>组件使用</strong><p>${componentUsage.length ? componentUsage.map(([key, value]) => `${escapeHtml(componentDisplayLabels[key] ?? "视觉组件")} × ${value}`).join(" · ") : "本期没有选择语义组件"}</p></div>
     <div><strong>标题连续性</strong><p>${review.direction?.titleCues?.length ?? 0} 处总结标题，用于保持纯口播段落的画面信息。</p></div>
+    <div><strong>内部候选处理</strong><p>${candidateOutcomeText || "本期候选均按计划处理"}</p></div>
   </div>`;
 };
 const qaSummary = (review) => {
@@ -2322,9 +2360,9 @@ const deliveryStartView = (delivery) => {
   const profileLabel = `${selected.resolution === "source" ? "跟随原片" : String(selected.resolution).toUpperCase()} / ${selected.frameRate === "source" ? "跟随原片帧率" : `${selected.frameRate} fps`}`;
   const readinessView = !readiness
     ? '<div class="delivery-readiness"><p>开始前先快速确认成片规格和可用空间。</p><button type="button" class="primary" id="delivery-readiness-check">检查并继续</button></div>'
-    : `<div class="delivery-readiness ${escapeHtml(readiness.readinessStatus)}">${blocked ? `<p>${escapeHtml(readiness.issues?.[0]?.message ?? "当前规格暂时不能开始渲染。")} 制作 Agent 会检查可恢复范围。</p>` : `<p class="readiness-clear">当前规格可以安全生成成片。</p><label class="confirmation-row"><input type="checkbox" id="delivery-start-confirm"/><span>确认生成 ${escapeHtml(profileLabel)} 成片</span></label><div class="actions"><button type="button" class="primary" id="start-delivery" data-readiness-sha="${escapeHtml(readiness.readinessSha256)}">开始渲染</button></div>`}</div>`;
+    : `<div class="delivery-readiness ${escapeHtml(readiness.readinessStatus)}">${blocked ? `<p>${escapeHtml(readiness.issues?.[0]?.message ?? "当前规格暂时不能开始渲染。")} 制作 Agent 会检查可恢复范围。</p><div class="actions"><button type="button" class="primary" id="delivery-readiness-check">重新安全检查</button></div>` : `<p class="readiness-clear">当前规格可以安全生成成片。</p><label class="confirmation-row"><input type="checkbox" id="delivery-start-confirm"/><span>确认生成 ${escapeHtml(profileLabel)} 成片</span></label><div class="actions"><button type="button" class="primary" id="start-delivery" data-readiness-sha="${escapeHtml(readiness.readinessSha256)}">开始渲染</button></div>`}</div>`;
   return `<div class="panel delivery-start-panel"><h3>${delivery.status === "failed" ? "从已保存进度继续" : "开始最终成片渲染"}</h3><p>只运行最终渲染和技术验收，不会重新调用 Agent、翻译或语义理解。高于原片的规格会自动回退，避免无意义放大或补帧。</p>
-    <div class="delivery-profile-grid"><label>清晰度<select id="delivery-resolution"><option value="source" ${selected.resolution === "source" ? "selected" : ""}>跟随原片</option><option value="1080p" ${selected.resolution === "1080p" ? "selected" : ""}>1080p</option><option value="2k" ${selected.resolution === "2k" ? "selected" : ""}>2K</option><option value="4k" ${selected.resolution === "4k" ? "selected" : ""}>4K</option></select></label><label>帧率<select id="delivery-frame-rate"><option value="source" ${selected.frameRate === "source" ? "selected" : ""}>跟随原片</option><option value="30" ${selected.frameRate === 30 ? "selected" : ""}>30 fps</option><option value="60" ${selected.frameRate === 60 ? "selected" : ""}>60 fps</option></select></label></div>
+    <div class="delivery-profile-grid"><label>清晰度<select id="delivery-resolution"><option value="720p" ${selected.resolution === "720p" ? "selected" : ""}>720p（快速预览）</option><option value="source" ${selected.resolution === "source" ? "selected" : ""}>跟随原片</option><option value="1080p" ${selected.resolution === "1080p" ? "selected" : ""}>1080p</option><option value="2k" ${selected.resolution === "2k" ? "selected" : ""}>2K</option><option value="4k" ${selected.resolution === "4k" ? "selected" : ""}>4K</option></select></label><label>帧率<select id="delivery-frame-rate"><option value="source" ${selected.frameRate === "source" ? "selected" : ""}>跟随原片</option><option value="30" ${selected.frameRate === 30 ? "selected" : ""}>30 fps</option><option value="60" ${selected.frameRate === 60 ? "selected" : ""}>60 fps</option></select></label></div>
     <div id="delivery-estimate" class="delivery-estimate"></div>
     ${readinessView}</div>`;
 };
@@ -2918,20 +2956,6 @@ const bindWorkspaceActions = () => {
       }
     });
   });
-  $("#resume-visual-storyboard")?.addEventListener("click", async () => {
-    const button = $("#resume-visual-storyboard");
-    button.disabled = true;
-    try {
-      const task = await api(`/api/projects/${id}/visual-storyboard/seed`, { method: "POST", body: {} });
-      state.jobs.push(task);
-      toast("已从保存的口播稿继续，不会重新写稿");
-      renderWorkspace();
-      pollUntilDone(id);
-    } catch (error) {
-      button.disabled = false;
-      toast(error.message);
-    }
-  });
   $("#pick-input-script")?.addEventListener("click", async () => {
     const button = $("#pick-input-script");
     button.disabled = true;
@@ -2957,7 +2981,7 @@ const bindWorkspaceActions = () => {
     button.disabled = true;
     try {
       await api(`/api/projects/${id}/existing-narration/prepare`, { method:"POST", body:{} });
-      toast("已保留原口播文字并生成逐段视觉方案");
+      toast("已保留原口播文字，可以开始文字审核");
       await selectProject(id);
     } catch(error) { button.disabled = false; toast(error.message); }
   });
@@ -2979,11 +3003,20 @@ const bindWorkspaceActions = () => {
     const button = event.currentTarget;
     button.disabled = true;
     try {
+      const decisions = [...document.querySelectorAll("[data-material-disposition]")].map((field) => {
+        const materialId = field.dataset.materialDisposition;
+        return {
+          materialId,
+          disposition:field.value,
+          treatment:document.querySelector(`[data-material-treatment="${materialId}"]`)?.value ?? "direct",
+          note:document.querySelector(`[data-material-feedback="${materialId}"]`)?.value.trim() ?? "",
+        };
+      });
       await api(`/api/projects/${id}/material-understanding/confirm`, {
         method:"POST",
-        body:{ inputSha256:button.dataset.inputSha },
+        body:{ inputSha256:button.dataset.inputSha, decisions },
       });
-      toast((state.detail.project.project.workflowMode ?? "script-first") === "visual-post-production" ? "素材理解已确认，现在可以进入视觉方案" : "素材理解已确认，现在可以生成口播稿");
+      toast((state.detail.project.project.workflowMode ?? "script-first") === "visual-post-production" ? "素材安排已确认，现在可以审核口播文字" : "素材安排已确认，现在可以生成口播稿");
       await selectProject(id);
     } catch(error) {
       button.disabled = false;
@@ -3435,8 +3468,7 @@ const bindWorkspaceActions = () => {
   $("#save-script")?.addEventListener("click", async () => {
     try {
       await api(`/api/projects/${id}/narration`, { method:"PUT", body:editedNarration() });
-      await api(`/api/projects/${id}/visual-storyboard`, { method:"PUT", body:state.detail.visualStoryboard });
-      toast("口播与分镜安排已保存");
+      toast("口播文字已保存；素材语义锚点将在生产阶段按最终稿重新理解");
       await selectProject(id);
     } catch(error){ toast(error.message); }
   });
@@ -3461,7 +3493,6 @@ const bindWorkspaceActions = () => {
     button.disabled = true;
     try {
       await api(`/api/projects/${id}/narration`, { method: "PUT", body: editedNarration() });
-      await api(`/api/projects/${id}/visual-storyboard`, { method:"PUT", body:state.detail.visualStoryboard });
       const task = await api(`/api/projects/${id}/rewrite`, { method:"POST", body:{ instructions } });
       state.jobs.push(task);
       renderWorkspace();
@@ -3472,15 +3503,9 @@ const bindWorkspaceActions = () => {
   $("#lock-script")?.addEventListener("click", async () => {
     try {
       const narration = editedNarration();
-      const sections = storyboardEntries(narration).map(({section}) => section);
-      const planned = sections.map((section) => ({ section, result:confirmVisualReview(section) }));
-      const blocked = planned.find(({ result }) => result.error);
-      if (blocked) return toast(blocked.result.error);
-      planned.forEach(({ section, result }) => setStoryboardReview(section, result.review));
-      await api(`/api/projects/${id}/visual-storyboard`, { method:"PUT", body:state.detail.visualStoryboard });
       await api(`/api/projects/${id}/lock`, { method:"POST", body:narration });
       await refresh();
-      toast("最终稿与当前完整视觉方案已锁定");
+      toast("最终口播稿已锁定，后续视觉由生产 Agent 统一规划");
     } catch(error){ toast(error.message); }
   });
   $("#suggest-writing-lessons")?.addEventListener("click", async () => {
@@ -3530,13 +3555,29 @@ const bindWorkspaceActions = () => {
       toast(error.message);
     }
   });
+  $("#confirm-production-plan")?.addEventListener("click", async (event) => {
+    if (!$("#production-plan-confirm-check")?.checked) return toast("请先确认由 Agent 自主完成后续制作");
+    const button = event.currentTarget;
+    try {
+      button.disabled = true;
+      const task = await api(`/api/projects/${id}/workflow/production-plan/confirm`, {
+        method:"POST",
+        body:{ visualPlanSha256:button.dataset.planSha, confirmation:"human-confirm-production-direction" },
+      });
+      state.jobs.push(task);
+      toast("制作方向已确认，Agent 已自动开始制作");
+      pollUntilDone(id);
+    } catch(error) {
+      button.disabled = false;
+      toast(error.message);
+    }
+  });
   $("#cancel-workflow")?.addEventListener("click", async (event) => { try { await api(`/api/projects/${id}/jobs/${event.currentTarget.dataset.jobId}/cancel`, { method:"POST" }); toast("已取消当前任务"); await selectProject(id); } catch(error){ toast(error.message); } });
   document.querySelectorAll("[data-seek]").forEach((button) => button.addEventListener("click", () => { const player = $("#recut-preview"); if (player) { player.currentTime = Number(button.dataset.seek); player.play().catch(() => {}); } }));
   $("#reject-recut")?.addEventListener("click", async () => { const note = $("#recut-feedback")?.value.trim() ?? ""; if (!note) return toast("请先填写具体修改意见"); try { await api(`/api/projects/${id}/workflow/recut-decision`, { method:"POST", body:{ decision:"rejected", note, screenSha256:state.workflow.recut.screenSha256 } }); toast("已保存意见并驳回当前方案"); await selectProject(id); } catch(error){ toast(error.message); } });
   $("#reopen-recut")?.addEventListener("click", async () => { try { await api(`/api/projects/${id}/workflow/recut-decision`, { method:"POST", body:{ decision:"reopened", screenSha256:state.workflow.recut.screenSha256 } }); toast("已重新打开当前提案"); await selectProject(id); } catch(error){ toast(error.message); } });
   $("#approve-recut")?.addEventListener("click", async () => { if (!$("#approve-confirm")?.checked) return toast("请先确认已完成连续预览审核"); try { await api(`/api/projects/${id}/workflow`, { method:"POST", body:{ action:"approve-recut", screenSha256:state.workflow.recut.screenSha256 } }); toast("粗剪批准已提交，正在提升 EDL"); pollUntilDone(id); } catch(error){ toast(error.message); } });
   $("#replan-recut")?.addEventListener("click", async () => { if (!window.confirm(translateText("确认把上述意见交给 Agent 重新规划？当前版本会保留为历史记录。"))) return; try { await api(`/api/projects/${id}/workflow`, { method:"POST", body:{ action:"replan-recut", confirmation:"human-recut-replan", screenSha256:state.workflow.recut.screenSha256 } }); toast("已按修改意见重新规划粗剪"); pollUntilDone(id); } catch(error){ toast(error.message); } });
-  $("#workflow-refresh")?.addEventListener("click", async () => { try { const result = await api(`/api/projects/${id}/workflow/refresh`, { method:"POST", body:{} }); const restored = result.changed?.filter((item) => item.status === "succeeded").length ?? 0; toast(restored ? `已恢复 ${restored} 个有效步骤` : "已有进度已校验"); await selectProject(id); state.viewStep = 3; renderWorkspace(); } catch(error){ toast(error.message); } });
   $("#workflow-progress-open")?.addEventListener("click", () => {
     $("#workflow-progress-body").innerHTML = workflowProgressContent(state.detail.project, state.workflow);
     $("#workflow-progress-dialog").showModal();

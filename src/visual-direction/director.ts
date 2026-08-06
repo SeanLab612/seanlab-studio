@@ -20,7 +20,8 @@ export const DEFAULT_VISUAL_DIRECTION_POLICY: VisualDirectionPolicy = Object.fre
   maximumContinuousVisualSeconds: 32,
   repetitionWindowSeconds: 12,
   minimumHeroGapSeconds: 42,
-  maximumVisualCoverageRatio: 0.95,
+  maximumVisualCoverageRatio: 1,
+  maximumAnimationCoverageRatio: 0.25,
   maximumChapterSeconds: 120,
   maximumChapterCandidates: 6,
   heroConfidence: 0.88,
@@ -119,6 +120,7 @@ export const directVisualPacing = ({
   policy?: Partial<VisualDirectionPolicy>;
 }): VisualDirectionPlan => {
   const policy = { ...DEFAULT_VISUAL_DIRECTION_POLICY, ...inputPolicy, version: "1.0" as const };
+  const breathingGapSeconds = policy.minimumVisualCoverageRatio ? 0 : policy.minimumBreathingGapSeconds;
   const ordered = [...candidates].sort((left, right) => left.startCue - right.startCue);
   const chapters = createChapters(ordered, policy);
   const decisions: VisualDirectionDecision[] = [];
@@ -173,13 +175,19 @@ export const directVisualPacing = ({
     }
 
     if (decision.displayStart !== null && decision.displayEnd !== null) {
-      const tierMaximum = candidate.creatorConstraint
+      // A requested minimum coverage is a delivery contract. Keep an eligible,
+      // evidence-bounded visual for its full semantic passage (up to the global
+      // continuous limit) instead of applying the short accent/support styling
+      // caps that are intended only for sparse editorial pacing.
+      const tierMaximum = policy.minimumVisualCoverageRatio
         ? policy.maximumContinuousVisualSeconds
-        : importance === "hero"
-          ? policy.maximumHeroSeconds
-          : importance === "support"
-            ? policy.maximumSupportSeconds
-            : policy.maximumAccentSeconds;
+        : candidate.creatorConstraint
+          ? policy.maximumContinuousVisualSeconds
+          : importance === "hero"
+            ? policy.maximumHeroSeconds
+            : importance === "support"
+              ? policy.maximumSupportSeconds
+              : policy.maximumAccentSeconds;
       const shortened = Math.min(
         decision.displayEnd,
         decision.displayStart + Math.min(tierMaximum, policy.maximumContinuousVisualSeconds),
@@ -199,7 +207,7 @@ export const directVisualPacing = ({
         .slice(index + 1)
         .find((item) => item.creatorConstraint && (item.overlayCue || item.materializationStatus === "planned"));
       const nextStart = nextConfirmedCandidate?.overlayCue?.start ?? nextConfirmedCandidate?.start ?? durationSeconds;
-      const safeEnd = Math.min(durationSeconds, nextStart - policy.minimumBreathingGapSeconds);
+      const safeEnd = Math.min(durationSeconds, nextStart - breathingGapSeconds);
       const extendedEnd = Math.min(decision.displayStart + policy.minimumVisibleSeconds, safeEnd);
       if (extendedEnd > decision.displayEnd) {
         decision.displayEnd = extendedEnd;
@@ -211,7 +219,7 @@ export const directVisualPacing = ({
           .reverse()
           .find((item) => item.creatorConstraint && (item.overlayCue || item.materializationStatus === "planned"));
         const previousEnd = previousConfirmedCandidate?.overlayCue?.end ?? previousConfirmedCandidate?.end ?? 0;
-        const safeStart = Math.max(0, previousEnd + policy.minimumBreathingGapSeconds);
+        const safeStart = Math.max(0, previousEnd + breathingGapSeconds);
         const extendedStart = Math.max(safeStart, decision.displayEnd - policy.minimumVisibleSeconds);
         if (extendedStart < decision.displayStart) {
           decision.displayStart = extendedStart;
@@ -247,7 +255,7 @@ export const directVisualPacing = ({
       const directConfirmedTransition =
         Boolean(previous.creatorConstraint && decision.creatorConstraint) &&
         decision.displayStart >= previous.displayEnd - TIMING_EPSILON_SECONDS;
-      const requiredStart = previous.displayEnd + (directConfirmedTransition ? 0 : policy.minimumBreathingGapSeconds);
+      const requiredStart = previous.displayEnd + (directConfirmedTransition ? 0 : breathingGapSeconds);
       if (decision.displayStart < requiredStart) {
         if (decision.displayEnd - requiredStart >= policy.minimumVisibleSeconds) {
           decision.displayStart = requiredStart;

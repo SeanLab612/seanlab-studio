@@ -77,6 +77,216 @@ test("global semantic plan rejects overlapping or reordered caption ranges", () 
   );
 });
 
+test("production Agent must decide every reference beat and reach the configured visual coverage", () => {
+  const captions = Array.from({ length: 10 }, (_, index) => ({
+    start: index,
+    end: index + 1,
+    zh: index === 8 ? "最后展示录屏结果。" : `第${index + 1}步继续解释。`,
+  }));
+  const referenceBeats = [{ id: "screen-result", exactSpokenQuote: "最后展示录屏结果。" }];
+  const base = {
+    schemaVersion: "1.0",
+    analyzedThroughCue: 9,
+    visualDecisions: [{ beatId: "screen-result", action: "use", reason: "录屏直接证明运行结果" }],
+    segments: [intent({ startCue: 0, endCue: 7 })],
+  };
+  assert.doesNotThrow(() => parseSemanticNarrativePlan(base, captions, 30, referenceBeats, 0.8));
+  assert.throws(
+    () => parseSemanticNarrativePlan({ ...base, visualDecisions: [] }, captions, 30, referenceBeats, 0.8),
+    /missing reference beats/,
+  );
+  assert.throws(
+    () =>
+      parseSemanticNarrativePlan(
+        { ...base, segments: [intent({ startCue: 0, endCue: 3 })] },
+        captions,
+        30,
+        referenceBeats,
+        0.8,
+      ),
+    /visual coverage/,
+  );
+});
+
+test("animation remains auxiliary while component-led segments may cover the rest", () => {
+  const captions = Array.from({ length: 10 }, (_, index) => ({
+    start: index,
+    end: index + 1,
+    zh: index < 3 ? `动画阶段${index + 1}` : `组件说明${index + 1}`,
+  }));
+  const animationSegment = intent({
+    startCue: 0,
+    endCue: 2,
+    animationIntent: {
+      prototypeId: "causal-chain",
+      styleProfileId: "paper-editorial",
+      stages: [
+        { label: "起点", detail: "第一步", spokenQuote: "动画阶段1" },
+        { label: "结果", detail: "第三步", spokenQuote: "动画阶段3" },
+      ],
+      takeaway: "只展示必要变化",
+    },
+  });
+  const plan = {
+    schemaVersion: "1.0",
+    analyzedThroughCue: 9,
+    visualDecisions: [],
+    materialAssignments: [],
+    segments: [animationSegment, intent({ startCue: 3, endCue: 9 })],
+  };
+  assert.throws(
+    () => parseSemanticNarrativePlan(plan, captions, 30, [], 0, new Set(), new Set(), 0.25),
+    /animation coverage 30\.0% exceeds the auxiliary limit 25\.0%/,
+  );
+  assert.doesNotThrow(() => parseSemanticNarrativePlan(plan, captions, 30, [], 0, new Set(), new Set(), 0.3));
+});
+
+test("production Agent cannot reject a creator-registered recording as unavailable", () => {
+  const captions = [{ start: 0, end: 4, zh: "录屏可以看到模型在浏览器里旋转。" }];
+  const referenceBeats = [
+    {
+      id: "screen-result",
+      exactSpokenQuote: "录屏可以看到模型在浏览器里旋转。",
+      materialAssetIds: ["recording-1"],
+    },
+  ];
+  assert.throws(
+    () =>
+      parseSemanticNarrativePlan(
+        {
+          schemaVersion: "1.0",
+          analyzedThroughCue: 0,
+          visualDecisions: [{ beatId: "screen-result", action: "skip", reason: "素材不在图片清单中，因此未登记。" }],
+          segments: [intent({ startCue: 0, endCue: 0 })],
+        },
+        captions,
+        30,
+        referenceBeats,
+        0,
+        new Set(["recording-1"]),
+      ),
+    /incorrectly treats an available referenced material as missing/,
+  );
+});
+
+test("production Agent must place every required material on an evidence-bounded timeline", () => {
+  const captions = Array.from({ length: 6 }, (_, index) => ({
+    start: index * 2,
+    end: index * 2 + 2,
+    zh: `素材证据${index + 1}`,
+  }));
+  const base = {
+    schemaVersion: "1.0",
+    analyzedThroughCue: 5,
+    visualDecisions: [],
+    segments: [intent({ startCue: 0, endCue: 1 })],
+  };
+  const available = new Set(["screenshot-1", "recording-1"]);
+  const required = new Set(["screenshot-1", "recording-1"]);
+  assert.throws(
+    () => parseSemanticNarrativePlan(base, captions, 30, [], 0, available, required),
+    /materialAssignments must be an array/,
+  );
+  const materialAssignments = [
+    {
+      assetId: "screenshot-1",
+      kind: "image",
+      startCue: 2,
+      endCue: 3,
+      order: 1,
+      reason: "截图对应这段说明",
+    },
+    {
+      assetId: "recording-1",
+      kind: "screen-demo",
+      startCue: 4,
+      endCue: 5,
+      order: 2,
+      reason: "录屏对应操作结果",
+    },
+  ];
+  assert.doesNotThrow(() =>
+    parseSemanticNarrativePlan({ ...base, materialAssignments }, captions, 30, [], 0.8, available, required),
+  );
+  assert.throws(
+    () =>
+      parseSemanticNarrativePlan(
+        { ...base, materialAssignments: materialAssignments.slice(0, 1) },
+        captions,
+        30,
+        [],
+        0,
+        available,
+        required,
+      ),
+    /missing required materials: recording-1/,
+  );
+});
+
+test("material sequencing rejects ambiguous overlaps and animation collisions", () => {
+  const captions = Array.from({ length: 6 }, (_, index) => ({
+    start: index,
+    end: index + 1,
+    zh: index < 3 ? "第一段素材说明" : "第二段动画说明",
+  }));
+  const assignments = [
+    { assetId: "image-1", kind: "image", startCue: 0, endCue: 2, order: 1, reason: "展示图片" },
+    { assetId: "recording-1", kind: "screen-demo", startCue: 2, endCue: 3, order: 2, reason: "展示录屏" },
+  ];
+  assert.throws(
+    () =>
+      parseSemanticNarrativePlan(
+        {
+          schemaVersion: "1.0",
+          analyzedThroughCue: 5,
+          visualDecisions: [],
+          materialAssignments: assignments,
+          segments: [intent({ startCue: 4, endCue: 5 })],
+        },
+        captions,
+        30,
+        [],
+        0,
+        new Set(["image-1", "recording-1"]),
+        new Set(["image-1", "recording-1"]),
+      ),
+    /overlapping materialAssignments/,
+  );
+  assert.throws(
+    () =>
+      parseSemanticNarrativePlan(
+        {
+          schemaVersion: "1.0",
+          analyzedThroughCue: 5,
+          visualDecisions: [],
+          materialAssignments: [assignments[0]],
+          segments: [
+            intent({
+              startCue: 1,
+              endCue: 3,
+              animationIntent: {
+                prototypeId: "causal-chain",
+                styleProfileId: "paper-editorial",
+                stages: [
+                  { label: "素材", detail: "第一段", spokenQuote: "第一段素材说明" },
+                  { label: "动画", detail: "第二段", spokenQuote: "第二段动画说明" },
+                ],
+                takeaway: "素材与动画不能抢占同一时段",
+              },
+            }),
+          ],
+        },
+        captions,
+        30,
+        [],
+        0,
+        new Set(["image-1"]),
+        new Set(["image-1"]),
+      ),
+    /animation overlaps a required material assignment/,
+  );
+});
+
 test("global semantic plan rejects a chapter-sized range even when the JSON schema accepts it", () => {
   assert.throws(
     () =>
@@ -628,6 +838,49 @@ test("local image evidence binding clamps timing and viewer copy to the anchored
   }
 });
 
+test("media comparison binds registered screenshots before identity fallback", () => {
+  const result = materializeSemanticIntent(
+    segment,
+    intent({
+      rhetoric: "media-comparison",
+      items: [
+        { ...emptyItem, label: "项目入口", detail: "填写项目目标", entityId: "asset-entry", entityKind: "design" },
+        { ...emptyItem, label: "成果页面", detail: "查看生成结果", entityId: "asset-result", entityKind: "design" },
+      ],
+    }),
+    undefined,
+    [
+      {
+        id: "asset-entry",
+        publicSrc: "projects/demo/entry.png",
+        description: "项目入口",
+        sourceLabel: "Open Design",
+        orientation: "landscape",
+        fit: "contain",
+        focalPoint: { x: 0.5, y: 0.5 },
+      },
+      {
+        id: "asset-result",
+        publicSrc: "projects/demo/result.png",
+        description: "成果页面",
+        sourceLabel: "Open Design",
+        orientation: "landscape",
+        fit: "contain",
+        focalPoint: { x: 0.5, y: 0.5 },
+      },
+    ],
+    { captions: [{ start: 0, end: 12, zh: segment.text }], originSeconds: 0, preserveExplicitRhetoric: true },
+  );
+  assert.equal(result.status, "planned");
+  if (result.status === "planned") {
+    assert.equal(result.brief.component.id, "media-comparison");
+    assert.deepEqual(
+      (result.brief.props.items as Array<{ imageSrc?: string }>).map((item) => item.imageSrc),
+      ["projects/demo/entry.png", "projects/demo/result.png"],
+    );
+  }
+});
+
 test("image evidence binding accepts a conservative paraphrase and expands display time without expanding claims", () => {
   const bounded = boundImageEvidenceIntentToCaptions(
     intent({
@@ -691,6 +944,47 @@ test("image evidence binding fails closed when its registered anchor cannot be r
   );
   assert.equal(bounded.status, "blocked");
   if (bounded.status === "blocked") assert.match(bounded.reason, /anchor/i);
+});
+
+test("image evidence binding recovers one unambiguous anchor outside the proposed segment", () => {
+  const bounded = boundImageEvidenceIntentToCaptions(
+    intent({
+      startCue: 0,
+      endCue: 0,
+      rhetoric: "image-evidence",
+      imageEvidence: { assetId: "quickbrief", purpose: "show", caption: "Quickbrief" },
+    }),
+    [
+      { start: 0, end: 3, zh: "先介绍项目入口。" },
+      { start: 3, end: 6, zh: "正式制作前，Agent 会通过 Quickbrief 补充关键信息。" },
+      { start: 6, end: 9, zh: "确认后继续生成。" },
+    ],
+    [{ id: "quickbrief", anchorText: "通过 Quickbrief 补充关键信息" }],
+  );
+  assert.equal(bounded.status, "bounded");
+  if (bounded.status === "bounded") {
+    assert.equal(bounded.intent.startCue, 1);
+    assert.equal(bounded.intent.endCue, 1);
+    assert.match(bounded.intent.reason, /recovered outside the proposed segment/);
+  }
+});
+
+test("image evidence binding rejects an ambiguous global anchor", () => {
+  const bounded = boundImageEvidenceIntentToCaptions(
+    intent({
+      startCue: 1,
+      endCue: 1,
+      rhetoric: "image-evidence",
+      imageEvidence: { assetId: "repeat", purpose: "show", caption: "项目首页" },
+    }),
+    [
+      { start: 0, end: 3, zh: "这里展示项目首页。" },
+      { start: 3, end: 6, zh: "中间解释工作流。" },
+      { start: 6, end: 9, zh: "最后再次展示项目首页。" },
+    ],
+    [{ id: "repeat", anchorText: "展示项目首页" }],
+  );
+  assert.equal(bounded.status, "blocked");
 });
 
 test("required image evidence coverage blocks review when a registered screenshot is not selected", () => {
@@ -1230,4 +1524,13 @@ test("speaker fallback can extract an exact emphasized phrase from an otherwise 
     }),
   );
   assert.deepEqual(planned?.targets, ["完全无人参与的自动成片"]);
+});
+
+test("coverage fallback can reuse a short exact spoken clause without inventing copy", () => {
+  const planned = resolveSpeakerRoughAnnotationPlan(
+    "图片看不到背面、隐藏结构只能推断，不能假装确定。",
+    intent({ rhetoric: "core-positioning", motionIntent: "introduce", items: [] }),
+    { allowClauseFallback: true },
+  );
+  assert.deepEqual(planned?.targets, ["图片看不到背面", "隐藏结构只能推断", "不能假装确定"]);
 });

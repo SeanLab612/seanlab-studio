@@ -421,6 +421,15 @@ for (const cue of plan.annotationCues ?? []) {
 }
 
 for (const cue of plan.titleCues ?? []) {
+  const titleLength = Array.from(String(cue.title ?? "").replace(/\s/g, "")).length;
+  const eyebrowLength = Array.from(String(cue.eyebrow ?? "").replace(/\s/g, "")).length;
+  if (!titleLength || titleLength > 24 || eyebrowLength > 32)
+    addFinding({
+      severity: "error",
+      rule: "title.safe-area-copy",
+      message: `Title copy exceeds the verified safe-area contract (title ${titleLength}/24, eyebrow ${eyebrowLength}/32).`,
+      cueId: cue.id,
+    });
   if (
     (plan.screenScenes ?? []).some((scene) =>
       overlap(

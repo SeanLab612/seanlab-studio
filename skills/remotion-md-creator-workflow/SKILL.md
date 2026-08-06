@@ -1,6 +1,6 @@
 ---
 name: remotion-md-creator-workflow
-description: Operate the complete remotion-md creator workflow from topic intake and global Agent selection through narration approval, shooting handoff, video workflow execution, static review, approval, and delivery. Use when the user wants one connected project rather than running script authoring and video production separately.
+description: Operate the complete remotion-md creator workflow from topic intake and Agent selection through material curation, narration approval, read-only production-direction confirmation, autonomous production, and delivery review.
 ---
 
 # Remotion MD Creator Workflow
@@ -15,10 +15,8 @@ This is the project-level controller. It delegates authoring to `remotion-md-nar
   image ingredients for already-directed animation stages. The local system still owns deterministic visual contracts,
   compatibility checks, icon fallback, animation, and rendering. Never switch providers automatically.
 - If a project pins an explicit model, accept only an Agent/model pair approved by the versioned governance registry. A conformance run alone creates a candidate, not an approval.
-- Require human approval at the final-script and static-review gates.
-- Do not render a full review video by default. Render static review evidence first. For confirmed animations, render
-  only bounded 540p motion-risk excerpts after static QA; projects without time-sensitive visuals may proceed from
-  static approval to delivery. Keep full continuous review as an explicit strict option.
+- Human-editable truth ends at the final narration text and material keep/exclude decisions. The production direction is read-only and requires one confirmation; internal static and motion QA belong to the Production Agent.
+- Uploaded screenshots and recordings default to required production evidence. The Agent may recommend exclude, merge, or trim during material understanding, and the creator may override those recommendations before drafting.
 - Resume from frozen artifacts. Do not regenerate semantics or narration merely to continue a run.
 
 ## State flow
@@ -27,41 +25,18 @@ Read [references/state-machine.md](references/state-machine.md). Then follow:
 
 1. Detect Agents: `npm run creator -- agents`.
 2. Create the project: `npm run creator -- init ... --agent <codex-cli|claude-code>`.
-3. Use `remotion-md-narration-script` for material upload, pinned-Agent understanding cards, creator confirmation,
-   draft, creator revision, automatic visual-beat review, optional text annotations, and lock.
+3. Use `remotion-md-narration-script` for material upload, pinned-Agent understanding and curation cards, narration-only draft, creator text revision, and lock.
 4. Register authored media and the final speaker video with `npm run creator -- asset ...`.
 5. Create the handoff. Confirm its Agent pin and final-script hash match the creator project.
-6. Read `skills/remotion-md-video-workflow/SKILL.md` completely and run that workflow against the generated video manifest.
-7. Stop at static review. Apply revisions only through explicit review decisions.
-8. After approval, render delivery and record delivery evidence in the same creator project.
+6. Read `skills/remotion-md-video-workflow/SKILL.md` completely and run through `validate` to generate a read-only production direction.
+7. After the creator confirms the current hash-bound direction, let the Production Agent continue through internal QA, bounded self-repair, and delivery rendering without user-facing intermediate approvals.
+8. Present the final result for delivery review and record acceptance in the same creator project.
 
-During narration review, include every spoken block—opening, overview, authored body sections,
-and conclusion—and let the local deterministic planner recommend zero or more sequential visual beats inside each
-spoken block. Every beat owns exactly one primary visual: `speaker`, `component`, `image`, `screen-demo`, or
-`animation`; uncovered narration returns to `speaker`. One image beat may group up to three directly related
-screenshots, while a screen-demo beat binds exactly one recording and only covers its exact spoken quote. The creator
-normally confirms the complete plan once and only changes exceptional beats. Optional text annotations are a separate secondary layer: each annotation binds a
-2-24 character exact quote and chooses only a local effect such as highlight, circle, underline, box, cross-off,
-strike-through, or bracket. An annotation may coexist with the section primary visual and never reserves or suppresses
-its interval. Both automatic text-emphasis components and manual annotations reuse the approved `rough-annotation`
-renderer; manual annotations must not add a separate surface container. Lock binds the complete visual-beat plan and
-annotations to the final-script hash. Speaker PIP presence is reported separately. Structural blocks must not default
-to speaker merely because of their position in the script. Project creation never selects an animation style. After
-the narration exists, the local visual planner recommends one semantic animation structure and one compatible approved
-style for every animation section. Studio shows both fields and the style preview before the creator confirms the
-complete visual plan. A video may use more than one approved style because the style choice is frozen per beat, not
-per project; report the most-used style as primary and the remaining approved style as secondary. Every approved
-animation remains full-screen with a top-right circular speaker PIP. Animation is only one of the five primary visual
-types. When the same evidence supports both animation and a component, recommend animation first and show the compatible
-component as a second-priority human-selectable alternative. Within animation, show a primary structure/style pairing
-plus compatible backup animations; confirmation freezes exactly one primary visual per beat, not one for the whole section.
-Shared image-library assets are not a sixth primary visual and must never compete with animation. After an animation
-structure and style are known, the pinned project Agent may bind a compatible shared image to an individual animation
-stage. If it selects none, the local system resolves a registered icon for that stage. Authored screenshots and source
-evidence remain the separate `image` primary visual type. If the creator later changes an animation structure or style,
-Studio may explicitly ask the pinned Agent to replan those image ingredients. Save the result as a reviewable draft with
-an immutable attempt record; show the old/new bindings and promote them only after explicit human confirmation. Never
-rerun this automatically or treat it as approval of the complete visual plan.
+The narration Agent may bind required materials to semantic sections, including several related uploads in one section, but must not prescribe components, layout, crop, animation, or timing. Each required image or recording appears exactly once in this semantic handoff; excluded material must not appear. If the creator edits the narration, locking derives anchors again from the latest wording. Never reuse stale anchors.
+
+After lock, the Production Agent owns all five primary visual types: speaker, component, image, screen-demo, and animation. It receives the complete latest narration, confirmed material understanding, every local asset, and the material decisions. Required uploaded assets are hard presence obligations, while placement, duration, crop, grouping, PIP, and animation remain downstream decisions. Studio exposes only a compact read-only direction summary. It must not expose component selectors, timeline editing, annotation tools, or per-beat approval.
+
+Production recovery grants authority by reversibility and validation, not by an open-ended request to fix everything. A retryable external or render interruption may repeat only the verified checkpoint with bounded backoff. A registered project repairer may update only its typed fields and must validate the complete affected timeline before activation. A source defect may be repaired only in an isolated source snapshot, only under `schemas/`, `scripts/`, `src/`, `studio/`, or `tests/`, and activates only after the full validation suite passes against an unchanged live source snapshot. Narration meaning, creator-media deletion or replacement, required-media obligations, direction or final approval, credentials, publishing, and Git remain human-owned. Every repair records evidence; absence of a validator means diagnose-only rather than speculative mutation.
 
 The opening uses the same automatic semantic planning and human confirmation rules as every other spoken block. Never
 inject a fixed portrait, channel identity, slogan, episode tag, transition sentence, or bumper. Creator branding is
@@ -71,10 +46,7 @@ optional project-local input and must not become a repository default.
 
 SeanLab Studio and the CLI/Skills are two interfaces over the same creator project, video manifest, run state, artifact hashes, typed revision contract, and approval snapshots. Studio may inspect evidence, create a hash-bound typed revision, preview the narrow invalidation plan, resume affected stages, validate delivery, and record final acceptance. It must never create browser-only editing truth or bypass the CLI-safe operation allowlist.
 
-During narration visual review, every creator change to a visual beat, component, material binding, animation structure or
-style, display mode, and text annotations is saved immediately as a `suggested` visual-storyboard draft. A page
-refresh must restore that draft. Explicit confirmation promotes the current choices to `confirmed`; returning a section to the
-automatic recommendation is the reversible cancellation path.
+The Studio API must enforce the same two boundaries as the UI: narration endpoints accept structured text only, and the production-direction endpoint accepts only a hash-bound confirmation literal. Any change to the narration, material inventory, or generated direction invalidates the old confirmation.
 
 When a creator rejects static review or returns a delivery, open the Studio project operations surface or use the existing revision CLI. Show whether the requested change will call the pinned Agent, translation API, static renderer, or final renderer before applying it. Preserve old review and delivery artifacts as history; never delete valid upstream artifacts to force a retry.
 
@@ -84,4 +56,4 @@ Future project modes (`narration-only`, `video-only`, and `full-workflow`) are p
 
 ## Failure policy
 
-If the pinned Agent is unavailable or unauthenticated, stop with remediation. If the final-script hash or authored-media inventory differs from the handoff, stop and rebuild the handoff explicitly. A workflow failure must never silently rewrite approved narration, semantic plans, or accepted visual artifacts.
+If the pinned Agent is unavailable or unauthenticated, preserve the checkpoint and use bounded delayed retries only for a classified transient provider failure. If the final-script hash or authored-media inventory differs from the handoff, stop and rebuild the handoff explicitly. A workflow failure must never silently rewrite approved narration, semantic plans, or accepted visual artifacts. A new creator-authorized production run starts a fresh bounded recovery budget; historical failures must not consume the new run's attempts.

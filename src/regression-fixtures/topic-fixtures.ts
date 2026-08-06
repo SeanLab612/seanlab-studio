@@ -781,7 +781,10 @@ const benchmarkInterpretation: TopicRegressionFixture = {
         title: "疑问边界",
         narration: "那是不是应该永远选第一名？答案要看任务、成本和你使用的工具，不能只看一个百分比。",
         visualIntent: "semantic-visual",
-        visualOpportunities: [{ form: "text-emphasis", evidenceText: "不能只看一个百分比。" }],
+        visualOpportunities: [
+          { form: "text-emphasis", evidenceText: "不能只看一个百分比。" },
+          { form: "plain-language-claim", evidenceText: "答案要看任务、成本和你使用的工具" },
+        ],
         materialIds: [],
         recordingInstruction: null,
       },
@@ -797,6 +800,14 @@ const benchmarkInterpretation: TopicRegressionFixture = {
       sourceIds: ["deepswe-scope"],
       expectedOneOf: ["rough-annotation"],
       polarity: "negated",
+    }),
+    expectation({
+      id: "plain-language-decision",
+      sectionId: "question-not-negation",
+      form: "plain-language-claim",
+      evidenceText: "答案要看任务、成本和你使用的工具",
+      sourceIds: ["deepswe-scope"],
+      expectedOneOf: ["editorial-statement"],
     }),
   ],
 };

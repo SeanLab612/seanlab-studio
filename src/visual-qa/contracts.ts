@@ -54,6 +54,7 @@ export const componentQaContracts: ComponentQaContract[] = [
   component("capability-surface-grid", { x: 55, y: 205, width: 760, height: 590 }, { minimumFontPx: 24 }),
   component("tradeoff-scale", { x: 55, y: 195, width: 790, height: 610 }, { minimumFontPx: 22 }),
   component("rough-annotation", { x: 55, y: 195, width: 790, height: 610 }, { minimumFontPx: 24 }),
+  component("editorial-statement", { x: 55, y: 195, width: 790, height: 610 }, { minimumFontPx: 24 }),
 ];
 
 // Manual text annotations reuse the approved rough-annotation renderer and

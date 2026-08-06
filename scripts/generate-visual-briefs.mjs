@@ -24,13 +24,13 @@ import {
   materializeSemanticIntent,
   normalizeRoutingIntent,
   parseSemanticNarrativePlan,
-  resolveSpeakerRoughAnnotationPlan,
   semanticEvidenceStartSeconds,
   withConfirmedComparisonItems,
   withLocalRoughAnnotationPlan,
 } from "../src/semantic-planning/index.ts";
 import { visualRhetoricByComponent } from "../src/visual-brief/component-rhetoric.ts";
 import { generateVisualBrief, validateComponentProps } from "../src/visual-brief/generator.ts";
+import { summarizeCandidateOutcomes } from "../src/visual-direction/candidate-outcomes.ts";
 import { authoredVisualEntryIsLocked, resolveExactSpokenQuoteCaptionRange } from "../src/visual-production/timeline.ts";
 import { createMimoJsonAdapter, groupCaptionSegments } from "./workflow/mimo-adapter.mjs";
 
@@ -187,6 +187,7 @@ const withLayoutTemplate = (cue) => {
 const semanticConfig = config.semanticPlanning ?? { provider: "fixture" };
 let overlayCues;
 let videoIdentity;
+let visualDecisions = [];
 const directionCandidates = [];
 if (semanticConfig.provider === "fixture") {
   overlayCues = workflowTestOverlayCues.map((cue) => {
@@ -211,7 +212,9 @@ if (semanticConfig.provider === "fixture") {
       continue;
     }
     const minimumVisibleSeconds = config.visualDirection?.minimumVisibleSeconds ?? 2.2;
-    const inset = Math.min(0.35, Math.max(0, (segment.end - segment.start - minimumVisibleSeconds) / 2));
+    const inset = config.visualDirection?.minimumVisualCoverageRatio
+      ? 0
+      : Math.min(0.35, Math.max(0, (segment.end - segment.start - minimumVisibleSeconds) / 2));
     overlayCues.push(
       withLayoutTemplate({
         start: segment.start + inset,
@@ -234,6 +237,10 @@ if (semanticConfig.provider === "fixture") {
     ),
   );
   const narrativePlan = parseSemanticNarrativePlan(rawPlan, semanticCaptions);
+  const assignedMaterialIds = new Set(
+    (narrativePlan.materialAssignments ?? []).map((assignment) => assignment.assetId),
+  );
+  visualDecisions = narrativePlan.visualDecisions ?? [];
   informationConstraintOwners = selectInformationConstraintOwners({
     constraints: authoredVisualConstraints,
     intents: narrativePlan.segments,
@@ -294,6 +301,8 @@ if (semanticConfig.provider === "fixture") {
       `segment-${index + 1}`,
     );
     if (evidenceBounds.status === "blocked") {
+      const assignedAssetId = constrainedSourceIntent.imageEvidence?.assetId;
+      const supersededByRequiredMaterial = assignedAssetId && assignedMaterialIds.has(assignedAssetId);
       directionCandidates.push({
         id: `segment-${index + 1}`,
         semanticIndex: index,
@@ -305,10 +314,25 @@ if (semanticConfig.provider === "fixture") {
         confidence: intent.confidence,
         rhetoric: intent.rhetoric,
         reason: intent.reason,
-        materializationStatus: "blocked",
-        materializationReason: evidenceBounds.reason,
+        materializationStatus: supersededByRequiredMaterial ? "skipped" : "blocked",
+        materializationReason: supersededByRequiredMaterial
+          ? `Required image ${assignedAssetId} is already placed by the Production Agent material assignment.`
+          : evidenceBounds.reason,
+        ...(supersededByRequiredMaterial
+          ? {
+              handling: {
+                status: "superseded",
+                code: "required-material-assignment",
+                reason: `The registered image remains mandatory and is rendered by its primary material assignment; the redundant component candidate was omitted.`,
+              },
+            }
+          : {}),
       });
-      console.log(`blocked visual segment-${index + 1}: ${evidenceBounds.reason}`);
+      console.log(
+        supersededByRequiredMaterial
+          ? `superseded visual segment-${index + 1}: required image ${assignedAssetId} uses its material assignment`
+          : `blocked visual segment-${index + 1}: ${evidenceBounds.reason}`,
+      );
       continue;
     }
     const boundedIntent = evidenceBounds.intent;
@@ -323,10 +347,7 @@ if (semanticConfig.provider === "fixture") {
             rhetoric: visualRhetoricByComponent[authoredConstraint.componentId],
           }
         : boundedIntent;
-    let locallyRoutedIntent =
-      authoredConstraint?.mode === "information"
-        ? creatorRoutedIntent
-        : normalizeRoutingIntent(creatorRoutedIntent, segment.text);
+    const locallyRoutedIntent = creatorRoutedIntent;
     if (authoredConstraint?.mode === "speaker") consumedVisualConstraints.add(authoredConstraint.sectionId);
     const referencedImage = boundedIntent.imageEvidence
       ? imageEvidence.find((asset) => asset.id === boundedIntent.imageEvidence.assetId)
@@ -390,49 +411,28 @@ if (semanticConfig.provider === "fixture") {
       continue;
     }
     const minimumVisibleSeconds = config.visualDirection?.minimumVisibleSeconds ?? 2.2;
-    const inset = Math.min(0.35, Math.max(0, (segment.end - segment.start - minimumVisibleSeconds) / 2));
-    const antecedentTargets = antecedentIntent?.items.map((item) => item.label).filter(Boolean) ?? [];
-    const crossOutAntecedent =
-      refersToAntecedent && /划掉/.test(segment.text) && antecedentTargets.length
-        ? {
-            ...creatorRoutedIntent,
-            rhetoric: "rough-annotation",
-            roughAnnotation: { intent: "negation", targets: antecedentTargets },
-          }
-        : creatorRoutedIntent;
-    locallyRoutedIntent =
-      authoredConstraint?.mode === "information"
-        ? creatorRoutedIntent
-        : authoredConstraint?.mode === "speaker"
-          ? locallyRoutedIntent
-          : normalizeRoutingIntent(crossOutAntecedent, segment.text);
+    const inset = config.visualDirection?.minimumVisualCoverageRatio
+      ? 0
+      : Math.min(0.35, Math.max(0, (segment.end - segment.start - minimumVisibleSeconds) / 2));
     const evidenceStart = semanticEvidenceStartSeconds(locallyRoutedIntent, semanticCaptions, segment.start);
-    // Preserve evidence-timed structured components inside reviewed “人物” sections.
-    // Only a later fallback annotation starts at the segment boundary to fill an
-    // otherwise empty speaker interval.
-    let overlayStart =
+    // Preserve the Production Agent's evidence timing; local code only materializes
+    // an approved renderer for the selected semantic relationship.
+    const overlayStart =
       authoredConstraint?.mode === "information" || authoredConstraint?.mode === "speaker"
         ? segment.start + inset
         : Math.min(segment.end - inset, Math.max(segment.start + inset, evidenceStart));
-    let materialized = materializeSemanticIntent(segment, locallyRoutedIntent, terminologyProfile, imageEvidence, {
-      captions: semanticCaptions,
-      originSeconds: overlayStart,
-    });
-    if (
-      materialized.status === "skipped" &&
-      (!authoredConstraint || authoredConstraint.mode === "auto" || authoredConstraint.mode === "speaker")
-    ) {
-      const annotation = resolveSpeakerRoughAnnotationPlan(segment.text, locallyRoutedIntent);
-      if (annotation) {
-        overlayStart = segment.start + inset;
-        materialized = materializeSemanticIntent(
-          segment,
-          withLocalRoughAnnotationPlan(locallyRoutedIntent, annotation),
-          terminologyProfile,
-          imageEvidence,
-          { captions: semanticCaptions, originSeconds: overlayStart },
-        );
-      }
+    let materialized;
+    try {
+      materialized = materializeSemanticIntent(segment, locallyRoutedIntent, terminologyProfile, imageEvidence, {
+        captions: semanticCaptions,
+        originSeconds: overlayStart,
+        preserveExplicitRhetoric: true,
+      });
+    } catch (error) {
+      materialized = {
+        status: "skipped",
+        reason: `Production Agent visual could not be materialized: ${error instanceof Error ? error.message : String(error)}`,
+      };
     }
     const candidateBase = {
       id: segment.id,
@@ -552,7 +552,7 @@ if (semanticConfig.provider === "fixture") {
       });
     const owner =
       owners[0] ??
-      (beat.semanticForm === "text-emphasis"
+      (["text-emphasis", "plain-language-claim"].includes(beat.semanticForm)
         ? {
             semanticIndex: -1,
             intent: {
@@ -738,6 +738,7 @@ const plan = {
       }
     : undefined,
   videoIdentity,
+  visualDecisions,
   overlayCues,
 };
 const planPath = resolve(config.planningFile ?? "planning/visual-brief.json");
@@ -789,6 +790,7 @@ if (config.componentCandidatesFile) {
         reviewProps,
         deliveryProps,
         candidates: directionCandidates,
+        candidateOutcomes: summarizeCandidateOutcomes(directionCandidates),
       },
       null,
       2,

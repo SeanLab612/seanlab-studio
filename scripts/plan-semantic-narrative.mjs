@@ -23,11 +23,59 @@ const imageEvidence = config.imageEvidenceManifestFile
       (asset) => !asset.sourceLabel?.startsWith("动画素材库 · "),
     )
   : [];
+const supplementalMedia = config.supplementalMediaManifestFile
+  ? (JSON.parse(await readFile(resolve(config.supplementalMediaManifestFile), "utf8")).assets ?? [])
+  : [];
+const authoredVisualPlan = config.authoredVisualPlanFile
+  ? JSON.parse(await readFile(resolve(config.authoredVisualPlanFile), "utf8"))
+  : { beats: [] };
+const referenceVisualBeats = (authoredVisualPlan.beats ?? [])
+  .filter((beat) => beat.status === "confirmed" && beat.executionPolicy === "reference")
+  .map((beat) => ({
+    id: beat.id,
+    sectionId: beat.sectionId,
+    exactSpokenQuote: beat.exactSpokenQuote,
+    primaryVisualType: beat.primaryVisualType,
+    ...(beat.materialAssetIds?.length
+      ? { materialAssetIds: beat.materialAssetIds }
+      : beat.materialAssetId
+        ? { materialAssetIds: [beat.materialAssetId] }
+        : {}),
+    ...(beat.animationIntent
+      ? {
+          animationPrototypeId: beat.animationIntent.prototypeId,
+          animationStyleProfileId: beat.animationIntent.styleProfileId,
+        }
+      : {}),
+  }));
 const adapter = createStructuredAgentJsonAdapter({
   config: semanticConfig,
   schemaPath: resolve("schemas/semantic-narrative-plan.schema.json"),
 });
-const prompt = createSemanticNarrativePrompt(semanticCaptions, terminologyProfile, imageEvidence);
+const supplementalMediaInventory = supplementalMedia.map((asset) => ({
+  id: asset.id,
+  role: asset.role,
+  required: Boolean(asset.required),
+  ...(asset.description ? { description: asset.description } : {}),
+  ...(asset.productionTreatment ? { productionTreatment: asset.productionTreatment } : {}),
+  ...(Number.isFinite(asset.durationSeconds) ? { durationSeconds: asset.durationSeconds } : {}),
+}));
+const prompt = createSemanticNarrativePrompt(
+  semanticCaptions,
+  terminologyProfile,
+  imageEvidence,
+  referenceVisualBeats,
+  supplementalMediaInventory,
+  Number(config.visualDirection?.maximumAnimationCoverageRatio ?? 0.25),
+);
+const availableMaterialIds = new Set([
+  ...imageEvidence.map((asset) => asset.id),
+  ...supplementalMediaInventory.map((asset) => asset.id),
+]);
+const requiredMaterialIds = new Set([
+  ...imageEvidence.filter((asset) => asset.required).map((asset) => asset.id),
+  ...supplementalMediaInventory.filter((asset) => asset.required).map((asset) => asset.id),
+]);
 let narrativePlan;
 let validationError;
 let validationRepair = "";
@@ -43,7 +91,16 @@ for (let attempt = 0; attempt < 3; attempt += 1) {
   const rawPlan = await adapter.completeJson(repairPrompt);
   const normalizedPlan = normalizeSemanticItemOrder(rawPlan);
   try {
-    narrativePlan = parseSemanticNarrativePlan(normalizedPlan, semanticCaptions, maximumSegmentSeconds);
+    narrativePlan = parseSemanticNarrativePlan(
+      normalizedPlan,
+      semanticCaptions,
+      maximumSegmentSeconds,
+      referenceVisualBeats,
+      Number(config.visualDirection?.minimumVisualCoverageRatio ?? 0),
+      availableMaterialIds,
+      requiredMaterialIds,
+      Number(config.visualDirection?.maximumAnimationCoverageRatio ?? 0.25),
+    );
     break;
   } catch (error) {
     validationError = error instanceof Error ? error.message : String(error);
@@ -81,7 +138,13 @@ await writeFile(
       contractVersion: "semantic-narrative-1.1",
       schemaVersionHash: hash(schema),
       promptHash: hash(prompt),
-      inputHash: hash({ semanticCaptions, terminologyProfile, imageEvidence }),
+      inputHash: hash({
+        semanticCaptions,
+        terminologyProfile,
+        imageEvidence,
+        referenceVisualBeats,
+        supplementalMediaInventory,
+      }),
       outputHash: hash(narrativePlan),
       runtimeVersion: process.version,
       generation: {

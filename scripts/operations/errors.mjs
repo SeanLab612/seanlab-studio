@@ -271,8 +271,16 @@ export const summarizeStageLog = (value) => {
 };
 
 const inferCode = (message, stage) => {
+  if (/Effective visual coverage .* below the required|Required image evidence is not shown/i.test(message))
+    return "SEMANTIC_PLAN_INVALID";
   if (/explicit --replan-semantic/i.test(message)) return "SEMANTIC_REPLAN_REQUIRED";
   if (/stalled after|no progress/i.test(message)) return "RENDER_STALLED";
+  if (
+    /(?:transport channel closed|stream disconnected|error sending request for url|http\/request failed|fetch failed|ECONNRESET|ECONNREFUSED|ENETUNREACH|EAI_AGAIN|socket hang up)/i.test(
+      message,
+    )
+  )
+    return "PROVIDER_REQUEST_FAILED";
   if (/timed?\s*out|timeout|ETIMEDOUT/i.test(message) && /provider|agent|semantic|translation|request/i.test(message))
     return "PROVIDER_REQUEST_TIMEOUT";
   if (/playback rate.*(?:below|safety limit)|recording scene.*duration/i.test(message))

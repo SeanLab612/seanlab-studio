@@ -108,6 +108,11 @@ test("Studio loads, annotates, rejects, and tamper-checks a current static revie
     summary: { selectedCount: 1, skippedCount: 0, visualCoverageRatio: 0.25, visualsPerMinute: 1 },
     importanceUsage: { hero: 1 },
     componentUsage: { "binary-versus": 1 },
+    candidateOutcomes: {
+      schemaVersion: "1.0",
+      counts: { materialized: 1, superseded: 0, "intentionally-skipped": 0, "safely-skipped": 0, blocked: 0 },
+      entries: [{ id: "segment-1", status: "materialized", code: "planned", reason: "fixture" }],
+    },
   });
   await write(context.paths.resolvedSceneTimeline, { summary: { authored: 0, resolved: 0, requiredUnresolved: 0 }, scenes: [] });
   await write(context.paths.terminologyReview, { entryCount: 3, projectOverrideCount: 0, domains: ["ai-software"] });
@@ -176,6 +181,7 @@ test("Studio loads, annotates, rejects, and tamper-checks a current static revie
   assert.equal(loaded.evidenceValid, true);
   assert.equal(loaded.provenance.status, "current");
   assert.equal(loaded.frames.length, 1);
+  assert.equal(loaded.direction.candidateOutcomes.counts.materialized, 1);
   assert.match(loaded.artifacts.visualPacingReview, /visual-pacing-review-video/);
   assert.equal(loaded.approval.ready, true);
   assert.deepEqual(

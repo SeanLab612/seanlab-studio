@@ -8,6 +8,7 @@ export const colorTokens = {
   ink: "#090B0F",
   amber: "#F3B545",
   blue: "#6EA8FF",
+  tiffany: "#81D8D0",
   mint: "#59D98E",
   red: "#FF626B",
   violet: "#B59CFF",

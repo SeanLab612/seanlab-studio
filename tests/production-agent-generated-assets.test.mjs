@@ -10,13 +10,23 @@ import {
   imageGenerationCapability,
 } from "../scripts/creator/generated-image-contract.mjs";
 import {
+  automaticRecoveryDelayMs,
   decideAutomaticProductionRecovery,
   deterministicProductionDiagnosis,
   deterministicProductionRepair,
   MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS,
 } from "../scripts/creator/production-agent-recovery.mjs";
-import { buildBindingCandidates } from "../scripts/creator/production-agent-binding-repair.mjs";
+import {
+  bindingTargetId,
+  buildBindingCandidates,
+  buildSceneBindingCandidates,
+  repairProductionBinding,
+} from "../scripts/creator/production-agent-binding-repair.mjs";
 import { visualContractTargetId } from "../scripts/creator/production-agent-visual-contract-repair.mjs";
+import {
+  canApplyValidatedProjectRepair,
+  productionAgentAuthorityForFailure,
+} from "../scripts/creator/production-agent-permissions.mjs";
 import { automaticProductionRecoveryAttempts } from "../scripts/creator/production-agent.mjs";
 import {
   isAutonomousTechnicalRepairEligible,
@@ -159,6 +169,49 @@ test("automatic production recovery only resumes a verified retryable checkpoint
   );
 });
 
+test("production Agent authority follows reversibility and validators instead of diagnosis wording", () => {
+  assert.deepEqual(
+    productionAgentAuthorityForFailure({
+      code: "BINDING_ANCHOR_NOT_FOUND",
+      category: "binding",
+      stage: "visual-input-preflight",
+      retryable: false,
+    }).level,
+    "validated-project-repair",
+  );
+  assert.equal(
+    canApplyValidatedProjectRepair({
+      failure: { code: "BINDING_ANCHOR_NOT_FOUND", category: "binding" },
+      repair: { kind: "validated-binding-repair", success: true },
+    }),
+    true,
+  );
+  assert.equal(
+    productionAgentAuthorityForFailure({
+      code: "INPUT_SCENE_DURATION_UNSAFE",
+      category: "creator-input",
+      retryable: false,
+    }).level,
+    "human-decision",
+  );
+  assert.equal(
+    productionAgentAuthorityForFailure({
+      code: "QA_CONTRACT_MISSING",
+      category: "studio-defect",
+      retryable: false,
+    }).level,
+    "isolated-source-repair",
+  );
+  assert.equal(
+    productionAgentAuthorityForFailure({
+      code: "PROVIDER_REQUEST_FAILED",
+      category: "provider",
+      retryable: true,
+    }).level,
+    "checkpoint-retry",
+  );
+});
+
 test("automatic production recovery stops for unvalidated code repair, blocked readiness, and attempt exhaustion", () => {
   const recovery = {
     status: "recoverable",
@@ -208,8 +261,37 @@ test("automatic production recovery stops for unvalidated code repair, blocked r
         { reason: "automatic-semantic-plan-repair" },
       ],
     }),
-    6,
+    5,
   );
+  assert.equal(
+    automaticProductionRecoveryAttempts({
+      history: [
+        { state: "active", reason: "creator-authorized-production" },
+        { state: "recovering", reason: "automatic-resume" },
+        { state: "waiting-human", reason: "automatic-attempt-limit-reached" },
+        { state: "active", reason: "creator-authorized-production" },
+        { state: "recovering", reason: "automatic-recheck-resume" },
+      ],
+    }),
+    1,
+  );
+});
+
+test("transient provider failures use a bounded deterministic checkpoint retry", () => {
+  assert.deepEqual(
+    deterministicProductionRepair({
+      code: "PROVIDER_REQUEST_FAILED",
+      category: "provider",
+      stage: "semantic-plan",
+      retryable: true,
+    }),
+    {
+      kind: "validated-checkpoint-retry",
+      success: true,
+      strategy: "transient-checkpoint-retry",
+    },
+  );
+  assert.deepEqual([0, 1, 2, 3, 8].map(automaticRecoveryDelayMs), [2_000, 5_000, 15_000, 30_000, 30_000]);
 });
 
 test("semantic plan validation failures use a deterministic repair and ignore a pessimistic diagnosis", () => {
@@ -286,10 +368,144 @@ test("production Agent can safely rebind a long visual quote across minor ASR di
   assert.ok(candidates[0].similarity > 0.8);
 });
 
+test("production Agent builds a verified recording-scene candidate across TTS wording expansion", () => {
+  const plan = {
+    scenes: [
+      {
+        id: "scene-material-7",
+        type: "screen-evidence",
+        assetId: "asset-recording",
+        startAnchor: { text: "先看录音机这组。" },
+        endAnchor: { text: "先看录音机这组。" },
+        required: true,
+        speakerPip: { shape: "circle", preferredPosition: "bottom-left", size: 360 },
+      },
+    ],
+  };
+  const captions = [
+    { start: 44.23, end: 48.65, zh: "先看录音机这一组，参考图里最容易认出的是前" },
+    { start: 48.65, end: 52.19, zh: "低后高的斜面机身、顶部两个旋钮，" },
+  ];
+  const assets = [
+    {
+      id: "asset-recording",
+      publicSrc: "recording.mp4",
+      clip: { in: 0, out: 12 },
+      fps: 60,
+      width: 1600,
+      height: 1080,
+    },
+  ];
+  const candidates = buildSceneBindingCandidates({ plan, captions, assets, targetId: "scene-material-7" });
+  assert.equal(bindingTargetId({ message: "Recording scene preflight failed: scene-material-7: Spoken-text anchors did not match in order" }), "scene-material-7");
+  assert.equal(candidates[0].candidateId, "caption-0-0");
+  assert.equal(candidates[0].quote, captions[0].zh);
+  assert.ok(candidates[0].targetCoverage >= 0.7);
+});
+
+test("production Agent repairs a required recording scene and records validated evidence", async () => {
+  const root = await mkdtemp(resolve(tmpdir(), "seanlab-binding-repair-"));
+  try {
+    const authoring = resolve(root, "authoring");
+    const workspace = resolve(root, "video/workspace");
+    await mkdir(authoring, { recursive: true });
+    await mkdir(workspace, { recursive: true });
+    const scenePlanPath = resolve(authoring, "authored-scene-plan.json");
+    const visualPlanPath = resolve(authoring, "authored-visual-plan.json");
+    const captionsPath = resolve(workspace, "captions-semantic.source.json");
+    const supplementalPath = resolve(workspace, "supplemental-media-manifest.json");
+    await writeFile(
+      scenePlanPath,
+      `${JSON.stringify({
+        schemaVersion: "1.0",
+        scenes: [
+          {
+            id: "scene-material-7",
+            type: "screen-evidence",
+            assetId: "asset-recording",
+            startAnchor: { text: "先看录音机这组。" },
+            endAnchor: { text: "先看录音机这组。" },
+            required: true,
+            speakerPip: { shape: "circle", preferredPosition: "bottom-left", size: 360 },
+          },
+        ],
+      })}\n`,
+    );
+    await writeFile(visualPlanPath, '{"schemaVersion":"1.0","beats":[]}\n');
+    await writeFile(
+      captionsPath,
+      `${JSON.stringify([
+        { start: 44.23, end: 48.65, zh: "先看录音机这一组，参考图里最容易认出的是前" },
+        { start: 48.65, end: 52.19, zh: "低后高的斜面机身、顶部两个旋钮，" },
+      ])}\n`,
+    );
+    await writeFile(
+      supplementalPath,
+      `${JSON.stringify({
+        schemaVersion: "1.0",
+        assets: [
+          {
+            id: "asset-recording",
+            publicSrc: "recording.mp4",
+            clip: { in: 0, out: 12 },
+            fps: 60,
+            width: 1600,
+            height: 1080,
+          },
+        ],
+      })}\n`,
+    );
+    await writeFile(
+      resolve(workspace, "runtime-config.json"),
+      `${JSON.stringify({
+        authoredScenePlanFile: scenePlanPath,
+        authoredVisualPlanFile: visualPlanPath,
+        semanticCaptionSourceFile: captionsPath,
+        supplementalMediaManifestFile: supplementalPath,
+      })}\n`,
+    );
+    const result = await repairProductionBinding({
+      projectId: "fixture",
+      projectRoot: root,
+      recovery: {
+        failure: {
+          code: "BINDING_ANCHOR_NOT_FOUND",
+          message:
+            "Recording scene preflight failed: scene-material-7: Spoken-text anchors did not match in order",
+        },
+      },
+      adapter: {
+        completeJson: async ({ user }) => {
+          assert.match(user, /必须是上述候选之一/);
+          return {
+            schemaVersion: "1.0",
+            targetId: "scene-material-7",
+            action: "rebind",
+            candidateId: "caption-0-0",
+            rationale: "当前字幕是同一句口播的 TTS 展开表达。",
+          };
+        },
+      },
+    });
+    assert.equal(result.success, true);
+    assert.equal(result.targetKind, "recording-scene");
+    const repaired = JSON.parse(await readFile(scenePlanPath, "utf8"));
+    assert.equal(repaired.scenes.length, 1);
+    assert.equal(repaired.scenes[0].required, true);
+    assert.equal(repaired.scenes[0].startAnchor.text, "先看录音机这一组，参考图里最容易认出的是前");
+    const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
+    assert.equal(evidence.targetKind, "recording-scene");
+    assert.equal(evidence.validation.requiredUnresolved, 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("automatic production recovery resumes after a validated Agent binding repair", () => {
   const decision = decideAutomaticProductionRecovery({
     recovery: {
       status: "blocked",
+      failure: { code: "BINDING_ANCHOR_NOT_FOUND", category: "binding" },
       resume: { enabled: false, action: "continue", stage: "visual-input-preflight" },
     },
     diagnosis: {
@@ -300,6 +516,27 @@ test("automatic production recovery resumes after a validated Agent binding repa
     attempts: 0,
     readiness: { readinessStatus: "ready", readinessSha256: "readiness-1" },
     repair: { kind: "validated-binding-repair", success: true, targetId: "conclusion-beat-1" },
+  });
+  assert.equal(decision.action, "resume");
+  assert.equal(decision.reason, "automatic-binding-repair");
+  assert.equal(decision.stage, "visual-input-preflight");
+});
+
+test("a validated binding repair overrides a conservative request-user diagnosis", () => {
+  const decision = decideAutomaticProductionRecovery({
+    recovery: {
+      status: "blocked",
+      failure: { code: "BINDING_ANCHOR_NOT_FOUND", category: "binding" },
+      resume: { enabled: false, action: "continue", stage: "visual-input-preflight" },
+    },
+    diagnosis: {
+      safeToResume: false,
+      recommendedAction: "request-user",
+      userMessage: "请用户处理",
+    },
+    attempts: 0,
+    readiness: { readinessStatus: "ready", readinessSha256: "readiness-1" },
+    repair: { kind: "validated-binding-repair", success: true, targetId: "scene-material-7" },
   });
   assert.equal(decision.action, "resume");
   assert.equal(decision.reason, "automatic-binding-repair");

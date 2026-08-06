@@ -186,7 +186,7 @@ export const hashFile = (path) =>
     stream.on("end", () => done(hash.digest("hex")));
   });
 
-export const defaultMaterialRequired = (kind) => !["screenshot", "screen-recording"].includes(kind);
+export const defaultMaterialRequired = (kind) => kind !== "reference";
 
 const imageAssetExtensions = new Set([".avif", ".gif", ".heic", ".jpeg", ".jpg", ".png", ".webp"]);
 const videoAssetExtensions = new Set([".m4v", ".mkv", ".mov", ".mp4", ".webm"]);

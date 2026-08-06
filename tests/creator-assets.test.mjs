@@ -10,9 +10,9 @@ import {
   validateCreatorAssetKind,
 } from "../scripts/creator/project-store.mjs";
 
-test("uploaded screenshots and recordings begin as candidates", () => {
-  assert.equal(defaultMaterialRequired("screenshot"), false);
-  assert.equal(defaultMaterialRequired("screen-recording"), false);
+test("uploaded screenshots and recordings begin as required production evidence", () => {
+  assert.equal(defaultMaterialRequired("screenshot"), true);
+  assert.equal(defaultMaterialRequired("screen-recording"), true);
   assert.equal(defaultMaterialRequired("speaker-video"), true);
 });
 

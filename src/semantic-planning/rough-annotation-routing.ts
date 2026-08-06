@@ -128,7 +128,7 @@ const exactGroundedTargets = (text: string, intent: SemanticNarrativeSegment) =>
   return uniqueTargets(candidates.filter((candidate) => candidate && text.includes(candidate)));
 };
 
-const literalFallbackTargets = (text: string) => {
+const literalFallbackTargets = (text: string, allowClauseFallback = false) => {
   const quoted = [...text.matchAll(/[“「『"]([^”」』"]{2,14})[”」』"]/g)].map((match) => match[1] ?? "");
   const named = [...text.matchAll(/(?:叫|称为|就是|重点是|关键是|核心是)([^，。；;！？!?]{2,14})/g)].map(
     (match) => match[1] ?? "",
@@ -137,7 +137,15 @@ const literalFallbackTargets = (text: string) => {
     (match) => match[1] ?? "",
   );
   const latin = text.match(/[A-Za-z][A-Za-z0-9 ._-]{1,18}/g) ?? [];
-  return uniqueTargets([...quoted, ...named, ...emphasized, ...latin]);
+  const clauses = text
+    .split(/[，。；;！？!?、]/)
+    .map((value) => value.trim())
+    .flatMap((value) =>
+      value.length <= 14
+        ? [value]
+        : value.split(/(?:所以|但是|不过|而且|并且|以及|然后|如果|就会|可以|能够|需要|必须|通过|作为)/),
+    );
+  return uniqueTargets([...quoted, ...named, ...emphasized, ...latin, ...(allowClauseFallback ? clauses : [])]);
 };
 
 /**
@@ -148,12 +156,13 @@ const literalFallbackTargets = (text: string) => {
 export const resolveSpeakerRoughAnnotationPlan = (
   sourceText: string,
   intent: SemanticNarrativeSegment,
+  options: { allowClauseFallback?: boolean } = {},
 ): LocalRoughAnnotationPlan | undefined => {
   const text = sourceText.replace(/\s+/g, " ").trim();
   const explicit = resolveLocalRoughAnnotationPlan(text, intent);
   if (explicit) return explicit;
   const targets = exactGroundedTargets(text, intent);
-  const fallback = targets.length ? targets : literalFallbackTargets(text);
+  const fallback = targets.length ? targets : literalFallbackTargets(text, options.allowClauseFallback);
   if (!fallback.length) return undefined;
   const annotationIntent: RoughAnnotationSemanticIntent = /(?:叫|称为|就是)/.test(text)
     ? "focus-concept"

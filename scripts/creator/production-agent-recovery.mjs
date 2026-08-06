@@ -15,17 +15,35 @@ const deterministicRepairStrategies = new Map([
   ],
 ]);
 
+const deterministicCheckpointRetryCodes = new Set([
+  "PROVIDER_REQUEST_FAILED",
+  "PROVIDER_REQUEST_TIMEOUT",
+  "RENDER_FAILED",
+  "RENDER_STALLED",
+  "STAGE_TIMEOUT",
+  "TRANSCRIPTION_FAILED",
+]);
+
 /**
  * Technical failures with a deterministic, evidence-preserving repair path do
  * not depend on a diagnostician choosing the right label. Adding a future
  * strategy here still requires a validated handler and a resumable checkpoint.
  */
 export const deterministicProductionRepair = (failure) => {
+  if (failure?.retryable !== false && deterministicCheckpointRetryCodes.has(failure?.code))
+    return {
+      kind: "validated-checkpoint-retry",
+      success: true,
+      strategy: "transient-checkpoint-retry",
+    };
   const strategy = deterministicRepairStrategies.get(failure?.code);
-  if (!strategy || failure?.retryable === false || (failure?.stage && failure.stage !== strategy.stage))
-    return undefined;
+  const eligibleStage = ["semantic-plan", "component-props", "visual-direction", "validate"].includes(failure?.stage);
+  if (!strategy || failure?.retryable === false || !eligibleStage) return undefined;
   return { ...strategy, success: true };
 };
+
+export const automaticRecoveryDelayMs = (attempts) =>
+  [2_000, 5_000, 15_000, 30_000, 30_000, 30_000][attempts] ?? 30_000;
 
 export const deterministicProductionDiagnosis = (failure, repair) => ({
   summary: "已识别为可验证的技术规划错误",
@@ -49,9 +67,10 @@ export const decideAutomaticProductionRecovery = ({
   repair,
   maxAttempts = MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS,
 }) => {
+  const semanticRepair = repair?.kind === "validated-semantic-plan-repair" && repair.success;
   const resume = {
-    action: recovery.resume?.action ?? repair?.workflowAction,
-    stage: recovery.resume?.stage ?? repair?.stage,
+    action: semanticRepair ? repair.workflowAction : (recovery.resume?.action ?? repair?.workflowAction),
+    stage: semanticRepair ? repair.stage : (recovery.resume?.stage ?? repair?.stage),
   };
   if (attempts >= maxAttempts)
     return {
@@ -65,13 +84,12 @@ export const decideAutomaticProductionRecovery = ({
     repair.success;
   const repairedSource =
     diagnosis.recommendedAction === "repair-code" && repair?.kind === "validated-source-repair" && repair.success;
-  const repairedBinding =
-    diagnosis.recommendedAction === "repair-binding" && repair?.kind === "validated-binding-repair" && repair.success;
+  const repairedBinding = canApplyValidatedProjectRepair({ failure: recovery.failure, repair });
   const repairedVisual =
     diagnosis.recommendedAction === "repair-visual" &&
     repair?.kind === "validated-visual-contract-repair" &&
     repair.success;
-  const repairedSemantic = repair?.kind === "validated-semantic-plan-repair" && repair.success;
+  const repairedSemantic = semanticRepair;
   if (
     (recovery.status !== "recoverable" || !recovery.resume?.enabled) &&
     !repairedSource &&
@@ -81,8 +99,8 @@ export const decideAutomaticProductionRecovery = ({
   )
     return {
       action: "wait-human",
-      reason: "recovery-not-allowlisted",
-      message: "当前故障不在自动恢复白名单内",
+      reason: "no-validated-automatic-repair",
+      message: "当前没有通过完整校验的自动修复结果",
     };
   if (
     (!diagnosis.safeToResume || !automaticallyResumableRecommendations.has(diagnosis.recommendedAction)) &&
@@ -133,6 +151,8 @@ export const decideAutomaticProductionRecovery = ({
     message: `从 ${resume.stage} 安全恢复`,
     workflowAction: resume.action,
     stage: resume.stage,
+    ...(repairedSemantic ? { replanSemantic: true } : {}),
     attempt: attempts + 1,
   };
 };
+import { canApplyValidatedProjectRepair } from "./production-agent-permissions.mjs";

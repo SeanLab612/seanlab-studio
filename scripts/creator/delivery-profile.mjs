@@ -1,6 +1,7 @@
-export const DELIVERY_RESOLUTIONS = ["1080p", "2k", "4k", "source"];
+export const DELIVERY_RESOLUTIONS = ["720p", "1080p", "2k", "4k", "source"];
 export const DELIVERY_FRAME_RATES = [30, 60, "source"];
 const dimensions = {
+  "720p": { width: 1280, height: 720 },
   "1080p": { width: 1920, height: 1080 },
   "2k": { width: 2560, height: 1440 },
   "4k": { width: 3840, height: 2160 },

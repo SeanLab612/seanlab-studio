@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { resolveAgentExecutable } from "../../src/agents/registry.ts";
 import { processTreeSpawnOptions, terminateProcessTree } from "./process-tree.mjs";
 
 const safeCliToken = /^[A-Za-z0-9._-]+$/;
@@ -14,8 +15,58 @@ const assertSafeOptionalToken = (value, label) => {
 
 const cancelledError = () => Object.assign(new Error("Codex CLI structured run was cancelled"), { name: "AbortError" });
 
-export const runCodexExec = ({ prompt, schemaPath, outputPath, imagePaths = [], config, cwd, signal }) =>
-  new Promise((resolveRun, rejectRun) => {
+// Codex structured outputs intentionally support a smaller JSON Schema subset
+// than Ajv. Keep the repository schema authoritative for local validation, but
+// remove response-format-only incompatibilities before handing it to the CLI.
+const nullableSchema = (schema) => {
+  if (Array.isArray(schema.type))
+    return { ...schema, type: schema.type.includes("null") ? schema.type : [...schema.type, "null"] };
+  if (typeof schema.type === "string") return { ...schema, type: [schema.type, "null"] };
+  if (Array.isArray(schema.enum))
+    return { ...schema, enum: schema.enum.includes(null) ? schema.enum : [...schema.enum, null] };
+  return { anyOf: [schema, { type: "null" }] };
+};
+
+export const toCodexOutputSchema = (value) => {
+  if (Array.isArray(value)) return value.map(toCodexOutputSchema);
+  if (!value || typeof value !== "object") return value;
+  const converted = Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => key !== "uniqueItems")
+      .map(([key, child]) => [key, toCodexOutputSchema(child)]),
+  );
+  if (!converted.properties || typeof converted.properties !== "object") return converted;
+  const originallyRequired = new Set(value.required ?? []);
+  converted.properties = Object.fromEntries(
+    Object.entries(converted.properties).map(([key, child]) => [
+      key,
+      originallyRequired.has(key) ? child : nullableSchema(child),
+    ]),
+  );
+  converted.required = Object.keys(converted.properties);
+  return converted;
+};
+
+export const stripOptionalNulls = (value, schema) => {
+  if (Array.isArray(value)) return value.map((item) => stripOptionalNulls(item, schema?.items));
+  if (!value || typeof value !== "object" || !schema?.properties) return value;
+  const required = new Set(schema.required ?? []);
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key, child]) => child !== null || required.has(key))
+      .map(([key, child]) => [key, stripOptionalNulls(child, schema.properties[key])]),
+  );
+};
+
+export const runCodexExec = async ({ prompt, schemaPath, outputPath, imagePaths = [], config, cwd, signal }) => {
+  const executablePath = await resolveAgentExecutable("codex");
+  if (!executablePath)
+    throw new Error("Codex CLI executable could not be resolved from PATH or supported user-local bins");
+  const sourceSchema = JSON.parse(await readFile(resolve(schemaPath), "utf8"));
+  const codexSchemaPath = `${outputPath}.schema.json`;
+  await writeFile(codexSchemaPath, `${JSON.stringify(toCodexOutputSchema(sourceSchema), null, 2)}\n`, "utf8");
+
+  return new Promise((resolveRun, rejectRun) => {
     assertSafeOptionalToken(config.model, "Codex model");
     assertSafeOptionalToken(config.profile, "Codex profile");
     const args = [
@@ -26,7 +77,7 @@ export const runCodexExec = ({ prompt, schemaPath, outputPath, imagePaths = [], 
       "--color",
       "never",
       "--output-schema",
-      schemaPath,
+      codexSchemaPath,
       "--output-last-message",
       outputPath,
       "-C",
@@ -37,7 +88,7 @@ export const runCodexExec = ({ prompt, schemaPath, outputPath, imagePaths = [], 
       "-",
     ];
     const child = spawn(
-      "codex",
+      executablePath,
       args,
       processTreeSpawnOptions({ cwd, env: process.env, stdio: ["pipe", "pipe", "pipe"] }),
     );
@@ -83,12 +134,14 @@ export const runCodexExec = ({ prompt, schemaPath, outputPath, imagePaths = [], 
     });
     child.stdin.end(prompt);
   });
+};
 
 export const createCodexCliJsonAdapter = ({ config, schemaPath, cwd = process.cwd(), runImpl = runCodexExec }) => {
   let lastRunMetadata;
   return {
     getLastRunMetadata: () => lastRunMetadata,
     async completeJson({ system, user, imagePaths = [], signal }) {
+      const sourceSchema = JSON.parse(await readFile(resolve(schemaPath), "utf8"));
       const attempts = (config.maxRetries ?? 1) + 1;
       let lastError;
       let executedAttempts = 0;
@@ -133,7 +186,7 @@ export const createCodexCliJsonAdapter = ({ config, schemaPath, cwd = process.cw
             attemptCount: attempt + 1,
             elapsedMs: Math.round(performance.now() - started),
           };
-          return JSON.parse(await readFile(outputPath, "utf8"));
+          return stripOptionalNulls(JSON.parse(await readFile(outputPath, "utf8")), sourceSchema);
         } catch (error) {
           lastError = error;
           if (error?.name === "AbortError") break;

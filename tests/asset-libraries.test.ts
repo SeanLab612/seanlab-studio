@@ -81,7 +81,7 @@ test("approved motion pack 2 is available to production", () => {
 });
 
 test("every semantic component has a controlled motion profile", () => {
-  assert.equal(componentMotionProfiles.length, 19);
+  assert.equal(componentMotionProfiles.length, 20);
   assert.ok(
     componentMotionProfiles.every((profile) =>
       approvedMotionRecipeRegistry.some((recipe) => recipe.id === profile.defaultRecipe),

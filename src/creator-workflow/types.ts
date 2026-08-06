@@ -48,6 +48,9 @@ export type CreatorMaterial = {
   label: string;
   assetId?: string;
   required: boolean;
+  productionTreatment?: "direct" | "merge" | "trim";
+  productionNote?: string;
+  decisionSource?: "agent" | "user";
   description?: string;
   evidenceRole?: "interface" | "result" | "source" | "comparison" | "document" | "other";
   sourceLabel?: string;
@@ -125,6 +128,7 @@ export type NarrationScriptPackage = {
       form: NarrationVisualForm;
       evidenceText: string;
     }>;
+    /** Internal semantic evidence anchors. They are never creator-facing visual directions. */
     materialIds: string[];
     recordingInstruction: string | null;
   }>;

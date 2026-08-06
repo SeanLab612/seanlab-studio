@@ -225,6 +225,24 @@ export const approvedComponentRegistry = {
     bestDurationSeconds: [4, 10],
     safeArea: "left-column",
   },
+  "editorial-statement": {
+    id: "editorial-statement",
+    status: "approved",
+    useWhen: [
+      "one complete plain-language claim has no stronger structured visual form",
+      "a concise explanation, transition, or conclusion needs designed text treatment",
+      "an explicit not-this-but-that correction can be expressed as one claim",
+    ],
+    avoidWhen: [
+      "registered image or screen recording directly supports the claim",
+      "data, steps, comparison, quotation, source, chronology, classification, or another structured relationship exists",
+      "more than one claim or long prose",
+    ],
+    requiredFields: ["emphasis"],
+    optionalModules: ["leadIn", "denied", "prefix", "support"],
+    bestDurationSeconds: [4, 8],
+    safeArea: "left-column",
+  },
 } as const satisfies Record<ApprovedComponentId, ApprovedComponentDefinition>;
 
 export const getApprovedComponent = (id: ApprovedComponentId) => approvedComponentRegistry[id];

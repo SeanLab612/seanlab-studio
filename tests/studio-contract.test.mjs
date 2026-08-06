@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  confirmedProductionResumeStage,
   resumeStageForStudio,
   studioStageDependenciesCurrent,
   workflowArgsForStudioAction,
+  workflowArgsForStudioPlan,
   workflowArgsForStudioReadiness,
 } from "../scripts/creator/studio-contract.mjs";
 
@@ -15,40 +17,82 @@ test("Studio exposes only registered workflow actions", () => {
   assert.deepEqual(workflowArgsForStudioAction("replan-recut"), ["--replan-recut", "--until", "recut"]);
   assert.deepEqual(workflowArgsForStudioAction("replan-semantic"), ["--replan-semantic", "--until", "review"]);
   assert.deepEqual(workflowArgsForStudioAction("continue"), ["--until", "review"]);
+  assert.deepEqual(workflowArgsForStudioAction("plan"), ["--until", "plan", "--production-agent-auto-approve"]);
   assert.deepEqual(workflowArgsForStudioAction("production"), [
     "--until",
-    "delivery",
+    "approval",
     "--production-agent-auto-approve",
-    "--delivery-resolution",
-    "source",
-    "--delivery-frame-rate",
-    "source",
   ]);
   assert.deepEqual(workflowArgsForStudioAction("delivery"), ["--until", "delivery"]);
   assert.throws(() => workflowArgsForStudioAction(["--force"]), /仅允许/);
   assert.throws(() => workflowArgsForStudioAction("arbitrary-command"), /仅允许/);
 });
 
-test("Studio readiness previews the continuous Agent production path to final acceptance", () => {
+test("Studio plan execution uses the same semantic replan scope as readiness", () => {
+  assert.deepEqual(workflowArgsForStudioPlan({ semanticReplanRequired: false }), [
+    "--until",
+    "plan",
+    "--production-agent-auto-approve",
+  ]);
+  assert.deepEqual(workflowArgsForStudioPlan({ semanticReplanRequired: true }), [
+    "--from",
+    "semantic-plan",
+    "--replan-semantic",
+    "--until",
+    "plan",
+    "--production-agent-auto-approve",
+  ]);
+});
+
+test("Studio readiness stops at the read-only production direction before final production", () => {
+  assert.deepEqual(
+    workflowArgsForStudioReadiness({
+      recutApproved: true,
+      reviewApproved: true,
+      stages: [
+        { name: "human-approval", status: "approved" },
+        { name: "semantic-plan", status: "failed" },
+      ],
+    }),
+    [
+      "--from",
+      "semantic-plan",
+      "--until",
+      "plan",
+      "--production-agent-auto-approve",
+      "--dry-run",
+    ],
+  );
+  assert.deepEqual(
+    workflowArgsForStudioReadiness({
+      semanticReplanRequired: true,
+      currentFailure: { stage: "visual-direction" },
+      stages: [
+        { name: "semantic-plan", status: "interrupted" },
+        { name: "visual-direction", status: "failed" },
+      ],
+    }),
+    [
+      "--from",
+      "semantic-plan",
+      "--replan-semantic",
+      "--until",
+      "plan",
+      "--production-agent-auto-approve",
+      "--dry-run",
+    ],
+  );
   assert.deepEqual(workflowArgsForStudioReadiness({ recutApproved: false, reviewApproved: false }), [
     "--until",
-    "delivery",
+    "plan",
     "--production-agent-auto-approve",
     "--dry-run",
-    "--delivery-resolution",
-    "source",
-    "--delivery-frame-rate",
-    "source",
   ]);
   assert.deepEqual(workflowArgsForStudioReadiness({ recutApproved: true, reviewApproved: false }), [
     "--until",
-    "delivery",
+    "plan",
     "--production-agent-auto-approve",
     "--dry-run",
-    "--delivery-resolution",
-    "source",
-    "--delivery-frame-rate",
-    "source",
   ]);
   assert.deepEqual(
     workflowArgsForStudioReadiness({
@@ -64,13 +108,22 @@ test("Studio readiness previews the continuous Agent production path to final ac
       "--from",
       "component-props",
       "--until",
-      "delivery",
+      "plan",
       "--production-agent-auto-approve",
       "--dry-run",
-      "--delivery-resolution",
-      "source",
-      "--delivery-frame-rate",
-      "source",
+    ],
+  );
+  assert.deepEqual(
+    workflowArgsForStudioReadiness({
+      recutApproved: true,
+      reviewApproved: false,
+      stages: [{ name: "validate", status: "succeeded" }],
+    }),
+    [
+      "--until",
+      "approval",
+      "--production-agent-auto-approve",
+      "--dry-run",
     ],
   );
   assert.deepEqual(
@@ -157,6 +210,35 @@ test("Studio resumes from the first stale or interrupted stage instead of replay
     "brand-align",
   );
   assert.equal(resumeStageForStudio([{ name: "human-approval", status: "pending" }]), undefined);
+});
+
+test("confirmed production resumes only after the frozen visual plan", () => {
+  const stages = [
+    { name: "preflight", status: "stale" },
+    { name: "semantic-plan", status: "succeeded" },
+    { name: "validate", status: "succeeded" },
+    { name: "review-base", status: "succeeded" },
+    { name: "qa-capture", status: "succeeded" },
+    { name: "visual-qa", status: "succeeded" },
+    { name: "agent-review", status: "pending" },
+    { name: "human-approval", status: "pending" },
+  ];
+  assert.equal(confirmedProductionResumeStage(stages), "agent-review");
+  assert.deepEqual(
+    workflowArgsForStudioReadiness({
+      reviewApproved: false,
+      productionPlan: { confirmed: true },
+      stages,
+    }),
+    [
+      "--from",
+      "agent-review",
+      "--until",
+      "approval",
+      "--production-agent-auto-approve",
+      "--dry-run",
+    ],
+  );
 });
 
 test("Studio refresh validates the dependency graph instead of treating stage order as one chain", () => {

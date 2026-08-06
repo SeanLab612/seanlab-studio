@@ -76,13 +76,22 @@ Rewrite the structure for speech after the reasoning is sound:
 - Add a call to action only when the creator explicitly supplied one in the editorial brief.
 - Read every paragraph aloud mentally. Split sentences that require a second breath or contain several relationships.
 - Keep precise product names, numbers, units, and uncertainty language intact.
+- Screen-led explanation is valid spoken narration: name the interface object, say what the user does, then say what
+  changes or why the next step matters. Do not replace a supported walkthrough with an abstract summary.
+- Hide the evidence container when it is not the subject. Prefer "打开 Open Design，左侧是输入区域" over "从上传的
+  录屏中可以看到输入区域". "我们可以看到 Open Design 的界面" remains valid; the problem is narrating the
+  Agent's source-reading process, not describing the interface.
+- Remove repetitive report scaffolding such as "值得注意的是", "不难发现", and "综上所述" when a direct sentence
+  says the same thing. Do not use a word blacklist when the phrase is necessary to the actual subject.
 
 The narration should sound authored by one person with a reason to speak, not like a neutral catalogue or a product
 press release.
 
 ## Authored-media pass
 
-Plan media after the spoken argument exists. Uploaded assets are candidates, not required coverage.
+Plan media after the spoken argument exists. Follow the creator-confirmed disposition: required uploads must receive one
+semantic section binding, while excluded uploads remain absent. Do not distort or repeat the argument merely to create
+more asset placements.
 
 Bind or recommend a screenshot when it proves the object, fact, comparison, result, failure, or source being spoken.
 Recommend a screen recording for a continuous interaction whose motion or sequence matters. Do not turn every UI step
@@ -103,3 +112,5 @@ Before returning JSON, verify:
 - Removing any section would remove a distinct piece of reasoning.
 - Spoken text contains no component ids, layout directions, or editing instructions.
 - Media recommendations occur at evidence moments and do not force unused candidates into the script.
+- A walkthrough still contains its supported interface, action, and result sequence, while uploaded-media references
+  remain invisible unless the media itself is the topic.

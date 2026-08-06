@@ -110,3 +110,64 @@ test("narration validation exposes every rejected draft for immutable history af
   );
   assert.equal(calls, 3);
 });
+
+test("perspective review rewrites source-observer language without changing walkthrough structure", async () => {
+  const outputs = [
+    narrationOutput({ overview: "这里从真正打出一个词开始。" }),
+    narrationOutput({ overview: "从上传的录屏中可以看到，访客可以输入英文词。" }),
+    narrationOutput({ overview: "打开页面，访客可以直接输入英文词。" }),
+  ];
+  let calls = 0;
+  const prompts = [];
+  const result = await completeNarration({
+    project,
+    sourceContext,
+    creatorWritingGuidance: [],
+    adapterFactory: () => ({
+      completeJson: async ({ user }) => {
+        prompts.push(user);
+        return outputs[calls++];
+      },
+      getLastRunMetadata: () => ({ provider: "fake", attempt: calls }),
+    }),
+  });
+
+  assert.equal(calls, 3);
+  assert.equal(result.report.perspectiveReviewCount, 1);
+  assert.equal(result.report.perspectiveReviewChangedDraft, true);
+  assert.equal(result.report.perspectiveReviewFallback, false);
+  assert.match(prompts[2], /允许并保留演示型叙事/);
+  assert.match(result.narration.overview, /打开页面/);
+  assert.equal(result.perspectiveAuditInput.narration.overview, "从上传的录屏中可以看到，访客可以输入英文词。");
+});
+
+test("perspective review failure falls back to the validated evidence draft without blocking narration", async () => {
+  const stable = narrationOutput({ overview: "从上传的录屏中可以看到，访客可以输入英文词。" });
+  let calls = 0;
+  const adapterConfigs = [];
+  const result = await completeNarration({
+    project,
+    sourceContext,
+    creatorWritingGuidance: [],
+    adapterFactory: ({ config }) => {
+      adapterConfigs.push(config);
+      return {
+      completeJson: async () => {
+        calls += 1;
+        if (calls === 1) return narrationOutput({ overview: "这里从真正打出一个词开始。" });
+        if (calls === 2) return stable;
+        throw new Error("temporary style review failure");
+      },
+      getLastRunMetadata: () => ({ provider: "fake", attempt: calls }),
+      };
+    },
+  });
+
+  assert.equal(calls, 3);
+  assert.equal(result.report.perspectiveReviewFallback, true);
+  assert.match(result.report.perspectiveReviewFallbackReason, /temporary style review failure/);
+  assert.equal(result.narration.overview, stable.overview);
+  assert.equal(result.perspectiveAuditInput, null);
+  assert.equal(adapterConfigs[1].timeoutSeconds, 90);
+  assert.equal(adapterConfigs[1].maxRetries, 0);
+});

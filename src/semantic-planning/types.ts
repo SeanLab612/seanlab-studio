@@ -1,6 +1,7 @@
 import type { MediaEntityKind, MediaIntent } from "../media-assets/types.ts";
 import type { MotionIntent } from "../motion-recipes/types.ts";
 import type { VisualBriefNarrative, VisualRhetoric } from "../visual-brief/types.ts";
+import type { AnimationIntent } from "../visual-production/types.ts";
 
 export type SemanticRhetoric = Exclude<VisualRhetoric, "process"> | "none";
 
@@ -75,6 +76,8 @@ export type SemanticNarrativeSegment = {
   quote: { text: string; sourceName: string; sourceRole: string };
   mediaIntents: MediaIntent[];
   imageEvidence: ImageEvidenceIntent | null;
+  /** Production Agent-selected hand-drawn animation. Local code only validates and renders it. */
+  animationIntent?: AnimationIntent | null;
   /** Locally derived after Agent output validation; never part of the Agent JSON contract. */
   roughAnnotation?: LocalRoughAnnotationPlan;
 };
@@ -92,5 +95,18 @@ export type SemanticNarrativePlan = {
   schemaVersion: "1.0";
   analyzedThroughCue: number;
   videoIdentity?: VideoIdentity;
+  visualDecisions?: Array<{
+    beatId: string;
+    action: "use" | "skip";
+    reason: string;
+  }>;
+  materialAssignments?: Array<{
+    assetId: string;
+    kind: "image" | "screen-demo";
+    startCue: number;
+    endCue: number;
+    order: number;
+    reason: string;
+  }>;
   segments: SemanticNarrativeSegment[];
 };

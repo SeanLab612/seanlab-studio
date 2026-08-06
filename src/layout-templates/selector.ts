@@ -38,6 +38,7 @@ const naturalComponentWidths: Partial<Record<ApprovedVisualComponentId, number>>
   "image-evidence-inset": 740,
   "key-stat-summary": 760,
   "rough-annotation": 740,
+  "editorial-statement": 740,
 };
 
 export const selectContentScale = ({

@@ -2,7 +2,8 @@ import type { NarrationVisualForm } from "../creator-workflow/visual-authoring.t
 import type { SystemIconId } from "../icons/registry.ts";
 import type { ApprovedVisualComponentId } from "../visual-brief/types.ts";
 
-export const PRIMARY_VISUAL_TYPES = ["speaker", "component", "image", "screen-demo", "animation"] as const;
+export const VISUAL_EFFECT_TYPES = ["component", "image", "screen-demo", "animation", "annotation"] as const;
+export const PRIMARY_VISUAL_TYPES = ["speaker", ...VISUAL_EFFECT_TYPES] as const;
 export type PrimaryVisualType = (typeof PRIMARY_VISUAL_TYPES)[number];
 
 export const TAKEOVER_MODES = ["none", "partial", "full"] as const;

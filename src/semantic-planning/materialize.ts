@@ -127,6 +127,16 @@ const entityFields = (item: SemanticItem) => {
   return resolved ? { entityId: resolved.entityId, entityKind: resolved.kind } : {};
 };
 
+const mediaComparisonFields = (item: SemanticItem, imageEvidenceInventory: readonly ProbedImageEvidence[]) => {
+  const image = imageEvidenceInventory.find((asset) => asset.id === item.entityId);
+  if (image)
+    return {
+      imageSrc: image.publicSrc,
+      source: image.sourceLabel,
+    };
+  return entityFields(item);
+};
+
 const incompleteTitle = /(?:的情|与|及|和|需要权|连接研究与大|the new)$/i;
 
 const rhetoricEyebrows: Readonly<Record<SemanticNarrativeSegment["rhetoric"], string>> = {
@@ -151,6 +161,7 @@ const rhetoricEyebrows: Readonly<Record<SemanticNarrativeSegment["rhetoric"], st
   "capability-surface": "CAPABILITY MAP",
   tradeoff: "TRADEOFF",
   "rough-annotation": "KEY POINT",
+  "editorial-statement": "PLAIN LANGUAGE",
 };
 
 const withDeterministicNarrativeFallbacks = (intent: SemanticNarrativeSegment): SemanticNarrativeSegment => {
@@ -235,10 +246,37 @@ export const normalizeRoutingIntent = (intent: SemanticNarrativeSegment, sourceT
     /先显示/.test(sourceText)
   )
     return { ...intent, rhetoric: intent.items.length === 2 ? "comparison" : "factor-sequence" };
+  const plainStatement = sourceText.replace(/\s+/g, "").trim();
+  const explicitPlainCorrection = /不是[^，,。；;]{2,24}[，,；;]?而是[^。！？!?；;]{2,28}/.test(plainStatement);
+  const hasStrongerStructure =
+    intent.items.length > 1 ||
+    intent.timeSeries.length > 0 ||
+    intent.matrix.rows.length > 0 ||
+    Boolean(intent.quote.text || intent.quote.sourceName || intent.imageEvidence || intent.animationIntent);
+  if (
+    intent.rhetoric === "none" &&
+    explicitPlainCorrection &&
+    intent.visualPriority !== "skip" &&
+    !hasStrongerStructure
+  )
+    return { ...intent, rhetoric: "editorial-statement", motionIntent: "emphasize" };
   const roughAnnotation = resolveLocalRoughAnnotationPlan(sourceText, intent);
   if (roughAnnotation) {
     return withLocalRoughAnnotationPlan(intent, roughAnnotation);
   }
+  const soundsStructured =
+    /(?:首先|其次|最后|第一|第二|第三|步骤|流程|相比|对比|分别|排名|占比|增长|下降|因为.{0,20}所以)/.test(
+      plainStatement,
+    );
+  if (
+    intent.rhetoric === "none" &&
+    intent.visualPriority !== "skip" &&
+    !hasStrongerStructure &&
+    !soundsStructured &&
+    plainStatement.length >= 8 &&
+    plainStatement.length <= 80
+  )
+    return { ...intent, rhetoric: "editorial-statement", motionIntent: "emphasize" };
   if (intent.rhetoric === "core-positioning" && intent.items.length === 2) return { ...intent, rhetoric: "comparison" };
   if (intent.rhetoric === "media-comparison" && intent.items.length === 2) return { ...intent, rhetoric: "comparison" };
   if (
@@ -374,6 +412,10 @@ const eligibilityFailure = (intent: SemanticNarrativeSegment): string | undefine
       return intent.roughAnnotation && count >= 1 && count <= 3
         ? undefined
         : "Rough annotation requires 1-3 locally derived evidence targets.";
+    case "editorial-statement":
+      return count <= 1 && !intent.imageEvidence && !intent.animationIntent
+        ? undefined
+        : "Editorial statement requires one plain-language claim without a stronger structured or material-backed visual.";
   }
 };
 
@@ -411,6 +453,7 @@ const propsFor = (
   intent: SemanticNarrativeSegment,
   imageEvidenceInventory: readonly ProbedImageEvidence[] = [],
   timing?: { captions: readonly SemanticTimingCaption[]; originSeconds: number },
+  sourceText = "",
 ): Record<string, unknown> => {
   const takeaway = intent.narrative.takeaway || undefined;
   const activeIndexTimeline = timing
@@ -523,7 +566,7 @@ const propsFor = (
           label: item.label,
           source: item.label,
           caption: compactDesignCopy(item.detail, 36, item.label),
-          ...entityFields(item),
+          ...mediaComparisonFields(item, imageEvidenceInventory),
         })),
         relation: "VS",
         takeaway,
@@ -638,6 +681,20 @@ const propsFor = (
         activeIndexTimeline,
       };
     }
+    case "editorial-statement": {
+      const normalized = sourceText.replace(/\s+/g, "").replace(/[。！？!?]+$/g, "");
+      const contrast = normalized.match(/(?:不是)([^，,。；;]{1,24})[，,；;]?而是([^。！？!?；;]{1,28})/);
+      const emphasisSource = contrast?.[2]?.trim() || intent.narrative.title || intent.narrative.takeaway;
+      const supportSource = intent.narrative.takeaway !== emphasisSource ? intent.narrative.takeaway : normalized;
+      return {
+        ...(contrast?.[1] ? { denied: compactDesignCopy(contrast[1], 18, intent.narrative.title) } : {}),
+        ...(contrast ? { prefix: "而是" } : {}),
+        emphasis: compactDesignCopy(emphasisSource, 18, intent.narrative.title),
+        ...(supportSource && supportSource !== emphasisSource
+          ? { support: compactDesignCopy(supportSource, 30, intent.narrative.takeaway) }
+          : {}),
+      };
+    }
     case "none":
       return {};
   }
@@ -743,7 +800,7 @@ export const materializeSemanticIntent = (
     {
       analysis: analysisFor(intent),
       narrative: { ...narrative, takeaway: takeaway || undefined },
-      props: propsFor(intent, imageEvidenceInventory, timing),
+      props: propsFor(intent, imageEvidenceInventory, timing, segment.text),
     },
     "production",
     terminologyProfile,

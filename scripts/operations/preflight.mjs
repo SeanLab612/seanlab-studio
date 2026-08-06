@@ -1,12 +1,13 @@
-import { access, mkdir, readFile, stat } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
-import { resolve } from "node:path";
+import { access, mkdir, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
-import { execFile } from "node:child_process";
+import { resolve } from "node:path";
 import { promisify } from "node:util";
-import { STAGE_STATUSES, fileExists } from "../workflow/state.mjs";
+import { detectAgent } from "../../src/agents/registry.ts";
 import { CONDITIONAL_STAGE_NAMES } from "../workflow/stages.mjs";
+import { fileExists, STAGE_STATUSES } from "../workflow/state.mjs";
 
 const result = (id, label, status, summary, details = {}, remediation) => ({
   id,
@@ -78,7 +79,7 @@ const transcriptCheck = async (manifest, paths) => {
   }
 };
 
-const providerCheck = async (manifest) => {
+export const providerCheck = async (manifest, { detectAgentImpl = detectAgent } = {}) => {
   const required = [manifest.providers.translation, manifest.providers.semanticPlanning]
     .filter((provider) => provider.provider === "mimo")
     .map((provider) => provider.apiKeyEnv ?? "MIMO_API_KEY");
@@ -91,17 +92,14 @@ const providerCheck = async (manifest) => {
   ].find((provider) => ["codex-cli", "claude-code"].includes(provider));
   if (selectedAgent) {
     try {
-      const command = selectedAgent === "codex-cli" ? "codex" : "claude";
-      const authArgs = selectedAgent === "codex-cli" ? ["login", "status"] : ["auth", "status"];
-      const [{ stdout: version }, { stdout: login, stderr }] = await Promise.all([
-        execFileAsync(command, ["--version"], { timeout: 15_000 }),
-        execFileAsync(command, authArgs, { timeout: 15_000 }),
-      ]);
+      const detected = await detectAgentImpl(selectedAgent);
       agent = {
         id: selectedAgent,
-        available: true,
-        authenticated: selectedAgent === "claude-code" || /logged in/i.test(`${login}\n${stderr}`),
-        version: version.trim(),
+        available: detected.available,
+        authenticated: detected.authenticated,
+        version: detected.version,
+        executablePath: detected.executablePath,
+        remediation: detected.remediation,
       };
     } catch (error) {
       agent = { id: selectedAgent, available: false, authenticated: false, error: String(error.message ?? error) };
@@ -371,7 +369,13 @@ const resumabilityCheck = async (manifest, paths, stages, activeStage) => {
   }
 };
 
-export const runProjectPreflight = async ({ context, stages, currentAssetProfile, activeStage } = {}) => {
+export const runProjectPreflight = async ({
+  context,
+  stages,
+  currentAssetProfile,
+  activeStage,
+  detectAgentImpl = detectAgent,
+} = {}) => {
   const { manifest, manifestPath, paths } = context;
   const checks = [
     result("manifest", "Project manifest", "passed", `${manifest.schemaVersion} / ${manifest.project.id}`, {
@@ -379,7 +383,7 @@ export const runProjectPreflight = async ({ context, stages, currentAssetProfile
     }),
     await sourceCheck(paths),
     await transcriptCheck(manifest, paths),
-    await providerCheck(manifest),
+    await providerCheck(manifest, { detectAgentImpl }),
     assetProfileCheck(manifest, currentAssetProfile),
     terminologyCheck(manifest),
     await productionContractsCheck(),

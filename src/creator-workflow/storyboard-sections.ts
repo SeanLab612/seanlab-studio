@@ -33,7 +33,7 @@ export const inferStructuralVisualForm = (text: string): NarrationVisualForm => 
   if (/(?:第一|首先|然后|接着|随后|最后|流程|步骤|阶段)/.test(value)) return "ordered-progression";
   if (/(?:分为|分成|类型|类别|包括).*(?:、|，)/.test(value)) return "category-map";
   if (/(?:核心|关键|重点|记住|真正|本质|结论)/.test(value)) return "text-emphasis";
-  return "text-emphasis";
+  return "plain-language-claim";
 };
 
 export const structuralStoryboardSection = (

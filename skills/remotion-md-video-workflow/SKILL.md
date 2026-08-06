@@ -1,6 +1,6 @@
 ---
 name: remotion-md-video-workflow
-description: Orchestrate this repository's resumable talking-head video workflow from source video and transcript through conservative recut, verbatim bilingual captions, semantic VisualBrief planning, approved Remotion components, static-first or full-video human review, and approval-gated validated source-resolution delivery. Use when initializing, running, resuming, diagnosing, reviewing, or delivering a video project in video-remotion/remotion-md, including future Web-console operations backed by the same manifest and runner.
+description: Orchestrate this repository's resumable talking-head video workflow from source video and transcript through conservative recut, semantic production direction, required-media placement, autonomous QA and repair, and validated delivery.
 ---
 
 # Remotion MD Video Workflow
@@ -45,11 +45,12 @@ npm run workflow -- --project projects/<project-id>/project.json --replan-semant
 
 Every explicit semantic attempt is isolated and compared with the last valid plan before promotion.
 
-Studio may run the same dry-run only as far as the next human gate. The readiness result must list every planned,
+Studio runs the first production pass only through `validate`, where it exposes a compact read-only production direction.
+After the creator confirms its exact hash, Studio may run continuously through internal review and delivery. The readiness result must list every planned,
 reused, and blocked stage plus the provider and render counts. A readiness check never calls an Agent, translator, or
 renderer.
 
-New projects also stop at an early conservative recut gate before captions or semantic planning:
+CLI-operated projects may stop at an early conservative recut gate before captions or semantic planning:
 
 ```bash
 npm run workflow -- --project projects/<project-id>/project.json --until recut
@@ -61,7 +62,8 @@ Inspect `recut-review.md`, `recut-candidates.json`, `edl.proposed.json`, and the
 npm run workflow -- --project projects/<project-id>/project.json --approve-recut
 ```
 
-Only then run through `plan` or `review`. Replacing a frozen provider proposal is explicit:
+The Studio Production Agent may approve this conservative recut internally as part of the confirmed production run;
+it must preserve the same protected-anchor and exact-artifact checks. Only then run through `plan` or `review`. Replacing a frozen provider proposal is explicit:
 
 ```bash
 npm run workflow -- --project projects/<project-id>/project.json --replan-recut --until recut
@@ -130,10 +132,12 @@ Treat semantic components and asset foundations as separate layers and apply the
    - Refuse unsupported numbers, incomplete matrices, missing identity evidence, placeholders, incomplete titles, or copy beyond the reviewed component capacity. A skipped visual is safer than invented or clipped content.
    - Freeze every valid component candidate before whole-video direction. The local-only `visual-direction` stage assigns hero/support/accent/none importance, enforces breathing, duration, density, coverage, and repetition budgets, and writes an auditable show/skip decision for every candidate. It may shorten, delay, replace, or skip a candidate but may not invent new semantic evidence or choose an unapproved component.
    - When the manifest supplies authored screen recordings, probe and checksum them before planning, then resolve authored spoken-text anchors against punctuation-preserving captions in `scene-align`. A required resolved recording is a hard constraint: it suppresses overlapping semantic components, stays muted, and uses the edited speaker video as the single audio master plus a muted safe-area PIP. Never let the director guess, replace, or silently skip the requested asset.
-   - Treat every version 4 authored section, beat, animation, and material plan as an upstream reference. Reference
+   - If a required recording anchor fails only because the final caption contains a small ASR/TTS expansion of the locked wording, production recovery may ask the pinned Agent to choose among exact current-caption candidates that were prevalidated against the complete scene timeline. It may update only that scene's spoken anchors, must retain the same required asset, re-run ordering/overlap/duration validation, and write project-local repair evidence before resuming. It must not invent wording, select another asset, use speaker fallback, or continue when no unambiguous validated candidate exists.
+   - Treat legacy version 4 authored section, beat, animation, and material plans as upstream references. New creator
+     projects intentionally hand off an empty visual storyboard because the writing stage no longer owns visual design. Reference
      entries may be replaced, moved, omitted, or supplemented by downstream semantic planning and must never block
-     production because their anchors, component forms, or materials are stale. Only a user-origin text annotation may
-     carry an execution lock. Keep the version 3 fail-closed behavior only for already frozen projects.
+     production because their component forms are stale. Required uploaded images and recordings are separate hard
+     presence obligations from the material inventory and latest narration bindings. Keep the version 3 fail-closed behavior only for already frozen projects.
    - Resolve locked user text annotations independently against the same semantic captions. Reject stale hashes, missing
      quotes, and overlaps between annotations, but never suppress the primary visual because of an annotation. Render a
      compact annotation with the approved `rough-annotation` renderer in the primary visual's safe zone; do not wrap it
@@ -164,26 +168,26 @@ The project manifest's `assetProfile` records the expected foundation and invent
 
 Honor the manifest's review mode. New projects use `static`; manifests that omit the field retain legacy `full-video` behavior. Inspect `visual-direction-plan.json` and `visual-direction-report.json`: chapters, hero/support balance, merge/split boundaries, show/skip reasons, repeated components, visuals per minute, and whole-video coverage must be deliberate. `qa-capture` must derive frames from the probed source/review fps rather than assuming 30fps. It captures entry, transition, stable, and exit-risk states for every selected cue plus one speaker-only frame for every skipped direction decision.
 
-Static review is sufficient for final approval when `visual-qa` passes and `review-evidence.json` binds the plan, props, direction reports, QA contracts, image metrics, contact sheet, and every captured frame. Present the contact sheet, direction report, evidence summary, and every error/warning frame. Ask the user to inspect subtitle fidelity, semantic component choice, per-cue layout, visual breathing, importance hierarchy, face safety, local scrim, ending state, and the speaker-only gaps. Use `full-video` when continuous cut pacing, speech edits, or overlay transitions cannot be decided from the static evidence. Do not render a full review merely to duplicate an approved static package.
+Static review is sufficient for Production Agent approval when `visual-qa` passes and `review-evidence.json` binds the plan, props, direction reports, QA contracts, image metrics, contact sheet, and every captured frame. In the Studio creator flow, keep this evidence available in advanced diagnostics but do not turn it into a user-facing approval gate. The Production Agent must inspect subtitle fidelity, semantic component choice, per-cue layout, visual breathing, importance hierarchy, face safety, local scrim, ending state, speaker-only gaps, and every required uploaded asset; it repairs recoverable failures before continuing. Use `full-video` when continuous cut pacing, speech edits, or overlay transitions cannot be decided from static evidence. Do not render a full review merely to duplicate a passing static package.
 Static mode renders bounded 540p motion-risk excerpts only when confirmed animation cues require continuous evidence.
 Projects without time-sensitive visuals may proceed from approved static evidence to delivery. Explicit `full-video`
 mode uses its existing continuous review and must not render a second pacing proxy. Legacy static manifests retain
 their continuous 720p pacing review. Cut preparation caches each exact source range by source
 content and encoding profile; QA capture similarly reuses a frame only when its active visual, active subtitle,
 renderer, and base-video hashes still match.
-For intelligent recut 2.0, the bound 720p speech-cut proxy is the required continuous evidence even in static visual-review mode. Recut approval is separate from final visual approval; final approval cannot substitute for an unapproved proposed EDL.
+For intelligent recut 2.0, the bound 720p speech-cut proxy remains required continuous evidence even in static visual-review mode. CLI operation uses explicit recut approval; Studio's confirmed autonomous production path records a hash-bound Agent approval and does not expose the proxy as another creator gate.
 Review counts must keep semantic components, authored recording scenes, whole-video title continuity, and remaining speaker-only gaps separate. Never report their total as a component count.
 For every authored recording scene, also inspect screen entry, transition, stable, exit-risk, and speaker-return frames, the alignment confidence, source clip bounds, PIP crop, subtitle clearance, and the absence of an overlapping semantic component.
 
 For a brand-enabled project, review the complete audio-bearing bumper and the bounded real transition excerpt in addition to static frames. Confirm that the final-script anchor matched, speaker audio stops and resumes without losing words, captions and competing visuals are absent during the bumper, the event timeline follows the registered roles and budgets, and the mix report has no clipping error. These excerpts replace a full review-video render unless they expose unresolved pacing.
 
-Record approval only after an explicit user decision:
+For direct CLI operation, record approval only after an explicit user decision:
 
 ```bash
 npm run workflow -- --project projects/<project-id>/project.json --approve
 ```
 
-Never infer approval from a successful render. Never generate source-resolution delivery for a component test unless requested.
+Studio's autonomous production action may use its registered Agent auto-approval only after the direction hash was confirmed and every internal review contract passed. Never infer approval from a successful render. Never generate source-resolution delivery for a component test unless requested.
 Approval creates a recoverable immutable snapshot under `<workspace>/approvals/`. Ordinary delivery restores and verifies that package, starts at `delivery-render`, and never replays translation or semantic planning.
 
 When review finds a problem, record a typed rejection or revision instead of editing generated files ad hoc:
@@ -212,7 +216,7 @@ npm run workflow -- --project projects/<project-id>/project.json --until deliver
 
 Delivery must re-verify the approved evidence hashes before rendering. `delivery-validate` then checks codec, source dimensions, audio, expected EDL duration, full-file decode, byte size, and SHA-256. A render is not a successful delivery until this stage passes.
 
-Studio delivery may select 1080p, 2K, 4K, or source resolution and 30fps, 60fps, or source fps. New projects default to
+Studio delivery may select 720p preview, 1080p, 2K, 4K, or source resolution and 30fps, 60fps, or source fps. New projects default to
 1080p60. The current format remains MP4/H.264. Never upscale beyond source resolution or duplicate frames above source
 fps; surface the effective output and historical time/disk estimate before starting.
 

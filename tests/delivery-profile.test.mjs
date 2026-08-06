@@ -9,6 +9,7 @@ import {
 const source4k60 = { width: 3840, height: 2160, fps: 60 };
 
 test("delivery profile only accepts the approved MP4 H.264 resolution and fps matrix", () => {
+  assert.equal(normalizeDeliveryProfile({ resolution: "720p", frameRate: 30 }).resolution, "720p");
   assert.deepEqual(normalizeDeliveryProfile({ resolution: "2k", frameRate: 30 }), {
     schemaVersion: "1.0",
     resolution: "2k",
@@ -29,6 +30,16 @@ test("delivery profile avoids meaningless upscaling and duplicated frames", () =
   assert.equal(effective.height, 1080);
   assert.equal(effective.fps, 30);
   assert.equal(effective.warnings.length, 2);
+});
+
+test("720p is available as a lightweight preview delivery profile", () => {
+  const effective = resolveDeliveryProfile({
+    profile: { resolution: "720p", frameRate: 30 },
+    source: source4k60,
+  });
+  assert.equal(effective.width, 1280);
+  assert.equal(effective.height, 720);
+  assert.equal(effective.fps, 30);
 });
 
 test("historical estimator is calibrated to the completed html 4K60 delivery", () => {

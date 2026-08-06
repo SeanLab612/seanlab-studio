@@ -1,7 +1,54 @@
 import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import test from "node:test";
-import { createCodexCliJsonAdapter } from "../scripts/workflow/codex-cli-adapter.mjs";
+import {
+  createCodexCliJsonAdapter,
+  stripOptionalNulls,
+  toCodexOutputSchema,
+} from "../scripts/workflow/codex-cli-adapter.mjs";
+
+test("Codex response schema removes unsupported constraints and makes optional properties nullable", () => {
+  const schema = toCodexOutputSchema({
+    type: "object",
+    properties: {
+      ids: { type: "array", uniqueItems: true, items: { type: "string" } },
+      nested: { type: "object", properties: { note: { type: "string" } } },
+    },
+    required: ["ids"],
+  });
+
+  assert.deepEqual(schema, {
+    type: "object",
+    properties: {
+      ids: { type: "array", items: { type: "string" } },
+      nested: {
+        type: ["object", "null"],
+        properties: { note: { type: ["string", "null"] } },
+        required: ["note"],
+      },
+    },
+    required: ["ids", "nested"],
+  });
+});
+
+test("Codex response cleanup removes null placeholders only for optional properties", () => {
+  const schema = {
+    type: "object",
+    properties: {
+      id: { type: "string" },
+      recommendation: {
+        type: "object",
+        properties: { action: { type: "string" }, relatedIds: { type: "array", items: { type: "string" } } },
+        required: ["action"],
+      },
+    },
+    required: ["id", "recommendation"],
+  };
+  assert.deepEqual(
+    stripOptionalNulls({ id: "one", recommendation: { action: "keep", relatedIds: null } }, schema),
+    { id: "one", recommendation: { action: "keep" } },
+  );
+});
 
 test("Codex CLI adapter enforces read-only structured ephemeral execution", async () => {
   let invocation;

@@ -1,4 +1,5 @@
-import type { ApprovedComponentId } from "../components/library/registry.ts";
+import { chartRecipeRegistry } from "../charts/registry.ts";
+import { approvedComponentRegistry, type ApprovedComponentId } from "../components/library/registry.ts";
 
 export const NARRATION_VISUAL_FORMS = [
   {
@@ -70,7 +71,7 @@ export const NARRATION_VISUAL_FORMS = [
   {
     id: "core-and-supports",
     label: "核心与支撑",
-    guidance: "一个中心定位连接两到六个能力、依据或结果；不再使用信息组件，新制作固定交给 layered-system 动画表达。",
+    guidance: "一个中心定位连接两到六个能力、依据或结果；先把中心和各支撑关系说完整。",
     componentCoverage: [],
   },
   {
@@ -91,6 +92,13 @@ export const NARRATION_VISUAL_FORMS = [
     guidance: "对一到三个短语做高亮、下划线、圈选、框选、括起或划掉；划掉只用于明确否定。",
     componentCoverage: ["rough-annotation"],
   },
+  {
+    id: "plain-language-claim",
+    label: "观点陈述",
+    guidance:
+      "一句缺少数据、步骤、对比或来源结构的大白话，只表达一个完整判断；下游会把它设计成克制的文字画面。若有用户素材或更强语义结构，优先使用素材和专用组件。",
+    componentCoverage: ["editorial-statement"],
+  },
 ] as const satisfies readonly {
   id: string;
   label: string;
@@ -104,3 +112,13 @@ export const NARRATION_VISUAL_FORM_IDS = NARRATION_VISUAL_FORMS.map((item) => it
 
 export const narrationVisualFormsPrompt = () =>
   `${NARRATION_VISUAL_FORMS.map((item) => `- ${item.id}（${item.label}）：${item.guidance}`).join("\n")}\n\n素材段落规则：\n- section.materialIds 只记录写稿阶段最明确的一份首选素材，可以为空。\n- 同一素材可以绑定多个不同 section；下游还会按实体、证据角色和精确口播句自动安排更多视觉节拍。\n- 一组直接相关的截图可以由下游合并成一个图片节拍；录屏必须只覆盖它能够证明的短句。不要为迁就素材重复口播。`;
+
+export const narrationProductionCapabilityPrompt = () => {
+  const chartGuidance = [
+    "对象之间有同口径数值对比时，说清对象、指标和数值",
+    "同一指标随时间变化时，说清时间点和对应值",
+    "表达排名、分布、比例、阶段流失或前后变化时，保持口径一致",
+    "表达两个维度的位置、风险与收益或区间范围时，明确坐标含义",
+  ];
+  return `下游当前具备 ${Object.keys(approvedComponentRegistry).length} 种已审批信息组件和 ${Object.keys(chartRecipeRegistry).length} 种数据图表形式。这些数量只用于说明表达能力边界，不是覆盖指标，也不得决定具体组件、图表、布局、时间或动画。写稿时只需把真实语义关系说完整；不要为了触发组件虚构结构。\n\n适合信息组件的表达触发条件：\n${NARRATION_VISUAL_FORMS.map((item) => `- ${item.label}：${item.guidance}`).join("\n")}\n\n适合数据图表的表达触发条件：\n${chartGuidance.map((item) => `- ${item}`).join("\n")}`;
+};

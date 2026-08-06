@@ -18,6 +18,8 @@
           "startAnchor": {"$ref": "#/$defs/anchor"},
           "endAnchor": {"$ref": "#/$defs/anchor"},
           "required": {"type": "boolean"},
+          "executionPolicy": {"enum": ["locked", "reference"]},
+          "visualBeatId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
           "speakerPip": {
             "type": "object",
             "required": ["shape", "preferredPosition"],

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  assertPerspectiveRewritePreservesProductionContract,
   assertNarrationSourceGrounding,
   assertUsableSourceContext,
+  auditNarrationPerspective,
   buildNarrationPrompt,
 } from "../scripts/creator/narration.mjs";
 import { approvedComponentRegistry } from "../src/components/library/registry.ts";
@@ -35,18 +37,71 @@ test("narration accepts at least one resolved source and forbids generic project
   assert.match(prompt, /真实工作流、核心能力、差异化优点和限制/);
   assert.match(prompt, /不得用常识补齐/);
   assert.match(prompt, /不得把 Star、下载量、用户数等指标推断/);
-  assert.match(prompt, /原始口播原话/);
   assert.match(prompt, /允许短句和现场感/);
   assert.match(prompt, /不能暗含新的产品能力、数据、评价或来源外结论/);
-  assert.match(prompt, /可用于组织口播内容的语义视觉形式/);
-  assert.match(prompt, /不得为了覆盖形式增加无关内容/);
+  assert.match(prompt, /写稿阶段不生成视觉方案/);
   assert.match(prompt, /不得出现“使用某某组件”/);
-  assert.match(prompt, /evidenceText 必须逐字摘自同一 section\.narration/);
-  assert.match(prompt, /section\.materialIds 最多记录一个首选素材/);
-  assert.match(prompt, /一组直接相关的截图可以由下游合并成一个图片节拍/);
-  assert.match(prompt, /录屏必须只覆盖它能够证明的短句/);
+  assert.match(prompt, /每个 required 素材 id 必须且只能写入一个语义最匹配的 section\.materialIds/);
+  assert.match(prompt, /一个 section 可以承接多份相关素材/);
+  assert.match(prompt, /不要决定时间码、布局、组件、动画、裁剪方式或素材出现顺序/);
+  assert.match(prompt, /录屏演示可以直接讲界面、用户动作和操作结果/);
+  assert.match(prompt, /不要因为素材来自录屏就删掉这条叙事链/);
+  assert.match(prompt, /从录屏中可以看到/);
+  assert.match(prompt, /具备 20 种已审批信息组件和 10 种数据图表形式/);
+  assert.match(prompt, /观点陈述/);
+  assert.match(prompt, /适合信息组件的表达触发条件/);
+  assert.match(prompt, /不是覆盖指标/);
   for (const componentId of Object.keys(approvedComponentRegistry)) assert.doesNotMatch(prompt, new RegExp(componentId));
 });
+
+test("narration perspective audit preserves direct walkthrough narration", () => {
+  const walkthrough = narrationOutputForPerspective(
+    "我们可以看到 Open Design 的界面。点击一个模板，进入设计，再输入我们的需求。",
+  );
+  assert.equal(auditNarrationPerspective(walkthrough).needsReview, false);
+});
+
+test("narration perspective audit finds source-observer and generic AI scaffolding", () => {
+  const reportStyle = narrationOutputForPerspective(
+    "从上传的录屏中可以看到一个输入框。值得注意的是，这段材料反映了模板选择能力。",
+  );
+  const audit = auditNarrationPerspective(reportStyle);
+  assert.equal(audit.needsReview, true);
+  assert.ok(audit.signals.some((item) => item.kind === "source-observer"));
+  assert.ok(audit.signals.some((item) => item.kind === "generic-ai-scaffolding"));
+});
+
+test("perspective rewrite cannot change production bindings", () => {
+  const before = narrationOutputForPerspective("打开页面后，左侧是输入区域。");
+  const after = structuredClone(before);
+  after.sections[0].narration = "打开页面，左侧就是输入区域。";
+  assert.doesNotThrow(() => assertPerspectiveRewritePreservesProductionContract(before, after));
+  after.sections[0].materialIds = ["different-material"];
+  assert.throws(() => assertPerspectiveRewritePreservesProductionContract(before, after), /素材绑定或生产字段/);
+});
+
+function narrationOutputForPerspective(narration) {
+  return {
+    schemaVersion: "1.0",
+    title: "Open Design 演示",
+    opening: "Open Design 怎么开始设计？",
+    overview: "这里直接走一遍完整操作。",
+    sections: [
+      {
+        id: "walkthrough",
+        title: "进入设计",
+        narration,
+        visualIntent: "semantic-visual",
+        visualOpportunities: [],
+        materialIds: ["screen-1"],
+        recordingInstruction: null,
+      },
+    ],
+    conclusion: "这就是从模板进入设计的过程。",
+    fullScript: "",
+    shootingGuide: ["展示已登记录屏。"],
+  };
+}
 
 test("visual authoring forms cover every approved component without exposing component ids to the Agent", () => {
   const coverage = NARRATION_VISUAL_FORMS.flatMap((form) => form.componentCoverage).sort();

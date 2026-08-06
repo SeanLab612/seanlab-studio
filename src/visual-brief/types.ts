@@ -18,6 +18,7 @@ export const APPROVED_COMPONENT_IDS = [
   "capability-surface-grid",
   "tradeoff-scale",
   "rough-annotation",
+  "editorial-statement",
 ] as const;
 
 export type ApprovedVisualComponentId = (typeof APPROVED_COMPONENT_IDS)[number];
@@ -60,7 +61,8 @@ export type VisualRhetoric =
   | "core-positioning"
   | "capability-surface"
   | "tradeoff"
-  | "rough-annotation";
+  | "rough-annotation"
+  | "editorial-statement";
 
 export type VisualBriefAnalysis = {
   rhetoric: VisualRhetoric;

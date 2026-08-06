@@ -44,7 +44,8 @@
                     "core-and-supports",
                     "tradeoff-or-positioning",
                     "source-backed-evidence",
-                    "text-emphasis"
+                    "text-emphasis",
+                    "plain-language-claim"
                   ]
                 },
                 "evidenceText": {"type": "string", "minLength": 1, "maxLength": 160}
@@ -52,7 +53,7 @@
               "additionalProperties": false
             }
           },
-          "materialIds": {"type": "array", "maxItems": 1, "items": {"type": "string"}},
+          "materialIds": {"type": "array", "maxItems": 12, "uniqueItems": true, "items": {"type": "string"}},
           "recordingInstruction": {"type": ["string", "null"]}
         },
         "additionalProperties": false

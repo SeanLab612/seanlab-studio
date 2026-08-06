@@ -141,7 +141,7 @@
                     "required": ["id", "props"],
                     "properties": {
                       "id": {
-                        "enum": ["distribution-bars", "scenario-branches", "market-cap-lines", "person-evidence-card", "factor-sequence", "ranked-metric-list", "binary-versus", "key-stat-summary", "media-comparison", "image-evidence-inset", "process-steps", "causal-chain", "quote-source-card", "historical-timeline", "decision-matrix", "model-classification-map", "capability-surface-grid", "tradeoff-scale", "rough-annotation"]
+                        "enum": ["distribution-bars", "scenario-branches", "market-cap-lines", "person-evidence-card", "factor-sequence", "ranked-metric-list", "binary-versus", "key-stat-summary", "media-comparison", "image-evidence-inset", "process-steps", "causal-chain", "quote-source-card", "historical-timeline", "decision-matrix", "model-classification-map", "capability-surface-grid", "tradeoff-scale", "rough-annotation", "editorial-statement"]
                       },
                       "props": {"type": "object"}
                     },

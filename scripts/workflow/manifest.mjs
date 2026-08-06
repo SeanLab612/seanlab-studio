@@ -269,6 +269,25 @@ export const validateManifest = (manifest) => {
       )
     )
       throw new Error("policies.visualDirection.maximumVisualCoverageRatio must be between zero and one");
+    if (
+      manifest.policies.visualDirection.minimumVisualCoverageRatio !== undefined &&
+      !(
+        manifest.policies.visualDirection.minimumVisualCoverageRatio >= 0 &&
+        manifest.policies.visualDirection.minimumVisualCoverageRatio <=
+          manifest.policies.visualDirection.maximumVisualCoverageRatio
+      )
+    )
+      throw new Error(
+        "policies.visualDirection.minimumVisualCoverageRatio must be between zero and the maximum coverage ratio",
+      );
+    if (
+      manifest.policies.visualDirection.maximumAnimationCoverageRatio !== undefined &&
+      !(
+        manifest.policies.visualDirection.maximumAnimationCoverageRatio >= 0 &&
+        manifest.policies.visualDirection.maximumAnimationCoverageRatio <= 1
+      )
+    )
+      throw new Error("policies.visualDirection.maximumAnimationCoverageRatio must be between zero and one");
   }
   if (manifest.assetProfile) {
     assertObject(manifest.assetProfile, "assetProfile");
@@ -281,7 +300,7 @@ export const validateManifest = (manifest) => {
   }
   assertObject(manifest.render?.review, "render.review");
   assertObject(manifest.render?.delivery, "render.delivery");
-  if (!["1080p", "2k", "4k", "source"].includes(manifest.render.delivery.resolution ?? "source"))
+  if (!["720p", "1080p", "2k", "4k", "source"].includes(manifest.render.delivery.resolution ?? "source"))
     throw new Error("render.delivery.resolution is invalid");
   if (![30, 60, "source"].includes(manifest.render.delivery.frameRate ?? "source"))
     throw new Error("render.delivery.frameRate is invalid");
@@ -509,7 +528,8 @@ export const createManifest = ({
         maximumContinuousVisualSeconds: 32,
         repetitionWindowSeconds: 12,
         minimumHeroGapSeconds: 42,
-        maximumVisualCoverageRatio: 0.95,
+        maximumVisualCoverageRatio: 1,
+        maximumAnimationCoverageRatio: 0.25,
         maximumChapterSeconds: 120,
         maximumChapterCandidates: 6,
         heroConfidence: 0.88,
@@ -602,7 +622,7 @@ export const toRuntimeConfig = ({ manifest, paths }) => ({
   visualDirectionReportFile: paths.visualDirectionReport,
   visualDirectionReviewFile: paths.visualDirectionReview,
   visualDirectionTimelineFile: paths.visualDirectionTimeline,
-  visualDirection: manifest.policies.visualDirection,
+  visualDirection: { ...manifest.policies.visualDirection, maximumVisualCoverageRatio: 1 },
   animationTemplateId: manifest.policies.animation.templateId,
   animationTemplateIds:
     manifest.policies.animation.mode === "per-cue" ? manifest.policies.animation.allowedTemplateIds : undefined,

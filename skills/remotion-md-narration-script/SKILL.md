@@ -24,7 +24,8 @@ Complete intake in this order:
 2. Add websites, repository links, documents, notes, or local file paths that can verify external facts. Accept
    “没有”, but do not invent product, event, or procedural claims when evidence is absent.
 3. Run the project-pinned Agent over the resolved sources, original images, and sampled recording contact sheets.
-   Present one project summary plus one card for every source and material. The creator must confirm the cards.
+   Present one project summary plus one card for every source and material. For each image or recording, recommend keep,
+   exclude, merge, or trim. The creator may accept or override the disposition and add a material-specific note.
    Confirmation binds the current source and asset hashes; any later intake change makes the cards stale.
 4. Confirm every universal and category-specific answer in the versioned `brief.editorialBrief`. Record the creator's
    motivation, real relationship to the topic, audience, single takeaway, selected category angle, experience or
@@ -73,6 +74,16 @@ evidence. Qualifier words and cross-language phrasing remain audit signals; they
 Speaker footage added for the shooting handoff is production input, not writing evidence, and must not invalidate an
 already confirmed material-understanding card.
 
+After evidence review, inspect the spoken text for source-observer leakage and repetitive generic AI scaffolding. A
+screen-led walkthrough may directly describe the product interface, the creator or viewer's supported action, and the
+visible result, for example opening a page, choosing a template, entering a requirement, or seeing the generated
+output. Do not rewrite those actions merely because a screen recording supports them. Rewrite only narration that
+talks about how the Agent read the production input, such as "the uploaded recording shows" or "this material
+reflects" when the recording or material itself is not the topic. One optional perspective-editing call may run when
+such signals exist. It must preserve facts, section ids, material ids, and all non-spoken production metadata. Failure,
+invalid structure, or changed bindings must fall back to the already validated evidence-reviewed draft and must never
+become a creator-facing blocker.
+
 ## Review and lock
 
 Present the script and shooting guide for creator editing. Ask the creator to edit the generated draft directly; the
@@ -87,17 +98,11 @@ npm run creator -- lock --id <creator-project-id>
 
 Locking freezes the final-script hash and derives authored scene anchors from the final wording. If a screen scene lacks exactly one available material, stop and explain what is missing. Do not begin the video workflow before the creator approves and locks the script.
 
-Studio presents a local deterministic sequence of visual beats for every spoken block—opening, overview,
-each authored body section, and conclusion. A long block may contain several beats; narration
-outside those beats remains on the speaker. Each beat owns exactly one of `speaker`, `component`, `image`,
-`screen-demo`, or `animation`. A related image beat may group up to three screenshots, while a recording only covers
-the exact short quote it proves. Structural blocks must not be forced to speaker by their position. The creator normally confirms the
-complete plan once and changes only exceptional beats; do not require a separate confirmation for every beat. A creator may also select one or more non-overlapping
-2-24 character phrases and apply only a text-annotation effect. These annotations are a secondary overlay layer, not a
-replacement primary visual. The approved `rough-annotation` component remains eligible for automatic text-emphasis
-selection, and the manual layer reuses that renderer without a new container. Any narration edit returns affected annotations to `suggested`. Lock confirms the current
-complete plan, records annotation character ranges and quote hashes, and binds both layers to the final-script hash. Do
-not add component names, layout recipes, animation timings, or coverage targets to the spoken script.
+Studio presents only the narration text for creator editing. Do not generate or expose a visual storyboard, component
+selector, animation selector, timeline, or manual annotation layer during writing. The writing Agent may assign every
+required uploaded image or recording to exactly one semantic section so downstream production understands why it belongs,
+and a section may carry several related material ids. This binding is internal metadata, not a creator-editable visual plan.
+Do not add component names, layout recipes, animation timings, or coverage targets to the spoken script.
 
 The opening follows the same semantic visual planning rules as every other section. Do not inject a fixed portrait,
 identity card, slogan, component, or episode tag. Creator identity is optional project input, never a repository default.
@@ -111,7 +116,11 @@ preferences enter the local creator profile; episode facts, names, metrics, conc
 claims never become future writing evidence. Accepted lessons guide later drafts but cannot override the current
 editorial brief or frozen sources.
 
-Uploaded screenshots and screen recordings are candidates during intake, not mandatory production assets. A draft section may bind zero or one candidate, while one registered candidate may be reused by several sections as separate placements. During review, bind the chosen candidate to each matching spoken section; locking derives an exact spoken anchor for every placement and promotes only bound candidates to required production evidence. Unbound candidates remain optional and do not enter the video manifest. Never ask the creator to supply an anchor while uploading an asset.
+Uploaded screenshots and screen recordings default to mandatory production assets. Material understanding may recommend
+excluding, merging, or trimming them; the creator's confirmed disposition is authoritative. Every required visual must
+bind exactly once in the narration package and every excluded visual must remain absent. Locking derives fresh anchors
+from the latest creator-edited wording and must fail closed if a required visual is missing or duplicated. Never ask the
+creator to supply an anchor while uploading an asset.
 
 ## Handoff
 

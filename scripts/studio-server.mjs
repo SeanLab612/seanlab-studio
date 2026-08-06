@@ -29,7 +29,6 @@ import {
   loadNarration,
   loadSourceContext,
   prepareExistingNarration,
-  resumeNarrationVisualPlanning,
   rewriteNarration,
 } from "./creator/narration.mjs";
 import { buildNarrationExport } from "./creator/narration-export.mjs";
@@ -78,10 +77,10 @@ import {
   decideAutomaticProductionRecovery,
   deterministicProductionDiagnosis,
   deterministicProductionRepair,
+  automaticRecoveryDelayMs,
   MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS,
 } from "./creator/production-agent-recovery.mjs";
 import { repairProductionBinding } from "./creator/production-agent-binding-repair.mjs";
-import { repairProductionVisualContract } from "./creator/production-agent-visual-contract-repair.mjs";
 import {
   approveProductionBaseline,
   createProductionBaseline,
@@ -99,6 +98,8 @@ import {
 } from "./creator/production-agent-acceptance.mjs";
 import {
   resumeStageForStudio,
+  workflowArgsForConfirmedProduction,
+  workflowArgsForStudioPlan,
   workflowArgsForStudioAction,
   workflowArgsForStudioReadiness,
 } from "./creator/studio-contract.mjs";
@@ -138,6 +139,7 @@ import {
 import {
   archiveCurrentRecutProposal,
   assertReviewedRecut,
+  confirmProductionPlan,
   loadStudioWorkflow,
   markStudioWorkflowInterrupted,
   reconcileStudioWorkflow,
@@ -145,7 +147,7 @@ import {
   recutPreviewPath,
   restoreArchivedRecutProposal,
 } from "./creator/studio-workflow.mjs";
-import { loadVisualStoryboard, saveVisualStoryboard } from "./creator/visual-storyboard.mjs";
+import { loadVisualStoryboard } from "./creator/visual-storyboard.mjs";
 import {
   acceptWritingLessons,
   loadCreatorWritingProfile,
@@ -347,7 +349,13 @@ const job = (kind, projectId, operation, lifecycle = {}) => {
   persistJobs().catch(() => {});
   broadcast("job", publicJob(record));
   const reportProgress = (progress) => {
-    record.progress = { ...record.progress, ...progress };
+    const previousPercent = Number(record.progress?.percent ?? 0);
+    const incomingPercent = Number(progress?.percent);
+    record.progress = {
+      ...record.progress,
+      ...progress,
+      ...(Number.isFinite(incomingPercent) ? { percent: Math.max(previousPercent, incomingPercent) } : {}),
+    };
     persistJobs().catch(() => {});
     broadcast("job", publicJob(record));
   };
@@ -615,6 +623,17 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
   if (failedRecord.action === "readiness") return;
   const productionAgent = await loadProductionAgentState(projectId);
   if (productionAgent.state !== "diagnosing") return;
+  const controlledAcceptance = manifest === "__production-agent-acceptance__";
+  const workflowSnapshot = controlledAcceptance ? undefined : await loadStudioWorkflow(projectId);
+  if (!controlledAcceptance && !workflowSnapshot?.productionPlan?.confirmed) {
+    await transitionProductionAgent({
+      projectId,
+      state: "waiting-human",
+      reason: "production-direction-confirmation-required",
+      metadata: { failedJobId: failedRecord.id },
+    });
+    return;
+  }
   const attempts = automaticProductionRecoveryAttempts(productionAgent);
   if (attempts >= MAX_AUTOMATIC_PRODUCTION_RECOVERY_ATTEMPTS) {
     job(
@@ -723,6 +742,25 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
         }
       }
       let repair = acceptanceFixture?.repair ?? deterministicProductionRepair(recovery.failure);
+      if (repair?.kind === "validated-checkpoint-retry" && !acceptanceFixture) {
+        const delayMs = automaticRecoveryDelayMs(attempts);
+        reportProgress({
+          phase: "retry-wait",
+          percent: 32,
+          message: `外部服务暂时不可用，${Math.ceil(delayMs / 1000)} 秒后从断点重试`,
+        });
+        await new Promise((resolveDelay, rejectDelay) => {
+          const timeout = setTimeout(resolveDelay, delayMs);
+          controller.signal.addEventListener(
+            "abort",
+            () => {
+              clearTimeout(timeout);
+              rejectDelay(Object.assign(new Error("Automatic retry was cancelled"), { name: "AbortError" }));
+            },
+            { once: true },
+          );
+        });
+      }
       if (repair?.kind === "validated-semantic-plan-repair")
         reportProgress({ phase: "repair", percent: 38, message: "制作 Agent 正在按字幕证据重新拆分语义规划" });
       if (
@@ -758,11 +796,7 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
           });
         }
       }
-      if (
-        !repair &&
-        recovery.failure?.code === "BINDING_ANCHOR_NOT_FOUND" &&
-        diagnosis.recommendedAction === "repair-binding"
-      ) {
+      if (!repair && recovery.failure?.code === "BINDING_ANCHOR_NOT_FOUND") {
         reportProgress({ phase: "repair", percent: 38, message: "制作 Agent 正在重新绑定失效的口播位置" });
         const bindingAdapter = createStructuredAgentJsonAdapter({
           config: {
@@ -781,8 +815,14 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
         });
       }
       if (!repair && (recovery.failure?.stage === "agent-review" || diagnosis.recommendedAction === "repair-visual")) {
-        reportProgress({ phase: "repair", percent: 42, message: "制作 Agent 正在将无效视觉节拍安全回退为人物画面" });
-        repair = await repairProductionVisualContract({ projectId, recovery });
+        reportProgress({ phase: "repair", percent: 42, message: "制作 Agent 正在根据审核证据重新规划视觉" });
+        repair = {
+          kind: "validated-semantic-plan-repair",
+          success: true,
+          stage: "semantic-plan",
+          workflowAction: "continue",
+          strategy: "agent-owned-visual-replan",
+        };
       }
       reportProgress({ phase: "readiness", percent: 55, message: "正在验证断点和可复用产物" });
       let readiness = acceptanceFixture?.readiness;
@@ -795,9 +835,19 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
         ["recut", "continue", "delivery"].includes(repairResumeAction)
       ) {
         const snapshot = await loadStudioWorkflow(projectId);
+        const semanticRepairArgs =
+          repair?.kind === "validated-semantic-plan-repair"
+            ? [
+                "--from",
+                "semantic-plan",
+                "--replan-semantic",
+                ...workflowArgsForStudioAction("production"),
+                "--dry-run",
+              ]
+            : undefined;
         readiness = await inspectStudioReadiness({
           manifest,
-          workflowArgs: workflowArgsForStudioReadiness(snapshot),
+          workflowArgs: semanticRepairArgs ?? workflowArgsForStudioReadiness(snapshot),
         });
       }
       let decision = decideAutomaticProductionRecovery({
@@ -880,8 +930,13 @@ const scheduleAutomaticProductionRecovery = async ({ projectId, manifest, failed
       onCompleted: async (record) => {
         const decision = record.result?.decision;
         if (decision?.action !== "resume") return;
-        const workflowArgs = ["--from", decision.stage, ...workflowArgsForStudioAction(decision.workflowAction)];
-        const resumed = workflowJob(projectId, manifest, decision.workflowAction, workflowArgs, { environment });
+        const workflowArgs = [
+          "--from",
+          decision.stage,
+          ...(decision.replanSemantic ? ["--replan-semantic"] : []),
+          ...workflowArgsForStudioAction("production"),
+        ];
+        const resumed = workflowJob(projectId, manifest, "production", workflowArgs, { environment });
         resumed.automaticRecovery = {
           sourceJobId: failedRecord.id,
           diagnosisJobId: record.id,
@@ -1385,19 +1440,12 @@ const routes = async (request, response, url) => {
   }
   if (request.method === "POST" && action === "material-understanding/confirm") {
     const input = await body(request);
-    return json(response, 200, await confirmMaterialUnderstanding(projectId, input.inputSha256));
+    return json(response, 200, await confirmMaterialUnderstanding(projectId, input.inputSha256, input.decisions ?? []));
   }
   if (request.method === "POST" && action === "draft") {
     assertProjectIdle(projectId);
     const input = await body(request);
     const record = job("narration", projectId, (onProgress) => generateNarration(projectId, { ...input, onProgress }));
-    return json(response, 202, record);
-  }
-  if (request.method === "POST" && action === "visual-storyboard/seed") {
-    assertProjectIdle(projectId);
-    const record = job("visual-storyboard-seed", projectId, (onProgress) =>
-      resumeNarrationVisualPlanning(projectId, { onProgress }),
-    );
     return json(response, 202, record);
   }
   if (request.method === "POST" && action === "existing-narration/prepare") {
@@ -1414,10 +1462,6 @@ const routes = async (request, response, url) => {
   }
   if (request.method === "PUT" && action === "narration")
     return json(response, 200, await updateNarration(projectId, await body(request)));
-  if (request.method === "PUT" && action === "visual-storyboard") {
-    const narration = await loadNarration(projectId);
-    return json(response, 200, await saveVisualStoryboard(projectId, await body(request), narration));
-  }
   if (request.method === "POST" && action === "animation-assets/replan") {
     assertProjectIdle(projectId);
     const record = job("animation-asset-replan", projectId, (onProgress) =>
@@ -1517,6 +1561,38 @@ const routes = async (request, response, url) => {
   if (request.method === "POST" && action === "workflow/refresh") {
     assertProjectIdle(projectId);
     return json(response, 200, await reconcileStudioWorkflow(projectId));
+  }
+  if (request.method === "POST" && action === "workflow/production-plan/confirm") {
+    assertProjectIdle(projectId);
+    const confirmation = await confirmProductionPlan({ projectId, ...(await body(request)) });
+    const project = await loadCreatorProject(projectId);
+    if (!project.video.manifest) throw new Error("请先生成视频工作流交接包");
+    const snapshot = await loadStudioWorkflow(projectId);
+    const readiness = await inspectStudioReadiness({
+      manifest: project.video.manifest,
+      workflowArgs: workflowArgsForStudioReadiness(snapshot),
+    });
+    assertStudioReadinessConfirmation({
+      readiness,
+      expectedSha256: readiness.readinessSha256,
+      expectedTargetStage: "human-approval",
+    });
+    const readinessConfirmation = await recordStudioReadinessConfirmation({
+      projectId,
+      action: "production",
+      readiness,
+    });
+    await enterProductionAgent(projectId, "production-direction-confirmed").catch(() => {});
+    const record = workflowJob(
+      projectId,
+      project.video.manifest,
+      "production",
+      workflowArgsForConfirmedProduction(snapshot),
+    );
+    record.productionPlanConfirmation = confirmation;
+    record.readinessConfirmation = readinessConfirmation;
+    await persistJobs();
+    return json(response, 202, publicJob(record));
   }
   if (request.method === "GET" && action === "workflow/recut-preview") return streamVideo(request, response, projectId);
   if (request.method === "GET" && action === "workflow/production-baseline/video")
@@ -1758,7 +1834,12 @@ const routes = async (request, response, url) => {
     } else workflowArgs = workflowArgsForStudioAction(input.action);
     if (input.action === "production") {
       const snapshot = await loadStudioWorkflow(projectId);
-      if (snapshot.semanticReplanRequired) workflowArgs = ["--replan-semantic", ...workflowArgs];
+      if (!snapshot.productionPlan?.confirmed) throw new Error("请先查看并确认最新的制作方向，再开始完整制作");
+      workflowArgs = workflowArgsForConfirmedProduction(snapshot, input.profile);
+    }
+    if (input.action === "plan") {
+      const snapshot = await loadStudioWorkflow(projectId);
+      workflowArgs = workflowArgsForStudioPlan(snapshot);
     }
     if (input.action === "approve-recut") {
       const snapshot = await assertReviewedRecut({ projectId, screenSha256: input.screenSha256 });
@@ -1787,7 +1868,7 @@ const routes = async (request, response, url) => {
       if (resumeStage) workflowArgs = ["--from", resumeStage, ...workflowArgs];
     }
     let readinessConfirmation;
-    if (["recut", "review", "continue", "production"].includes(input.action)) {
+    if (["recut", "review", "continue", "plan", "production"].includes(input.action)) {
       const snapshot = await loadStudioWorkflow(projectId);
       const readinessArgs = workflowArgsForStudioReadiness(snapshot);
       const readiness = await inspectStudioReadiness({
@@ -1797,9 +1878,11 @@ const routes = async (request, response, url) => {
       const expectedTargetStage =
         input.action === "recut"
           ? "recut-review"
-          : input.action === "production"
-            ? "delivery-validate"
-            : "agent-review";
+          : input.action === "plan"
+            ? "validate"
+            : input.action === "production"
+              ? "delivery-validate"
+              : "agent-review";
       assertStudioReadinessConfirmation({
         readiness,
         expectedSha256: input.readinessSha256,
@@ -1811,7 +1894,7 @@ const routes = async (request, response, url) => {
         readiness,
       });
     }
-    if (["review", "continue", "production"].includes(input.action))
+    if (["production"].includes(input.action))
       await enterProductionAgent(projectId, "creator-authorized-production").catch(() => {});
     const record = workflowJob(projectId, project.video.manifest, input.action, workflowArgs, {
       rollbackAttempt,

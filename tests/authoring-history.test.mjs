@@ -76,32 +76,8 @@ test("narration saves and restores immutable attempts without overwriting histor
     const visualPlan = JSON.parse(
       await readFile(resolve(root, "history-test/authoring/authored-visual-plan.json"), "utf8"),
     );
-    assert.deepEqual(
-      visualPlan.sections.map((section) => section.sectionId),
-      ["opening", "overview", "workflow", "review", "conclusion"],
-    );
-    const storyboard = JSON.parse(
-      await readFile(resolve(root, "history-test/authoring/visual-storyboard.json"), "utf8"),
-    );
-    assert.ok(Object.values(storyboard.sections).every((section) => section.status === "confirmed"));
-
-    storyboard.sections.workflow = {
-      mode: "auto",
-      status: "confirmed",
-      beats: [
-        {
-          id: "workflow-beat-1",
-          exactSpokenQuote: "它把写稿、拍摄和审核接成一个流程",
-          status: "confirmed",
-          primaryVisualType: "component",
-          semanticForm: "ordered-progression",
-          takeover: "partial",
-          speakerPresence: "full",
-        },
-      ],
-    };
-    const visual = await import(`../scripts/creator/visual-storyboard.mjs?root=${Date.now()}`);
-    await visual.saveVisualStoryboard("history-test", storyboard, await authoring.loadNarration("history-test"));
+    assert.deepEqual(visualPlan.sections, []);
+    assert.deepEqual(visualPlan.beats, []);
     const speakerSource = resolve(root, "speaker.mp4");
     await writeFile(speakerSource, "speaker fixture");
     const speaker = await store.importCreatorAsset({
@@ -114,7 +90,7 @@ test("narration saves and restores immutable attempts without overwriting histor
     const refreshedPlan = JSON.parse(
       await readFile(resolve(root, "history-test/authoring/authored-visual-plan.json"), "utf8"),
     );
-    assert.deepEqual(refreshedPlan.beats.map((beat) => beat.id), ["workflow-beat-1"]);
+    assert.deepEqual(refreshedPlan.beats, []);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

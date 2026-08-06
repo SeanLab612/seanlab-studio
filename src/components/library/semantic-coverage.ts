@@ -11,6 +11,14 @@ export type SemanticCoverageEntry = {
 
 export const semanticCoverageRegistry = [
   {
+    id: "editorial-statement",
+    label: "观点陈述",
+    status: "approved",
+    componentIds: ["editorial-statement"],
+    notes:
+      "One complete plain-language claim with no stronger structured or material-backed form; no whole-video share cap, with at most two consecutive uses.",
+  },
+  {
     id: "rough-annotation",
     label: "手绘语义标注",
     status: "approved",

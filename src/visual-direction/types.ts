@@ -29,6 +29,8 @@ export type VisualDirectionPolicy = {
   repetitionWindowSeconds: number;
   minimumHeroGapSeconds: number;
   maximumVisualCoverageRatio: number;
+  minimumVisualCoverageRatio?: number;
+  maximumAnimationCoverageRatio?: number;
   maximumChapterSeconds: number;
   maximumChapterCandidates: number;
   heroConfidence: number;
@@ -49,6 +51,11 @@ export type VisualDirectionCandidate = {
   reason: string;
   materializationStatus: "planned" | "skipped" | "blocked";
   materializationReason?: string;
+  handling?: {
+    status: "materialized" | "superseded" | "intentionally-skipped" | "safely-skipped" | "blocked";
+    code: string;
+    reason: string;
+  };
   creatorConstraint?: {
     sectionId: string;
     mode: "information" | "speaker" | "speaker-only" | "material";
@@ -110,4 +117,11 @@ export type VisualDirectionPlan = {
   }>;
   decisions: VisualDirectionDecision[];
   titleCues?: WholeVideoTitleCue[];
+  coverageFillCues?: Array<{
+    id: string;
+    start: number;
+    end: number;
+    componentId: "editorial-statement";
+    source: "deterministic-caption-gap-fill";
+  }>;
 };

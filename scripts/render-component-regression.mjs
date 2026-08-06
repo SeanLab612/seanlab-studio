@@ -26,6 +26,7 @@ const cases = [
   ["capability-surface-grid", "ReviewCapabilitySurfaceGrid", "180"],
   ["tradeoff-scale", "ReviewTradeoffScale", "180"],
   ["rough-annotation", "ReviewRoughAnnotationNegation", "90"],
+  ["editorial-statement", "ReviewEditorialStatement", "120"],
 ];
 
 let cursor = 0;

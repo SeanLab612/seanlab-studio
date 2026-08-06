@@ -110,6 +110,7 @@ import {
   TypographyPolicyRealSceneReview,
 } from "./TypographyPolicyReviews";
 import { HumanReviewGateBeatReview, ProductionProcessBeatReview } from "./VisualBeatCaseReviews";
+import { EditorialStatementReview } from "./EditorialStatementReviews";
 
 export type ReviewCompositionDefinition = {
   id: string;
@@ -124,6 +125,7 @@ const review = (id: string, component: ComponentType, durationInFrames = 360): R
 });
 
 export const reviewCompositions: ReviewCompositionDefinition[] = [
+  review("ReviewEditorialStatement", EditorialStatementReview, 180),
   review("ReviewTest2ProductionProcessBeat", ProductionProcessBeatReview, 240),
   review("ReviewTest2HumanReviewGateBeat", HumanReviewGateBeatReview, 180),
   review("ReviewTypographyPolicyDecision", TypographyPolicyDecisionReview, 180),

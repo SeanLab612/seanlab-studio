@@ -73,6 +73,8 @@ for (const asset of assets) {
     hasAudio: probe.streams.some((stream) => stream.codec_type === "audio"),
     audioPolicy: "mute",
     required: asset.required,
+    ...(asset.description ? { description: asset.description } : {}),
+    ...(asset.productionTreatment ? { productionTreatment: asset.productionTreatment } : {}),
     clip,
   });
 }

@@ -17,6 +17,8 @@ const reviewFiles = (paths) => [
 ];
 const approvalFiles = (paths) => [paths.proposedEdl, paths.recutCandidates, paths.recutReview, paths.recutPreview];
 const decisionPath = (projectId) => resolve(creatorRoot, projectId, "review", "recut-decision.json");
+const productionPlanConfirmationPath = (projectId) =>
+  resolve(creatorRoot, projectId, "review", "production-plan-confirmation.json");
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
 const recoverableStatuses = new Set(["stale", "interrupted", "running"]);
 const inputSignatureFor = (manifest, stage) =>
@@ -52,6 +54,104 @@ const loadDecision = async (projectId) => {
   } catch {
     return undefined;
   }
+};
+
+const loadProductionPlanConfirmation = async (projectId) => {
+  try {
+    return await readJson(productionPlanConfirmationPath(projectId));
+  } catch {
+    return undefined;
+  }
+};
+
+const loadProductionPlan = async ({ projectId, creator, paths, state }) => {
+  const ready = state?.stages?.validate?.status === "succeeded";
+  const artifacts = [paths.semanticNarrativePlan, paths.visualDirectionPlan, paths.visualDirectionReport];
+  if (!ready || !(await Promise.all(artifacts.map(fileExists))).every(Boolean))
+    return { ready: false, confirmed: false };
+  const [semantic, plan, report] = await Promise.all(artifacts.map(readJson));
+  const execution = (await fileExists(paths.planning)) ? await readJson(paths.planning) : {};
+  const sha256 = await signatureFor(artifacts);
+  const storedConfirmation = await loadProductionPlanConfirmation(projectId);
+  const requiredMaterials = creator.materials
+    .filter((material) => material.required && ["screenshot", "screen-recording"].includes(material.kind))
+    .map((material) => ({
+      id: material.id,
+      label: material.label,
+      kind: material.kind,
+      treatment: material.productionTreatment ?? "direct",
+    }));
+  const decisions = plan.decisions ?? [];
+  const selected = decisions.filter((item) => item.action === "show");
+  const materialLabel = (assetId) =>
+    creator.materials.find((material) => material.assetId === assetId || material.id === assetId)?.label ?? assetId;
+  const overlayBySegment = new Map((execution.overlayCues ?? []).map((cue) => [cue.generatedVisual?.segment?.id, cue]));
+  const visualSegments = [
+    ...selected.map((decision) => {
+      const overlay = overlayBySegment.get(decision.candidateId);
+      const assetId = overlay?.generatedVisual?.props?.assetId;
+      const componentId = decision.componentId ?? overlay?.generatedVisual?.component?.id;
+      return {
+        id: decision.candidateId,
+        start: decision.displayStart ?? decision.sourceStart,
+        end: decision.displayEnd ?? decision.sourceEnd,
+        type:
+          componentId === "image-evidence-inset"
+            ? "image"
+            : componentId === "rough-annotation"
+              ? "annotation"
+              : "component",
+        componentId: componentId ?? null,
+        label: assetId ? materialLabel(assetId) : (componentId ?? decision.candidateId),
+      };
+    }),
+    ...(execution.screenScenes ?? []).map((scene) => ({
+      id: scene.id,
+      start: scene.start,
+      end: scene.end,
+      type: "screen-demo",
+      assetId: scene.assetId,
+      label: materialLabel(scene.assetId),
+    })),
+    ...(execution.imageCues ?? []).map((cue) => ({
+      id: cue.id,
+      start: cue.start,
+      end: cue.end,
+      type: "image",
+      assetId: cue.assetId,
+      label: cue.label ?? materialLabel(cue.assetId),
+    })),
+    ...(execution.animationCues ?? []).map((cue) => ({
+      id: cue.id,
+      start: cue.start,
+      end: cue.end,
+      type: "animation",
+      animationPrototypeId: cue.animationIntent?.prototypeId ?? null,
+      label: cue.animationIntent?.takeaway ?? cue.animationIntent?.prototypeId ?? cue.id,
+    })),
+  ].sort((left, right) => Number(left.start ?? 0) - Number(right.start ?? 0));
+  return {
+    ready: true,
+    confirmed: storedConfirmation?.visualPlanSha256 === sha256,
+    sha256,
+    generatedAt: state.stages.validate.finishedAt ?? state.updatedAt,
+    summary: {
+      durationSeconds: Number(plan.durationSeconds ?? 0),
+      chapterCount: plan.chapters?.length ?? 0,
+      selectedVisualCount: visualSegments.length,
+      semanticSegmentCount: semantic.segments?.length ?? semantic.cues?.length ?? 0,
+      visualCoverageRatio: Number(report.summary?.visualCoverageRatio ?? 0),
+      realMaterialCoverage: Number(report.visualTypeCoverage?.realMaterialCoverage ?? 0),
+      animationCoverage: Number(report.visualTypeCoverage?.animationCoverage ?? 0),
+    },
+    chapters: (plan.chapters ?? []).map((chapter) => ({
+      id: chapter.id,
+      label: chapter.label,
+      selectedVisualCount: selected.filter((item) => item.chapterId === chapter.id).length,
+    })),
+    visualSegments,
+    requiredMaterials,
+  };
 };
 
 export const loadStudioWorkflow = async (projectId) => {
@@ -99,6 +199,7 @@ export const loadStudioWorkflow = async (projectId) => {
   const semanticStatus = state?.stages?.["semantic-plan"]?.status ?? "pending";
   const semanticReplanRequired =
     semanticHasHistory && recutApproved && editPromoted && !["succeeded", "approved"].includes(semanticStatus);
+  const productionPlan = await loadProductionPlan({ projectId, creator, paths, state });
   const creatorStatus =
     creator.project.status === "delivered" && reviewApproved
       ? "delivered"
@@ -151,9 +252,32 @@ export const loadStudioWorkflow = async (projectId) => {
     reviewApproved,
     productionBaseline,
     semanticReplanRequired,
+    productionPlan,
     creatorStatus,
     recut,
   };
+};
+
+export const confirmProductionPlan = async ({ projectId, visualPlanSha256, confirmation }) => {
+  if (confirmation !== "human-confirm-production-direction") throw new Error("确认制作方向需要明确确认");
+  if (typeof visualPlanSha256 !== "string" || !/^[a-f0-9]{64}$/.test(visualPlanSha256))
+    throw new Error("缺少有效的制作方向版本标识");
+  const snapshot = await loadStudioWorkflow(projectId);
+  if (!snapshot.productionPlan?.ready) throw new Error("制作方向尚未生成完成");
+  if (snapshot.productionPlan.sha256 !== visualPlanSha256) throw new Error("制作方向已更新，请刷新后重新确认");
+  const value = {
+    schemaVersion: "1.0",
+    projectId,
+    visualPlanSha256,
+    confirmation,
+    confirmedAt: new Date().toISOString(),
+  };
+  const path = productionPlanConfirmationPath(projectId);
+  await mkdir(dirname(path), { recursive: true });
+  const temporary = `${path}.${process.pid}.tmp`;
+  await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`);
+  await rename(temporary, path);
+  return { ...value, productionPlan: { ...snapshot.productionPlan, confirmed: true } };
 };
 
 export const reconcileStudioWorkflow = async (projectId) => {
