@@ -80,6 +80,16 @@ For Claude Code, replace `codex-cli` with `claude-code` in the doctor command.
 
 The Studio includes 20 information components for evidence, key numbers, timelines, processes, causal relationships, comparisons, decisions, quotations, and unstructured plain-language claims. The editorial-statement bridge has no whole-video share cap when the Production Agent finds it semantically suitable, but it is limited to two consecutive uses and never outranks stronger materials or specialized components.
 
+![Production component renders, group 1](docs/assets/components-group-01.jpg)
+
+![Production component renders, group 2](docs/assets/components-group-02.jpg)
+
+![Production component renders, group 3](docs/assets/components-group-03.jpg)
+
+![Production component renders, group 4](docs/assets/components-group-04.jpg)
+
+![Production component renders, group 5](docs/assets/components-group-05.jpg)
+
 ![SeanLab Studio visual resource library](docs/assets/studio-resource-library.png)
 
 It also includes 10 chart patterns for comparisons, time series, proportions, waterfalls, scatter plots, ranges, funnels, before-and-after views, and risk/reward framing.
