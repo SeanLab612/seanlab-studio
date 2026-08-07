@@ -42,6 +42,7 @@ const qualityGates = [
   "test:visual-brief",
   "test:registry",
   "test:icons",
+  "privacy:check",
 ];
 
 const normalizeIgnoreRule = (line) => line.trim().replace(/^\//, "");
@@ -147,7 +148,7 @@ export const runReleaseReadiness = async ({ root = repositoryRoot, runQualityGat
   }
 
   const thirdPartyNotices = await readFile(resolve(root, "THIRD_PARTY_NOTICES.md"), "utf8");
-  const requiredNoticeTerms = ["Remotion", "Apache-2.0", "SIL Open Font License", "NASA"];
+  const requiredNoticeTerms = ["Remotion", "Apache-2.0", "SIL Open Font License"];
   const missingNoticeTerms = requiredNoticeTerms.filter((term) => !thirdPartyNotices.includes(term));
   if (missingNoticeTerms.length === 0)
     pass("open-source.third-party-notices", "Independent licenses and media terms are disclosed");
@@ -155,13 +156,7 @@ export const runReleaseReadiness = async ({ root = repositoryRoot, runQualityGat
 
   const assetLicenses = await readFile(resolve(root, "docs/ASSET-LICENSES.md"), "utf8");
   const agentIconNotice = await readFile(resolve(root, "studio/assets/agent-icons/NOTICE.md"), "utf8");
-  const requiredAssetTerms = [
-    "studio/assets/agent-icons/",
-    "studio/assets/icons/",
-    "public/icons/system/sprite.svg",
-    "christina-koch-landing-nasa.jpg",
-    "christina-koch-nasa.jpg",
-  ];
+  const requiredAssetTerms = ["studio/assets/agent-icons/", "studio/assets/icons/", "public/icons/system/sprite.svg"];
   const missingAssetTerms = requiredAssetTerms.filter((term) => !assetLicenses.includes(term));
   const officialMarkEvidence = [
     "https://cdn.openai.com/brand/openai-logos.zip",

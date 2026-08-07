@@ -5,7 +5,6 @@ export type SemanticCoverageEntry = {
   label: string;
   status: SemanticCoverageStatus;
   componentIds: readonly string[];
-  referenceBatch?: string;
   notes: string;
 };
 
@@ -87,7 +86,6 @@ export const semanticCoverageRegistry = [
     label: "双项、正反观点与方案对比",
     status: "approved",
     componentIds: ["binary-versus"],
-    referenceBatch: "legacy-reference-02",
     notes: "Two fully visible options, one primary metric per side, and a central relationship marker.",
   },
   {
@@ -95,7 +93,6 @@ export const semanticCoverageRegistry = [
     label: "大数字、比例与关键结论",
     status: "approved",
     componentIds: ["key-stat-summary"],
-    referenceBatch: "legacy-reference-01",
     notes: "One to three headline metrics, a conclusion, and compact evidence chips.",
   },
   {
@@ -103,7 +100,6 @@ export const semanticCoverageRegistry = [
     label: "多因素或多步骤逐项解释与自动降权",
     status: "approved",
     componentIds: ["factor-sequence"],
-    referenceBatch: "legacy-reference-03, legacy-reference-04",
     notes: "Three to five icon-led factors or ordered stages; the active item is vivid and completed items dim.",
   },
   {
@@ -111,7 +107,6 @@ export const semanticCoverageRegistry = [
     label: "截图、界面与来源对比",
     status: "approved",
     componentIds: ["media-comparison"],
-    referenceBatch: "legacy-reference-07",
     notes: "One to three screenshots with product identity, captions, and relationship symbols.",
   },
   {
@@ -126,7 +121,6 @@ export const semanticCoverageRegistry = [
     label: "多模型、多选项评分与测评排行",
     status: "approved",
     componentIds: ["ranked-metric-list"],
-    referenceBatch: "legacy-reference-05, legacy-reference-06",
     notes:
       "Three to eight options remain fully visible; supports price, score, percentage, duration, numeric benchmark, and a highlighted conclusion.",
   },

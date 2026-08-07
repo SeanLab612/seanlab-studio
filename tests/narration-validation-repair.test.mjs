@@ -4,7 +4,7 @@ import { completeNarration } from "../scripts/creator/narration.mjs";
 
 const narrationOutput = ({ overview }) => ({
   schemaVersion: "1.0",
-  title: "Typeworld 的打字入口",
+  title: "交互式打字项目的入口",
   opening: "一个网站能不能从打出一个词开始？",
   overview,
   sections: [
@@ -27,14 +27,14 @@ const narrationOutput = ({ overview }) => ({
       recordingInstruction: null,
     },
   ],
-  conclusion: "Typeworld 把打字变成了访问这个世界的入口。",
+  conclusion: "这个项目把打字变成了访问虚构世界的入口。",
   fullScript: "ignored because it is derived locally",
   shootingGuide: ["展示现有截图。"],
 });
 
 const project = {
   agent: { id: "codex-cli", model: "gpt-test", fallback: "none" },
-  brief: { topic: "Typeworld 的打字入口", category: "github-project" },
+  brief: { topic: "交互式打字项目的入口", category: "github-project" },
   sources: [],
   materials: [],
 };
@@ -46,7 +46,7 @@ const sourceContext = [
     kind: "note",
     status: "resolved",
     content:
-      "Visitors can type on the machine. Contributors do not need Blender for ordinary web development. Typeworld turns typing into the way visitors enter its world.",
+      "Visitors can type on the machine. Contributors do not need Blender for ordinary web development. The demo turns typing into the way visitors enter its world.",
   },
 ];
 

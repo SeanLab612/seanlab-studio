@@ -38,7 +38,7 @@ test("every structural and body paragraph receives an automatic visual suggestio
 
 test("opening uses the same creator-reviewable visual planning as other sections", () => {
   const narration = {
-    title: "实测 img2threejs：一张图片能不能变成 3D 模型？",
+    title: "实测图片转三维：一张图片能不能变成 3D 模型？",
     opening: "一张图片能不能变成 3D 模型？",
     overview: "这一期测试图片转三维模型。",
     sections: [],

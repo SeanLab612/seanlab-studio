@@ -56,7 +56,7 @@ test("narration accepts at least one resolved source and forbids generic project
 
 test("narration perspective audit preserves direct walkthrough narration", () => {
   const walkthrough = narrationOutputForPerspective(
-    "我们可以看到 Open Design 的界面。点击一个模板，进入设计，再输入我们的需求。",
+    "我们可以看到设计工具的界面。点击一个模板，进入设计，再输入我们的需求。",
   );
   assert.equal(auditNarrationPerspective(walkthrough).needsReview, false);
 });
@@ -83,8 +83,8 @@ test("perspective rewrite cannot change production bindings", () => {
 function narrationOutputForPerspective(narration) {
   return {
     schemaVersion: "1.0",
-    title: "Open Design 演示",
-    opening: "Open Design 怎么开始设计？",
+    title: "设计工具演示",
+    opening: "设计工具怎么开始设计？",
     overview: "这里直接走一遍完整操作。",
     sections: [
       {

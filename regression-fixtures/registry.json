@@ -23,7 +23,7 @@
         {
           "kind": "structured-data",
           "path": "regression-fixtures/baselines/components-16x9.json",
-          "sha256": "87814faa61c4fce8dbf765c7d2642eac65a316664a59018a499bf80b8ba3ea3e",
+          "sha256": "8a99ddb91ca1f1edaaeafb32742d4e854ac113297a2258a296266119dd47e68d",
           "gitPolicy": "tracked",
           "redistributable": true,
           "rights": "Project-authored visual baseline metadata, released with this repository.",

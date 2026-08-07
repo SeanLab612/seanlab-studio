@@ -7,167 +7,159 @@
   },
   "hammingThreshold": 10,
   "approvedBy": "project-reviewer",
-  "approvedAt": "2026-07-18T04:26:21.970716+00:00",
-  "sourceReportSha256": "5ee609de73ec52dda281887b695a71fee621e2b0f5a9b1f770b24c529a9e7bd1",
+  "approvedAt": "2026-08-07T04:03:57.792656+00:00",
+  "sourceReportSha256": "b54c3c169f62490d7aafdce0d0389d88d884eb7c9548088c1ca8e4cc791edf62",
   "entries": [
     {
       "id": "distribution-bars",
       "composition": "ReviewDistributionBars",
       "frame": 180,
-      "dhash": "efcfcb999999bdb5",
-      "sourceSha256": "6d8da4e8d02d2c2f49f6960a4ccef94b8fec9eff19c2c6e63b4b43727cb9d3fd",
+      "dhash": "dcd6dedcfcfeb6b7",
+      "sourceSha256": "c9087b003fb91244b147b7485235e37717c2c532a70546e936bd95bde2b3fbdb",
       "reviewProxy": "regression-fixtures/golden/16x9/components/distribution-bars.jpg"
     },
     {
       "id": "scenario-branches",
       "composition": "ReviewScenarioBranches",
       "frame": 180,
-      "dhash": "af0fdbd9d9d9bdb5",
-      "sourceSha256": "13a012a6e4dcb7a5f7d511b6e08b5d32cc575ebd31fe9a4137f5312c3184367f",
+      "dhash": "dcd6defcfcfeb6bf",
+      "sourceSha256": "7509f849c42356fc39973395ef75be1e879fcf5aa5d0ad8144a19eb81a413860",
       "reviewProxy": "regression-fixtures/golden/16x9/components/scenario-branches.jpg"
     },
     {
       "id": "market-cap-lines",
       "composition": "ReviewMarketCapLines",
       "frame": 180,
-      "dhash": "efcfcbd9d999bdb5",
-      "sourceSha256": "a825b88141188cde71d92aa974c233e2b19047496178c0fd98e36ea7c3f4744e",
+      "dhash": "dcd6defcfcfeb6bf",
+      "sourceSha256": "e815666a9799bd55e8fbb2045e00f281d248393b29017a20135cba07c3bf0249",
       "reviewProxy": "regression-fixtures/golden/16x9/components/market-cap-lines.jpg"
     },
     {
       "id": "person-evidence-card",
       "composition": "ReviewPersonEvidenceCard",
       "frame": 180,
-      "dhash": "efcfcbd9d9d9bdb5",
-      "sourceSha256": "d1a021ef2a1780631300831848babc54ec413f333596a5af770c81107339eddd",
+      "dhash": "dcd6defcfcfeb6bf",
+      "sourceSha256": "030cb7e5cb1b36fb6ffbc75c44170c7b6c681b1b824dfad1268bce61a7de4d98",
       "reviewProxy": "regression-fixtures/golden/16x9/components/person-evidence-card.jpg"
     },
     {
       "id": "factor-sequence",
       "composition": "ReviewFactorSequenceFour",
       "frame": 180,
-      "dhash": "ef8f9bd9d9d9bdb5",
-      "sourceSha256": "342f52bc13994468396942cbe16c51a8e64322ce14a266c9557c9b708a6e2203",
+      "dhash": "dcd6defcfcfeb6b7",
+      "sourceSha256": "8bbc4a8be3d18b4e6adfd165bc72aab72e1731b3bb52e1b222a673a4bb1c699b",
       "reviewProxy": "regression-fixtures/golden/16x9/components/factor-sequence.jpg"
     },
     {
       "id": "ranked-metric-list",
       "composition": "ReviewRankedMetricScore",
       "frame": 180,
-      "dhash": "efcfdb5959d9bdb5",
-      "sourceSha256": "5965bd5c1d392b10a78cf8d56d746cb57be349fb3aec1622e65b4ef3a97cf914",
+      "dhash": "dcd6de7cfc7eb6b7",
+      "sourceSha256": "239c342bbe6f31fb9be98d8d0abb6a4f15f644a964caca303fb8c9e94e3c2cc5",
       "reviewProxy": "regression-fixtures/golden/16x9/components/ranked-metric-list.jpg"
     },
     {
       "id": "binary-versus",
       "composition": "ReviewBinaryVersus",
       "frame": 180,
-      "dhash": "af4fdbd9d9d9bdb5",
-      "sourceSha256": "c4d148c8f1bb1485acfff15f186055f85156ca0f9efbdbf7f87bc4a9c9880395",
+      "dhash": "dcd6defcfcfeb6b7",
+      "sourceSha256": "af44f7cd84bfd4aaffd78f42a3a37550ef731cf30967010bd6c488ad68229bce",
       "reviewProxy": "regression-fixtures/golden/16x9/components/binary-versus.jpg"
     },
     {
       "id": "key-stat-summary",
       "composition": "ReviewKeyStatSummary",
       "frame": 180,
-      "dhash": "efcf5bd9d9d9bdb5",
-      "sourceSha256": "609b946af6900be88a4cfa974cccf0340f3bb6018170317ed1af2f638f2679e9",
+      "dhash": "dcd6dedcfcfeb6b7",
+      "sourceSha256": "304ee1f79109ae5210e6bdc1a6bad3b97c9677aa8fc952a018c3741c5f669254",
       "reviewProxy": "regression-fixtures/golden/16x9/components/key-stat-summary.jpg"
     },
     {
       "id": "media-comparison",
       "composition": "ReviewMediaComparisonTwo",
       "frame": 180,
-      "dhash": "ef8f8bd9d9d9bdb5",
-      "sourceSha256": "b43b405566762b13eed63273260f0f8bd6680b83c87b451d9809e9a7f4ffedc4",
+      "dhash": "dca6aeecfcfeb6b7",
+      "sourceSha256": "8b3a91a1fb5ba522c6e57b0780ae85e8ef6799855134cbcb1679441576c1e598",
       "reviewProxy": "regression-fixtures/golden/16x9/components/media-comparison.jpg"
     },
     {
       "id": "image-evidence-inset",
       "composition": "ReviewImageEvidenceLandscape",
       "frame": 150,
-      "dhash": "efcfcbc9c9b9bdb5",
-      "sourceSha256": "073485b537cde0c25635d940c3e2c477072515ee7d5a5efae98d5cfcf5fa5c2b",
+      "dhash": "dcd6ceccccfeb6b7",
+      "sourceSha256": "9b5312aec0fb5eee9859cfab24dd94abeed922d2c4453af47a74b03619f8248e",
       "reviewProxy": "regression-fixtures/golden/16x9/components/image-evidence-inset.jpg"
     },
     {
       "id": "process-steps",
       "composition": "ReviewProcessSteps",
       "frame": 180,
-      "dhash": "afcfdb99d9d9bdb5",
-      "sourceSha256": "268b548a27d9daf3378ad58ca820b839a38f835016ecd24d896c11fe58dc7d18",
+      "dhash": "dcd6defcfcfeb6b7",
+      "sourceSha256": "72deb655e52236d63fd7506edb7a5366d7403dc114909e129bdcbece866015cb",
       "reviewProxy": "regression-fixtures/golden/16x9/components/process-steps.jpg"
     },
     {
       "id": "causal-chain",
       "composition": "ReviewCausalChain",
       "frame": 180,
-      "dhash": "af4fdb99d9d9bdb5",
-      "sourceSha256": "eb0ebca1dc9320e8c713513b45e00effe693a7a8124e809b5835ea8d773d73f5",
+      "dhash": "dcd6dedcfcfeb6b7",
+      "sourceSha256": "dd49420fcc82334dad0e07c0dfa26a3efb4372cd28e93088995b94081cc73c6b",
       "reviewProxy": "regression-fixtures/golden/16x9/components/causal-chain.jpg"
     },
     {
       "id": "quote-source-card",
       "composition": "ReviewQuoteSourceReport",
       "frame": 180,
-      "dhash": "ef6febe9d9d9bdb5",
-      "sourceSha256": "ff9ce958c6c1674f1d91c389912bb3c585429c845140258ff882aac97b0d1401",
+      "dhash": "dce6eeecfcfeb6bf",
+      "sourceSha256": "25d8250548ba9e0738504bfad9c4c3aabcf9cc8a7b353bfebbae0aae459df2a0",
       "reviewProxy": "regression-fixtures/golden/16x9/components/quote-source-card.jpg"
     },
     {
       "id": "historical-timeline",
       "composition": "ReviewHistoricalTimeline",
       "frame": 180,
-      "dhash": "efcfcbd9d9d9bdb5",
-      "sourceSha256": "9cdb71c3bdf66fd6d01936fcc8a2a8067489fed540109013dc803995416df1d6",
+      "dhash": "dcd6defcfcfeb6b7",
+      "sourceSha256": "3ee8e6e593f5bdd1dca6a2f391ea6b696ede1a8aac17b89da1945511713e24e9",
       "reviewProxy": "regression-fixtures/golden/16x9/components/historical-timeline.jpg"
     },
     {
       "id": "decision-matrix",
       "composition": "ReviewDecisionMatrix",
       "frame": 180,
-      "dhash": "ef4fdbd9d9f9bdb5",
-      "sourceSha256": "dd85e8dd7d69f4bd9e1c4abec7942a672798cda8b424014eb3a923026b592906",
+      "dhash": "dcd6defcfcfeb6b7",
+      "sourceSha256": "923264707aaf4122b0f0ed19c6e9de8b47c0572b4ca840c71d256da2e5830bfc",
       "reviewProxy": "regression-fixtures/golden/16x9/components/decision-matrix.jpg"
     },
     {
       "id": "model-classification-map",
       "composition": "ReviewModelClassificationMap",
       "frame": 180,
-      "dhash": "ef4f5bd9d9d9bdb5",
-      "sourceSha256": "7e6d55fd338c9c79e2d3500fd41f5bc0d895ff68e2e2401509fa1f3eaf94bad6",
+      "dhash": "dcd6defcfcfeb6bf",
+      "sourceSha256": "49142363858d94f7279ed2f85d0a792dff181c0003b8edfc7da42d1986be458c",
       "reviewProxy": "regression-fixtures/golden/16x9/components/model-classification-map.jpg"
-    },
-    {
-      "id": "core-positioning-node",
-      "composition": "ReviewCorePositioningNode",
-      "frame": 180,
-      "dhash": "efcfdbd9d9d9bdb5",
-      "sourceSha256": "44b532428627a6f4c69716c4da253f61af70326552cb210990f56f20f3a64b87",
-      "reviewProxy": "regression-fixtures/golden/16x9/components/core-positioning-node.jpg"
     },
     {
       "id": "capability-surface-grid",
       "composition": "ReviewCapabilitySurfaceGrid",
       "frame": 180,
-      "dhash": "efcfcbd9d9d9bdb5",
-      "sourceSha256": "e8855ab6ffbf13bc5bfaab8f83ae417c8e3ea731224608ec4c04ef2e04b22a84",
+      "dhash": "dcd6dedcfcfeb6bf",
+      "sourceSha256": "2de82e0b4c44cc50f01aff28aa36b10b3295609f7fda16bdd3e4c647b77e7869",
       "reviewProxy": "regression-fixtures/golden/16x9/components/capability-surface-grid.jpg"
     },
     {
       "id": "tradeoff-scale",
       "composition": "ReviewTradeoffScale",
       "frame": 180,
-      "dhash": "ef4f5b5959d9bdb5",
-      "sourceSha256": "41378f3407cd456ab2090bce5506b01533fb727078b3417890dcb1dcac34a9fe",
+      "dhash": "dcd6defcfcfeb6bf",
+      "sourceSha256": "f26e94d183359062e63d245bf4bd62dcad80160ff150fead966402fd58669c6b",
       "reviewProxy": "regression-fixtures/golden/16x9/components/tradeoff-scale.jpg"
     },
     {
       "id": "rough-annotation",
       "composition": "ReviewRoughAnnotationNegation",
       "frame": 90,
-      "dhash": "efcfdb59d9d9bdbd",
-      "sourceSha256": "cfcc9b25d9a2d34726c71f5f162e188cc2c26c80a72f52fd7f3c8334d967fe30",
+      "dhash": "dcd6debcbcfeb6bf",
+      "sourceSha256": "aba13a20024685746fc701ebccc63806f88a01ddbbeacb7cdf71468cddb9f511",
       "reviewProxy": "regression-fixtures/golden/16x9/components/rough-annotation.jpg"
     }
   ]

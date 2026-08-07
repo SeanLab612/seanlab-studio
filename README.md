@@ -137,6 +137,6 @@ Before contributing, read [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECU
 
 Original SeanLab Studio source code, interface code, functional icons, and generated demo assets are available under the [MIT License](LICENSE).
 
-Third-party material is not relicensed as MIT. Remotion has its own license and may require a company license for some organizational or commercial uses. Fonts, NASA test imagery, and compatibility logos retain their respective terms. Product names indicate compatibility only and do not imply endorsement by OpenAI, Anthropic, NASA, or Remotion.
+Third-party material is not relicensed as MIT. Remotion has its own license and may require a company license for some organizational or commercial uses. Fonts and compatibility logos retain their respective terms. Product names indicate compatibility only and do not imply endorsement by OpenAI, Anthropic, or Remotion.
 
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [asset licenses](docs/ASSET-LICENSES.md), and [dependency licenses](docs/DEPENDENCY-LICENSES.md) for the complete boundaries.

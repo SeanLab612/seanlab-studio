@@ -31,6 +31,7 @@
     "setup:python": "node scripts/setup-python.mjs",
     "skill:install": "node scripts/install-skill.mjs",
     "release:check": "node scripts/release-readiness.mjs",
+    "privacy:check": "node scripts/privacy-audit.mjs",
     "format": "biome format --write src scripts tests skills studio",
     "format:check": "biome format src scripts tests skills studio",
     "lint": "biome lint src scripts tests studio",

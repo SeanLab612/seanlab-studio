@@ -18,10 +18,7 @@ here before a release.
 | `regression-fixtures/golden/**` | SeanLab-authored component renders | MIT | Generated from repository components and local fixtures. |
 | `regression-fixtures/topics/assets/deepswe-score-card.svg` | SeanLab-authored factual test card | MIT | Source facts are attributed in `src/regression-fixtures/topic-fixtures.ts`. |
 | `regression-fixtures/topics/assets/kimi-k3-fact-card.svg` | SeanLab-authored factual test card | MIT | Source facts are attributed in `src/regression-fixtures/topic-fixtures.ts`. |
-| `regression-fixtures/topics/assets/kimi-evidence-comparison.mp4` | SeanLab-authored transition render | MIT | Generated from the two project-authored factual cards. |
 | `public/fonts/production/LXGWWenKaiGB-Medium-v1.522.ttf` | Official LXGW WenKai GB v1.522 release | SIL OFL 1.1 | Keep the font copyright, OFL text, upstream filename, and version evidence. |
-| `regression-fixtures/topics/assets/christina-koch-landing-nasa.jpg` | NASA/Bill Ingalls | NASA informational-use guidelines | Credit NASA/Bill Ingalls; no endorsement; do not use for promotion or merchandise. |
-| `regression-fixtures/topics/assets/christina-koch-nasa.jpg` | NASA official portrait | NASA informational-use guidelines | Credit NASA; identifiable-person commercial restrictions may apply. |
 
 Exact official download URLs, retrieval dates, and SHA-256 values for the current Agent marks are recorded in
 `studio/assets/agent-icons/NOTICE.md`. Historical revisions contained different Apache-2.0 licensed paths from

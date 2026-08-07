@@ -78,8 +78,8 @@ Rewrite the structure for speech after the reasoning is sound:
 - Keep precise product names, numbers, units, and uncertainty language intact.
 - Screen-led explanation is valid spoken narration: name the interface object, say what the user does, then say what
   changes or why the next step matters. Do not replace a supported walkthrough with an abstract summary.
-- Hide the evidence container when it is not the subject. Prefer "打开 Open Design，左侧是输入区域" over "从上传的
-  录屏中可以看到输入区域". "我们可以看到 Open Design 的界面" remains valid; the problem is narrating the
+- Hide the evidence container when it is not the subject. Prefer "打开设计工具，左侧是输入区域" over "从上传的
+  录屏中可以看到输入区域". "我们可以看到设计工具的界面" remains valid; the problem is narrating the
   Agent's source-reading process, not describing the interface.
 - Remove repetitive report scaffolding such as "值得注意的是", "不难发现", and "综上所述" when a direct sentence
   says the same thing. Do not use a word blacklist when the phrase is necessary to the actual subject.

@@ -195,7 +195,7 @@ export const buildNarrationEvidenceReviewPrompt = ({ originalPrompt, draft }) =>
 
 export const buildNarrationPerspectiveReviewPrompt = ({ originalPrompt, draft, audit }) =>
   `${originalPrompt}\n\n这是已经通过事实审核的口播稿。只进行一次非阻塞的口播视角整理。\n` +
-  `整理规则：\n- 保留全部事实、数字、限制、结论边界、section id、section title、materialIds、visualIntent、visualOpportunities、recordingInstruction 和 shootingGuide。\n- 允许并保留演示型叙事：直接描述界面、用户动作和可见结果，例如“打开 Open Design”“点击模板”“输入需求”“进入设计”。\n- “我们可以看到 Open Design 的界面”是正常讲解，不要机械删除。只改写 Agent 观察素材的表达，例如“从上传录屏中可以看到”“这段材料反映”“根据截图可知”。\n- 删除不提供信息的报告腔和重复 AI 过渡语，但不要为了变化而改写已经自然的句子。\n- 不得增加、删除或推断任何产品能力，不得生成视觉方案。\n- 严格输出符合原 JSON Schema 的完整对象，不输出解释。\n` +
+  `整理规则：\n- 保留全部事实、数字、限制、结论边界、section id、section title、materialIds、visualIntent、visualOpportunities、recordingInstruction 和 shootingGuide。\n- 允许并保留演示型叙事：直接描述界面、用户动作和可见结果，例如“打开设计工具”“点击模板”“输入需求”“进入设计”。\n- “我们可以看到设计工具的界面”是正常讲解，不要机械删除。只改写 Agent 观察素材的表达，例如“从上传录屏中可以看到”“这段材料反映”“根据截图可知”。\n- 删除不提供信息的报告腔和重复 AI 过渡语，但不要为了变化而改写已经自然的句子。\n- 不得增加、删除或推断任何产品能力，不得生成视觉方案。\n- 严格输出符合原 JSON Schema 的完整对象，不输出解释。\n` +
   `本地审计信号：${JSON.stringify(audit.signals)}\n\n待整理稿件：\n${JSON.stringify(draft, null, 2)}`;
 
 const perspectiveStructure = (narration) => ({

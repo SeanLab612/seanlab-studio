@@ -41,10 +41,149 @@ const officialKimiBlog = "https://www.kimi.com/fr-fr/blog/kimi-k3";
 const officialKimiModels = "https://www.kimi.com/code/docs/en/kimi-code/models.html";
 const officialKimiChanges = "https://www.kimi.com/code/docs/en/kimi-code/whats-new.html";
 const deepSwe = "https://deepswe.datacurve.ai/";
-const nasaKoch = "https://www.nasa.gov/people/christina-koch/";
-const nasaPortrait = "https://www.nasa.gov/image-article/nasa-astronaut-christina-koch/";
-const nasaUsage = "https://www.nasa.gov/nasa-brand-center/images-and-media/";
-const projectReadme = "https://github.com/SeanLab612/video-remotion/blob/main/README.md";
+const projectReadme = "https://github.com/SeanLab612/seanlab-studio/blob/main/README.md";
+
+const neutralEvidenceRouting: TopicRegressionFixture = {
+  id: "neutral-evidence-routing",
+  title: "仓库自带的中性证据路由",
+  purpose: "用抽象占位图和项目自有界面验证四种来源证据组件，不包含真人照片或外部开发参考图。",
+  sourceFacts: [
+    {
+      id: "local-evidence-contract",
+      text: "README 要求素材先登记，再由制作流程依据稳定的素材标识完成证据绑定、画面规划和本地渲染。",
+      sourceUrl: projectReadme,
+      accessedAt: "2026-08-07",
+      sourceType: "local-project",
+    },
+  ],
+  materials: [
+    {
+      id: "neutral-person-placeholder",
+      kind: "person",
+      path: "public/review-assets/creator-placeholder.svg",
+      sha256: "fd3c23251fdb96ec90892237eb0b5608205ceb2766d4c86b005c5b995c1e2f5f",
+      description: "Project-authored abstract avatar placeholder without a real person's likeness.",
+      rights: "Original project asset.",
+      provenance: "Authored for neutral local review and regression testing.",
+      redistributable: true,
+    },
+    {
+      id: "neutral-media-comparison",
+      kind: "image",
+      path: "public/review-assets/interface-codex.svg",
+      sha256: "120d78a3a57fe6d1e67a104dfd7b35e9409719c83734f267ecc1506ca77f9bf3",
+      description: "Project-authored abstract interface card used as one side of a media comparison.",
+      rights: "Original project asset.",
+      provenance: "Authored for neutral local review and regression testing.",
+      redistributable: true,
+    },
+    {
+      id: "neutral-image-evidence",
+      kind: "image",
+      path: "public/review-assets/image-evidence-square.svg",
+      sha256: "6cdc74791f76c34b4ac9747073eba6ff59b62f5673a022ed2a7a21a44f7b19b0",
+      description: "Project-authored abstract diagram showing the local evidence workflow.",
+      rights: "Original project asset.",
+      provenance: "Authored for neutral local review and regression testing.",
+      redistributable: true,
+    },
+    {
+      id: "neutral-source-report",
+      kind: "document",
+      path: "public/review-assets/source-report.svg",
+      sha256: "f692149cee44379bbf768c70dff273d2db4c3c098871600df144e608e85d7ff7",
+      description: "Project-authored abstract source report card.",
+      rights: "Original project asset.",
+      provenance: "Authored for neutral local review and regression testing.",
+      redistributable: true,
+    },
+  ],
+  narration: makeNarration({
+    title: "登记素材以后，证据怎么进入画面",
+    overview: "这组中性样例只验证素材路由，不依赖任何真实人物或外部产品截图。",
+    sections: [
+      {
+        id: "person-placeholder",
+        title: "人物位置",
+        narration: "人物证据卡先使用抽象头像占位，用户上传自己的照片后再替换。",
+        visualIntent: "screenshot",
+        visualOpportunities: [{ form: "source-backed-evidence", evidenceText: "人物证据卡先使用抽象头像占位" }],
+        materialIds: ["neutral-person-placeholder"],
+        recordingInstruction: "展示仓库自带的抽象头像占位图。",
+      },
+      {
+        id: "media-pair",
+        title: "媒体对照",
+        narration: "两份已登记的界面证据可以并排比较，当前样例使用项目自有的抽象界面卡。",
+        visualIntent: "screenshot",
+        visualOpportunities: [{ form: "source-backed-evidence", evidenceText: "两份已登记的界面证据可以并排比较" }],
+        materialIds: ["neutral-media-comparison"],
+        recordingInstruction: "展示项目自有的抽象界面卡。",
+      },
+      {
+        id: "image-inset",
+        title: "图片证据",
+        narration: "单张图片证据会作为画中画进入左侧安全区域，同时保留口播主体。",
+        visualIntent: "screenshot",
+        visualOpportunities: [
+          { form: "source-backed-evidence", evidenceText: "单张图片证据会作为画中画进入左侧安全区域" },
+        ],
+        materialIds: ["neutral-image-evidence"],
+        recordingInstruction: "展示项目自有的证据流程图。",
+      },
+      {
+        id: "source-quote",
+        title: "来源引用",
+        narration: "需要标明依据时，来源卡会同时展示结论和登记过的报告信息。",
+        visualIntent: "screenshot",
+        visualOpportunities: [
+          { form: "source-backed-evidence", evidenceText: "来源卡会同时展示结论和登记过的报告信息" },
+        ],
+        materialIds: ["neutral-source-report"],
+        recordingInstruction: "展示项目自有的抽象来源报告。",
+      },
+    ],
+    conclusion: "这样既能持续验证证据类组件，也不会把开发者照片或临时参考图带进公开仓库。",
+  }),
+  expectations: [
+    expectation({
+      id: "show-person-placeholder",
+      sectionId: "person-placeholder",
+      form: "source-backed-evidence",
+      evidenceText: "人物证据卡先使用抽象头像占位",
+      sourceIds: ["local-evidence-contract"],
+      expectedOneOf: ["person-evidence-card"],
+      materialId: "neutral-person-placeholder",
+    }),
+    expectation({
+      id: "show-media-comparison",
+      sectionId: "media-pair",
+      form: "source-backed-evidence",
+      evidenceText: "两份已登记的界面证据可以并排比较",
+      sourceIds: ["local-evidence-contract"],
+      expectedOneOf: ["media-comparison"],
+      materialId: "neutral-media-comparison",
+    }),
+    expectation({
+      id: "show-image-evidence",
+      sectionId: "image-inset",
+      form: "source-backed-evidence",
+      evidenceText: "单张图片证据会作为画中画进入左侧安全区域",
+      sourceIds: ["local-evidence-contract"],
+      expectedOneOf: ["image-evidence-inset"],
+      materialId: "neutral-image-evidence",
+    }),
+    expectation({
+      id: "show-source-quote",
+      sectionId: "source-quote",
+      form: "source-backed-evidence",
+      evidenceText: "来源卡会同时展示结论和登记过的报告信息",
+      sourceIds: ["local-evidence-contract"],
+      expectedOneOf: ["quote-source-card"],
+      materialId: "neutral-source-report",
+    }),
+  ],
+};
 
 const modelBenchmark: TopicRegressionFixture = {
   id: "model-benchmark-real",
@@ -563,192 +702,6 @@ const seanlabWorkflow: TopicRegressionFixture = {
   ],
 };
 
-const evidenceMethods: TopicRegressionFixture = {
-  id: "evidence-methods-real",
-  title: "真实人物、官方来源与两类模型证据",
-  purpose: "验证人物、图片、引用和登记录屏证据。",
-  sourceFacts: [
-    {
-      id: "koch-record",
-      text: "NASA 官方资料记载 Christina Koch 2013 年成为宇航员，并创下女性单次太空飞行 328 天纪录。",
-      sourceUrl: nasaKoch,
-      accessedAt: "2026-07-19",
-      sourceType: "official-publisher",
-    },
-    {
-      id: "koch-portrait",
-      text: "NASA 图片页将 jsc2018e095073 标注为 Christina Koch 的官方肖像。",
-      sourceUrl: nasaPortrait,
-      accessedAt: "2026-07-19",
-      sourceType: "official-publisher",
-    },
-    {
-      id: "nasa-media-rights",
-      text: "NASA 说明其内容通常可用于教育或信息用途，但必须注明来源、不得暗示 NASA 背书，并注意可识别人物的商业使用限制。",
-      sourceUrl: nasaUsage,
-      accessedAt: "2026-07-19",
-      sourceType: "official-documentation",
-    },
-    {
-      id: "two-model-sources",
-      text: "Kimi 官方资料提供模型参数和产品信息，DeepSWE 独立榜单提供同一任务口径下的通过率和成本，两种证据不能互相替代。",
-      sourceUrl: officialKimiBlog,
-      accessedAt: "2026-07-19",
-      sourceType: "official-publisher",
-    },
-    {
-      id: "two-model-sources-benchmark",
-      text: "DeepSWE 独立榜单统一使用 mini-swe-agent 运行 113 个任务。",
-      sourceUrl: deepSwe,
-      accessedAt: "2026-07-19",
-      sourceType: "independent-benchmark",
-    },
-  ],
-  materials: [
-    {
-      id: "koch-landing-photo",
-      kind: "person",
-      path: "regression-fixtures/topics/assets/christina-koch-landing-nasa.jpg",
-      sha256: "a03c060e462d8c3c07a4b9a11505a3b8c2087c627a2cec2863e100166f70edc5",
-      description: "NASA photograph of Christina Koch after returning from her 328-day mission.",
-      rights: "NASA informational use only; credit NASA; no endorsement; not for promotional use.",
-      provenance: "Ingested from the NASA official site on 2026-07-19; original photo credit NASA/Bill Ingalls.",
-      redistributable: true,
-    },
-    {
-      id: "koch-official-portrait",
-      kind: "person",
-      path: "regression-fixtures/topics/assets/christina-koch-nasa.jpg",
-      sha256: "b7add233cec2b5810a7fc0d68d3af2e5a1a8feb90424081f486053cc6a3dd3a2",
-      description: "NASA official portrait of Christina Koch.",
-      rights: "NASA informational use only; credit NASA; no endorsement; not for promotional use.",
-      provenance: "Ingested from the NASA official image page on 2026-07-19.",
-      redistributable: true,
-    },
-    {
-      id: "kimi-evidence-recording",
-      kind: "screen-recording",
-      path: "regression-fixtures/topics/assets/kimi-evidence-comparison.mp4",
-      sha256: "ab2a6741eb0de1d826f1f40eaa5a1ae43ac3458dcb5de0ce3cc7827b4e371e4e",
-      description: "Original 5.5-second transition between project-authored Kimi fact and DeepSWE score cards.",
-      rights: "Original project recording containing attributed factual cards.",
-      provenance: "Generated locally from project-authored SVG cards on 2026-07-19.",
-      redistributable: true,
-    },
-  ],
-  narration: makeNarration({
-    title: "同一句结论，应该配什么证据",
-    overview: "人物、官方说明和独立榜单证明的事情不同，素材不能因为好看就互相替代。",
-    sections: [
-      {
-        id: "person-record",
-        title: "人物证据",
-        narration:
-          "NASA 的官方资料写得很清楚，Christina Koch 完成了连续三百二十八天的太空任务，创下女性单次太空飞行纪录。",
-        visualIntent: "screenshot",
-        visualOpportunities: [
-          {
-            form: "source-backed-evidence",
-            evidenceText:
-              "NASA 的官方资料写得很清楚，Christina Koch 完成了连续三百二十八天的太空任务，创下女性单次太空飞行纪录。",
-          },
-        ],
-        materialIds: ["koch-landing-photo"],
-        recordingInstruction: "展示 NASA 官方返航照片，并保留 NASA/Bill Ingalls 来源标注。",
-      },
-      {
-        id: "portrait-evidence",
-        title: "图片证据",
-        narration: "这张登记图片来自 NASA 的官方肖像页面，它能证明人物身份，但不能单独证明三百二十八天这个数字。",
-        visualIntent: "screenshot",
-        visualOpportunities: [
-          {
-            form: "source-backed-evidence",
-            evidenceText:
-              "这张登记图片来自 NASA 的官方肖像页面，它能证明人物身份，但不能单独证明三百二十八天这个数字。",
-          },
-        ],
-        materialIds: ["koch-official-portrait"],
-        recordingInstruction: "继续展示同一张授权肖像，强调图片证据边界。",
-      },
-      {
-        id: "source-statement",
-        title: "来源说明",
-        narration:
-          "NASA 的使用说明允许把相关内容用于信息展示，但要注明来源，也不能让观众误以为 NASA 在为这个项目背书。",
-        visualIntent: "semantic-visual",
-        visualOpportunities: [
-          {
-            form: "source-backed-evidence",
-            evidenceText:
-              "NASA 的使用说明允许把相关内容用于信息展示，但要注明来源，也不能让观众误以为 NASA 在为这个项目背书。",
-          },
-        ],
-        materialIds: [],
-        recordingInstruction: null,
-      },
-      {
-        id: "media-comparison",
-        title: "两类模型证据",
-        narration:
-          "Kimi 的官方资料告诉我们模型参数和产品能力，DeepSWE 榜单告诉我们同一批任务上的分数和成本。一个是产品事实，一个是独立测试，不能混成一张表。",
-        visualIntent: "screen-recording",
-        visualOpportunities: [
-          {
-            form: "source-backed-evidence",
-            evidenceText:
-              "Kimi 的官方资料告诉我们模型参数和产品能力，DeepSWE 榜单告诉我们同一批任务上的分数和成本。一个是产品事实，一个是独立测试，不能混成一张表。",
-          },
-        ],
-        materialIds: ["kimi-evidence-recording"],
-        recordingInstruction: "播放已登记的两张原创事实卡转场录屏。",
-      },
-    ],
-    conclusion: "证据不是越多越好，而是每一份素材只负责证明它真正能证明的内容。",
-  }),
-  expectations: [
-    expectation({
-      id: "show-person-record",
-      sectionId: "person-record",
-      form: "source-backed-evidence",
-      evidenceText:
-        "NASA 的官方资料写得很清楚，Christina Koch 完成了连续三百二十八天的太空任务，创下女性单次太空飞行纪录。",
-      sourceIds: ["koch-record"],
-      expectedOneOf: ["person-evidence-card"],
-      materialId: "koch-landing-photo",
-    }),
-    expectation({
-      id: "show-portrait-boundary",
-      sectionId: "portrait-evidence",
-      form: "source-backed-evidence",
-      evidenceText: "这张登记图片来自 NASA 的官方肖像页面，它能证明人物身份，但不能单独证明三百二十八天这个数字。",
-      sourceIds: ["koch-portrait", "koch-record"],
-      expectedOneOf: ["image-evidence-inset"],
-      materialId: "koch-official-portrait",
-    }),
-    expectation({
-      id: "show-source-rule",
-      sectionId: "source-statement",
-      form: "source-backed-evidence",
-      evidenceText:
-        "NASA 的使用说明允许把相关内容用于信息展示，但要注明来源，也不能让观众误以为 NASA 在为这个项目背书。",
-      sourceIds: ["nasa-media-rights"],
-      expectedOneOf: ["quote-source-card"],
-    }),
-    expectation({
-      id: "compare-source-media",
-      sectionId: "media-comparison",
-      form: "source-backed-evidence",
-      evidenceText:
-        "Kimi 的官方资料告诉我们模型参数和产品能力，DeepSWE 榜单告诉我们同一批任务上的分数和成本。一个是产品事实，一个是独立测试，不能混成一张表。",
-      sourceIds: ["two-model-sources", "two-model-sources-benchmark"],
-      expectedOneOf: ["media-comparison"],
-      expectedIconIds: ["brand.kimi"],
-      materialId: "kimi-evidence-recording",
-    }),
-  ],
-};
-
 const benchmarkInterpretation: TopicRegressionFixture = {
   id: "benchmark-interpretation-real",
   title: "榜单结论的否定与强调",
@@ -816,5 +769,12 @@ export const MULTI_TOPIC_REGRESSION_SUITE: TopicRegressionSuite = {
   schemaVersion: "1.0",
   suiteId: "multi-topic-0-2-16",
   status: "candidate",
-  fixtures: [modelBenchmark, modelChoice, kimiArchitecture, seanlabWorkflow, evidenceMethods, benchmarkInterpretation],
+  fixtures: [
+    modelBenchmark,
+    modelChoice,
+    kimiArchitecture,
+    seanlabWorkflow,
+    benchmarkInterpretation,
+    neutralEvidenceRouting,
+  ],
 };

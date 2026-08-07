@@ -54,20 +54,6 @@ company and platform icons. Simple Icons is released under CC0-1.0, but its lice
 in the represented brands. These icons identify products or platforms only and do not imply sponsorship,
 certification, or endorsement. A registered brand without an admitted upstream path uses a local text badge instead.
 
-## NASA regression fixtures
-
-Two photographs are bundled only as source-grounding regression fixtures:
-
-- `regression-fixtures/topics/assets/christina-koch-landing-nasa.jpg` — credit: NASA/Bill Ingalls; source:
-  <https://www.nasa.gov/people/christina-koch/>.
-- `regression-fixtures/topics/assets/christina-koch-nasa.jpg` — NASA official portrait; source:
-  <https://www.nasa.gov/image-article/nasa-astronaut-christina-koch/>.
-
-NASA states that its content generally may be used for educational or informational purposes when NASA is credited
-and no endorsement is implied. Some NASA pages include separately copyrighted material, and commercial use of an
-identifiable person's likeness may require additional permission. These fixtures must not be used as advertising,
-merchandise, or endorsement. See <https://www.nasa.gov/nasa-brand-center/images-and-media/>.
-
 ## Project-authored media
 
 The following media groups were created for SeanLab Studio and are released under MIT with the source code:
@@ -90,6 +76,6 @@ SeanLab Studio stores them in ignored local project directories and does not gra
 
 SeanLab Studio does not bundle the private creator portrait library. The explicitly admitted Simple Icons paths and
 the two documented Agent compatibility marks above are the only bundled third-party brand artwork; other brand
-metadata falls back to local text badges. OpenAI, Codex, Anthropic, Claude, NASA, Remotion, and all other
+metadata falls back to local text badges. OpenAI, Codex, Anthropic, Claude, Remotion, and all other
 third-party names and trademarks remain the property of their respective owners. Their mention describes
 compatibility or source provenance only.
