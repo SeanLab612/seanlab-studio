@@ -5,6 +5,7 @@ import { isGitHubSyntheticPullMerge, runPrivacyAudit } from "../scripts/privacy-
 test("privacy audit excludes only GitHub-generated pull request merge metadata", () => {
   assert.equal(
     isGitHubSyntheticPullMerge({
+      oid: "5".repeat(40),
       parents: `${"1".repeat(40)} ${"2".repeat(40)}`,
       committerEmail: "noreply@github.com",
       subject: `Merge ${"3".repeat(40)} into ${"4".repeat(40)}`,
@@ -13,10 +14,35 @@ test("privacy audit excludes only GitHub-generated pull request merge metadata",
   );
   assert.equal(
     isGitHubSyntheticPullMerge({
+      oid: "5".repeat(40),
       parents: `${"1".repeat(40)} ${"2".repeat(40)}`,
       committerEmail: "developer@example.com",
       subject: `Merge ${"3".repeat(40)} into ${"4".repeat(40)}`,
     }),
+    false,
+  );
+  assert.equal(
+    isGitHubSyntheticPullMerge(
+      {
+        oid: "5".repeat(40),
+        parents: "",
+        committerEmail: "noreply@github.com",
+        subject: `Merge ${"3".repeat(40)} into ${"4".repeat(40)}`,
+      },
+      { eventName: "pull_request", eventSha: "5".repeat(40) },
+    ),
+    true,
+  );
+  assert.equal(
+    isGitHubSyntheticPullMerge(
+      {
+        oid: "5".repeat(40),
+        parents: "",
+        committerEmail: "noreply@github.com",
+        subject: `Merge ${"3".repeat(40)} into ${"4".repeat(40)}`,
+      },
+      { eventName: "push", eventSha: "5".repeat(40) },
+    ),
     false,
   );
 });
