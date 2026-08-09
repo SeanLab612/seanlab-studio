@@ -159,7 +159,11 @@ import { runEnvironmentDoctor } from "./operations/doctor.mjs";
 import { chooseLocalFiles } from "./operations/local-file-picker.mjs";
 import { redactSecrets } from "./operations/errors.mjs";
 import { parseSingleByteRange } from "./operations/http-byte-range.mjs";
-import { studioPageContentSecurityPolicy, studioSecureHeaders } from "./operations/http-security.mjs";
+import {
+  resolveStudioStaticFile,
+  studioPageContentSecurityPolicy,
+  studioSecureHeaders,
+} from "./operations/http-security.mjs";
 import { JobGate } from "./operations/job-gate.mjs";
 import { KeyedMutex } from "./operations/keyed-mutex.mjs";
 import { loadLocalProductPolicy } from "./operations/local-product-policy.mjs";
@@ -1948,8 +1952,7 @@ const server = createServer(async (request, response) => {
       : url.pathname === "/"
         ? "index.html"
         : url.pathname.slice(1);
-    if (relativePath.includes("..")) throw new Error("Invalid path");
-    const filePath = resolve(servesLocalAsset ? localAssetRoot : staticRoot, relativePath);
+    const filePath = await resolveStudioStaticFile(servesLocalAsset ? localAssetRoot : staticRoot, relativePath);
     const info = await stat(filePath);
     if (!info.isFile()) throw new Error("Not found");
     const contentTypes = {

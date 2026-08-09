@@ -38,3 +38,8 @@ Do not commit a new visual, font, sound, video, or binary fixture unless all of 
 
 Unknown, scraped, or “found online” assets are not admissible. User-imported media belongs in ignored local project
 directories and must never be promoted into the public repository without a separate rights review.
+
+Tracked raster images and videos must also be registered with their exact SHA-256 value in
+`config/public-media-assets.json`. `npm run privacy:check` fails when a media file is new, missing, or changed without
+an explicit manifest update. The manifest uses the `no-real-people` policy: creator portraits, test-project captures,
+and other private media must remain in ignored local project directories and cannot be admitted to the public list.

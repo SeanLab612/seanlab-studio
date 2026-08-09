@@ -6,14 +6,65 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const policyPath = resolve(root, "config/privacy-policy.json");
+const publicMediaManifestPath = resolve(root, "config/public-media-assets.json");
 const mediaExtensions = new Set([".gif", ".jpeg", ".jpg", ".m4v", ".mov", ".mp4", ".png", ".webm", ".webp"]);
 const git = (args, options = {}) =>
-  execFileSync("git", args, { cwd: root, encoding: options.encoding ?? "utf8", maxBuffer: 64 * 1024 * 1024 });
+  execFileSync("git", args, {
+    cwd: root,
+    encoding: options.encoding ?? "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
-const personalTokenHashes = (bytes, denylist) => {
+const personalTokenHashes = (bytes, denylist, allowedTokens = []) => {
   if (bytes.includes(0)) return [];
   const tokens = bytes.toString("utf8").match(/[\p{L}\p{N}_.@+-]{4,}/gu) ?? [];
-  return [...new Set(tokens.map(sha256).filter((digest) => denylist.includes(digest)))];
+  const allowed = new Set(allowedTokens);
+  return [
+    ...new Set(
+      tokens
+        .filter((token) => !allowed.has(token))
+        .map(sha256)
+        .filter((digest) => denylist.includes(digest)),
+    ),
+  ];
+};
+
+export const auditPublicMediaInventory = async ({ tracked, manifest, readAsset }) => {
+  const findings = [];
+  if (manifest?.schemaVersion !== "1.0") findings.push({ rule: "media.manifest-schema" });
+  if (manifest?.policy !== "no-real-people") findings.push({ rule: "media.manifest-policy" });
+
+  const registered = new Map(Object.entries(manifest?.assets ?? {}));
+  const trackedSet = new Set(tracked);
+  const trackedMedia = tracked.filter((path) => mediaExtensions.has(extname(path).toLowerCase()));
+
+  for (const path of trackedMedia) {
+    const expected = registered.get(path);
+    if (!expected) {
+      findings.push({ rule: "media.unregistered", path });
+      continue;
+    }
+    const actual = sha256(await readAsset(path));
+    if (actual !== expected)
+      findings.push({
+        rule: "media.checksum-mismatch",
+        path,
+        expected,
+        actual,
+      });
+  }
+
+  for (const path of registered.keys()) {
+    if (!trackedSet.has(path)) findings.push({ rule: "media.manifest-missing", path });
+    else if (!mediaExtensions.has(extname(path).toLowerCase()))
+      findings.push({ rule: "media.manifest-non-media", path });
+  }
+
+  return {
+    findings,
+    registeredAssets: registered.size,
+    trackedMedia: trackedMedia.length,
+  };
 };
 
 export const isGitHubSyntheticPullMerge = (
@@ -31,16 +82,24 @@ export const isGitHubSyntheticPullMerge = (
 
 export const runPrivacyAudit = async () => {
   const policy = JSON.parse(await readFile(policyPath, "utf8"));
+  const publicMediaManifest = JSON.parse(await readFile(publicMediaManifestPath, "utf8"));
   const findings = [];
   const tracked = git(["ls-files", "-z"]).split("\0").filter(Boolean);
   const trackedSet = new Set(tracked);
+
+  const mediaInventory = await auditPublicMediaInventory({
+    tracked,
+    manifest: publicMediaManifest,
+    readAsset: (path) => readFile(resolve(root, path)),
+  });
+  findings.push(...mediaInventory.findings);
 
   for (const path of tracked) {
     if (policy.protectedRoots.some((prefix) => path.startsWith(prefix)))
       findings.push({ rule: "tracked.protected-root", path });
     const bytes = await readFile(resolve(root, path));
     if (policy.forbiddenAssetSha256.includes(sha256(bytes))) findings.push({ rule: "asset.known-private", path });
-    for (const digest of personalTokenHashes(bytes, policy.forbiddenTextSha256))
+    for (const digest of personalTokenHashes(bytes, policy.forbiddenTextSha256, policy.allowedCommitEmails))
       findings.push({ rule: "text.personal-identifier", path, digest });
   }
 
@@ -90,7 +149,7 @@ export const runPrivacyAudit = async () => {
     if (type !== "blob") continue;
     seenBlobs.add(oid);
     const bytes = git(["cat-file", "blob", oid], { encoding: "buffer" });
-    for (const digest of personalTokenHashes(bytes, policy.forbiddenTextSha256))
+    for (const digest of personalTokenHashes(bytes, policy.forbiddenTextSha256, policy.allowedCommitEmails))
       findings.push({ rule: "history.personal-identifier", path, oid, digest });
     if (mediaExtensions.has(extname(path).toLowerCase())) {
       seenMedia.add(oid);
@@ -106,7 +165,13 @@ export const runPrivacyAudit = async () => {
   return {
     kind: "privacy-audit",
     status: findings.length ? "failed" : "passed",
-    summary: { trackedFiles: tracked.length, historicalMediaObjects: seenMedia.size, findings: findings.length },
+    summary: {
+      trackedFiles: tracked.length,
+      trackedMedia: mediaInventory.trackedMedia,
+      registeredPublicMedia: mediaInventory.registeredAssets,
+      historicalMediaObjects: seenMedia.size,
+      findings: findings.length,
+    },
     findings,
   };
 };
