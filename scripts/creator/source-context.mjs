@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process";
 import { lookup } from "node:dns/promises";
 import { readFile } from "node:fs/promises";
+import { request as requestHttp } from "node:http";
+import { request as requestHttps } from "node:https";
 import { isIP } from "node:net";
 import { extname, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -56,7 +58,7 @@ const privateIp = (address) => {
   return mapped ? privateIpv4(mapped[1]) : false;
 };
 
-export const assertPublicSourceUrl = async (value) => {
+export const resolvePublicSourceTarget = async (value, { resolver = lookup } = {}) => {
   const url = value instanceof URL ? value : new URL(value);
   if (!["http:", "https:"].includes(url.protocol)) throw new Error("Only HTTP(S) sources are supported");
   const hostname = url.hostname
@@ -65,57 +67,82 @@ export const assertPublicSourceUrl = async (value) => {
     .replace(/\.$/, "");
   if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local"))
     throw new Error("Private or local source URLs are not allowed");
-  const addresses = isIP(hostname) ? [{ address: hostname }] : await lookup(hostname, { all: true, verbatim: true });
+  const addresses = isIP(hostname)
+    ? [{ address: hostname, family: isIP(hostname) }]
+    : await resolver(hostname, { all: true, verbatim: true });
   if (!addresses.length || addresses.some(({ address }) => privateIp(address)))
     throw new Error("Private or local source URLs are not allowed");
-  return url;
+  return { url, address: addresses[0].address, family: addresses[0].family ?? isIP(addresses[0].address) };
 };
+
+export const assertPublicSourceUrl = async (value, options) => (await resolvePublicSourceTarget(value, options)).url;
 
 const readLimitedText = async (response) => {
-  const declared = Number(response.headers.get("content-length") ?? 0);
+  const declared = Number(response.headers["content-length"] ?? 0);
   if (declared > maximumSourceBytes) throw new Error("Source exceeds the 2 MB intake limit");
-  if (!response.body) return "";
-  const reader = response.body.getReader();
   const chunks = [];
   let bytes = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    bytes += value.byteLength;
+  for await (const chunk of response) {
+    bytes += chunk.length;
     if (bytes > maximumSourceBytes) {
-      await reader.cancel();
+      response.destroy();
       throw new Error("Source exceeds the 2 MB intake limit");
     }
-    chunks.push(value);
+    chunks.push(chunk);
   }
-  const merged = new Uint8Array(bytes);
-  let offset = 0;
-  for (const chunk of chunks) {
-    merged.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new TextDecoder().decode(merged);
+  return Buffer.concat(chunks, bytes).toString("utf8");
 };
 
-const fetchText = async (value, headers = {}) => {
-  let url = await assertPublicSourceUrl(value);
+export const createPinnedLookup =
+  ({ address, family }) =>
+  (_hostname, options, callback) => {
+    if (options?.all) callback(null, [{ address, family }]);
+    else callback(null, address, family);
+  };
+
+const requestPublicSource = ({ url, address, family }, headers) =>
+  new Promise((resolveRequest, rejectRequest) => {
+    const request = (url.protocol === "https:" ? requestHttps : requestHttp)(
+      url,
+      {
+        method: "GET",
+        headers: { "user-agent": "SeanLab-RemotionMD-Studio/0.1", "accept-encoding": "identity", ...headers },
+        lookup: createPinnedLookup({ address, family }),
+        signal: AbortSignal.timeout(20_000),
+      },
+      resolveRequest,
+    );
+    request.on("error", rejectRequest);
+    request.end();
+  });
+
+export const fetchPublicSourceText = async (
+  value,
+  headers = {},
+  { resolveTarget = resolvePublicSourceTarget, requestSource = requestPublicSource } = {},
+) => {
+  let url = value instanceof URL ? value : new URL(value);
   for (let redirects = 0; redirects <= 5; redirects += 1) {
-    const response = await fetch(url, {
-      redirect: "manual",
-      signal: AbortSignal.timeout(20_000),
-      headers: { "user-agent": "SeanLab-RemotionMD-Studio/0.1", ...headers },
-    });
-    if ([301, 302, 303, 307, 308].includes(response.status)) {
-      const location = response.headers.get("location");
+    const target = await resolveTarget(url);
+    const response = await requestSource(target, headers);
+    const status = response.statusCode ?? response.status;
+    if ([301, 302, 303, 307, 308].includes(status)) {
+      const location = response.headers.location;
+      response.resume?.();
       if (!location || redirects === 5) throw new Error("Source redirect limit exceeded");
-      url = await assertPublicSourceUrl(new URL(location, url));
+      url = new URL(location, url);
       continue;
     }
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (status < 200 || status >= 300) {
+      response.resume?.();
+      throw new Error(`HTTP ${status}`);
+    }
     return readLimitedText(response);
   }
   throw new Error("Source redirect limit exceeded");
 };
+
+const fetchText = fetchPublicSourceText;
 
 const loadGithubRepository = async ({ owner, repository }) => {
   const apiRoot = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}`;

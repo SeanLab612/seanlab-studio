@@ -3,12 +3,62 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { assertPublicSourceUrl, resolveAuthoringSources } from "../scripts/creator/source-context.mjs";
+import {
+  assertPublicSourceUrl,
+  createPinnedLookup,
+  fetchPublicSourceText,
+  resolveAuthoringSources,
+  resolvePublicSourceTarget,
+} from "../scripts/creator/source-context.mjs";
 
 test("authoring rejects loopback and private source URLs before fetching", async () => {
   await assert.rejects(assertPublicSourceUrl("http://127.0.0.1/admin"), /Private or local/);
   await assert.rejects(assertPublicSourceUrl("http://192.168.1.2/admin"), /Private or local/);
   await assert.rejects(assertPublicSourceUrl("http://[::1]/admin"), /Private or local/);
+});
+
+test("authoring pins the validated public address for the actual request", async () => {
+  let resolutions = 0;
+  const target = await resolvePublicSourceTarget("https://example.test/source", {
+    resolver: async () => {
+      resolutions += 1;
+      return [{ address: "203.0.113.10", family: 4 }];
+    },
+  });
+  assert.equal(resolutions, 1);
+  assert.equal(target.address, "203.0.113.10");
+  const lookup = createPinnedLookup(target);
+  const address = await new Promise((resolveLookup, rejectLookup) =>
+    lookup("example.test", {}, (error, value) => (error ? rejectLookup(error) : resolveLookup(value))),
+  );
+  assert.equal(address, "203.0.113.10");
+});
+
+test("authoring revalidates and pins every redirect target", async () => {
+  const targets = [];
+  const responses = [
+    {
+      statusCode: 302,
+      headers: { location: "https://redirect.test/final" },
+      resume() {},
+    },
+    {
+      statusCode: 200,
+      headers: {},
+      async *[Symbol.asyncIterator]() {
+        yield Buffer.from("verified source");
+      },
+    },
+  ];
+  const result = await fetchPublicSourceText("https://origin.test/source", {}, {
+    resolveTarget: async (url) => {
+      targets.push(url.hostname);
+      return { url, address: "203.0.113.10", family: 4 };
+    },
+    requestSource: async () => responses.shift(),
+  });
+  assert.equal(result, "verified source");
+  assert.deepEqual(targets, ["origin.test", "redirect.test"]);
 });
 
 test("authoring freezes supported notes and local text while failing closed on binary references", async () => {

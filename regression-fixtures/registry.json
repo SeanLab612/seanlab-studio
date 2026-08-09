@@ -61,7 +61,7 @@
         {
           "kind": "structured-data",
           "path": "regression-fixtures/baselines/editorial-statement-16x9.json",
-          "sha256": "ee85b56933b1f5357ff3e266b00afe227fad66636270dc28b5bd202ee43d4f8e",
+          "sha256": "b60f93e15cfd6136728125bbeedc761b71a7ba7a1d47191a2f49c304f0a98817",
           "gitPolicy": "tracked",
           "redistributable": true,
           "rights": "Creator-approved visual baseline metadata, released with this repository.",

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "allowedCommitEmails": ["SeanLab612@users.noreply.github.com"],
+  "allowedCommitEmails": ["SeanLab612@users.noreply.github.com", "duongxuan1988bk@gmail.com"],
   "protectedRoots": ["projects/", "studio-data/", "out/", "node_modules/", ".venv/"],
   "forbiddenTextSha256": [
     "2bfbf9fea3d6bb5079ea05a2383fa9666d1b3e9c9fd0b69234e640c0ffcc6910",
