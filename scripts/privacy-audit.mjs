@@ -16,6 +16,19 @@ const personalTokenHashes = (bytes, denylist) => {
   return [...new Set(tokens.map(sha256).filter((digest) => denylist.includes(digest)))];
 };
 
+export const isGitHubSyntheticPullMerge = (
+  { oid, parents, committerEmail, subject },
+  { eventName = process.env.GITHUB_EVENT_NAME, eventSha = process.env.GITHUB_SHA } = {},
+) => {
+  const parentCount = parents.trim() ? parents.trim().split(/\s+/u).length : 0;
+  const isPullRequestCheckout = eventName === "pull_request" && Boolean(eventSha) && oid === eventSha;
+  return (
+    (parentCount === 2 || isPullRequestCheckout) &&
+    committerEmail === "noreply@github.com" &&
+    /^Merge [0-9a-f]{40} into [0-9a-f]{40}$/u.test(subject)
+  );
+};
+
 export const runPrivacyAudit = async () => {
   const policy = JSON.parse(await readFile(policyPath, "utf8"));
   const findings = [];
@@ -31,9 +44,20 @@ export const runPrivacyAudit = async () => {
       findings.push({ rule: "text.personal-identifier", path, digest });
   }
 
-  const authors = git(["log", "--all", "--format=%ae"])
+  const authors = git(["log", "--all", "--format=%H%x09%P%x09%ae%x09%ce%x09%s"])
     .split(/\r?\n/u)
-    .map((value) => value.trim())
+    .map((value) => {
+      const [oid = "", parents = "", authorEmail = "", committerEmail = "", ...subjectParts] = value.split("\t");
+      return {
+        oid,
+        parents,
+        authorEmail: authorEmail.trim(),
+        committerEmail: committerEmail.trim(),
+        subject: subjectParts.join("\t"),
+      };
+    })
+    .filter((commit) => !isGitHubSyntheticPullMerge(commit))
+    .map((commit) => commit.authorEmail)
     .filter(Boolean);
   for (const email of new Set(authors)) {
     if (!policy.allowedCommitEmails.includes(email)) findings.push({ rule: "history.personal-email", email });

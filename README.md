@@ -100,6 +100,12 @@ The twentieth component covers plain-language claims that do not have a stronger
 
 It also includes 10 chart patterns for comparisons, time series, proportions, waterfalls, scatter plots, ranges, funnels, before-and-after views, and risk/reward framing.
 
+![Data visualization components, group 1](docs/assets/data-effects-group-01.jpg)
+
+![Data visualization components, group 2](docs/assets/data-effects-group-02.jpg)
+
+![Data visualization components, group 3](docs/assets/data-effects-group-03.jpg)
+
 Animation uses a single hand-drawn editorial language. The production agent selects the information structure and may combine local icons with project-bound images.
 
 ![Hand-drawn editorial animation system](docs/assets/animation-templates-overview.jpg)
