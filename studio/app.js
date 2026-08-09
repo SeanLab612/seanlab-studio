@@ -40,6 +40,7 @@ const state = {
   delivery: null,
   deliveryProfileDraft: null,
   cover: null,
+  coverBackgroundDraft: null,
   workspaceMode: "video",
   coverIconIds: [],
   coverIconPickerOpen: false,
@@ -2289,7 +2290,11 @@ const coverIconPickerView = (cover) => {
 const coverStudioView = (project, cover) => {
   if (!cover) return `<div class="panel job-banner-error"><h3>封面工作台暂不可用</h3><p>请刷新 Studio 后重试。</p></div>`;
   const selection = cover.selection;
-  const background = cover.catalog.backgrounds.find((item) => item.id === selection.backgroundId) ?? cover.catalog.backgrounds[0];
+  const draftBackgroundId =
+    state.coverBackgroundDraft?.projectId === project.project.id
+      ? state.coverBackgroundDraft.backgroundId
+      : selection.backgroundId;
+  const background = cover.catalog.backgrounds.find((item) => item.id === draftBackgroundId) ?? cover.catalog.backgrounds[0];
   const cache = encodeURIComponent(cover.generatedAt ?? "draft");
   const landscape = cover.outputs.landscape
     ? `<img src="${escapeHtml(cover.outputs.landscape.url)}?v=${cache}" alt="横屏视频抖音封面预览"/>`
@@ -2318,11 +2323,11 @@ const coverStudioView = (project, cover) => {
     </section>
     <div class="cover-control-grid">
       <label>封面模板<select id="cover-template">${cover.catalog.templates.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === selection.templateId ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}</select></label>
-      <label>背景主题<select id="cover-background">${cover.catalog.backgrounds.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === selection.backgroundId ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}</select></label>
+      <label>背景主题<select id="cover-background">${cover.catalog.backgrounds.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === background.id ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}</select></label>
     </div>
     <div class="cover-source-preview">
       <div><span>人物抠图</span>${cover.portraitConfigured ? `<img id="cover-person-thumb" src="/api/projects/${encodeURIComponent(project.project.id)}/cover/catalog-asset/person/user-portrait?v=${cache}" alt="用户导入的透明人物抠图"/>` : `<div class="cover-empty-preview"><b>待导入</b><span>使用你自己的透明抠图</span></div>`}</div>
-      <div><span>背景模板</span><img src="/local-assets/${escapeHtml(background.landscape)}" alt="${escapeHtml(background.label)} 背景预览"/></div>
+      <div><span>背景模板</span><img id="cover-background-preview" src="/local-assets/${escapeHtml(background.landscape)}" alt="${escapeHtml(background.label)} 背景预览"/></div>
     </div>
     ${coverIconPickerView(cover)}
     <div class="cover-copy-grid">
@@ -3768,6 +3773,16 @@ const bindWorkspaceActions = () => {
     );
   }
   bindCoverIconPickerActions();
+  $("#cover-background")?.addEventListener("change", (event) => {
+    const background = state.cover?.catalog?.backgrounds?.find((item) => item.id === event.currentTarget.value);
+    if (!background) return;
+    state.coverBackgroundDraft = { projectId: id, backgroundId: background.id };
+    const preview = $("#cover-background-preview");
+    if (preview) {
+      preview.src = `/local-assets/${background.landscape}`;
+      preview.alt = `${background.label} 背景预览`;
+    }
+  });
   $("#generate-cover")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
     button.disabled = true;
@@ -3793,6 +3808,10 @@ const bindWorkspaceActions = () => {
           },
         },
       });
+      state.coverBackgroundDraft = {
+        projectId: id,
+        backgroundId: state.cover.selection.backgroundId,
+      };
       toast("横版和竖版封面已生成");
       state.workspaceMode = "cover";
       renderWorkspace();
@@ -3954,6 +3973,7 @@ $("#delete-project-form").addEventListener("submit", async (event) => {
       state.staticReview = null;
       state.delivery = null;
       state.cover = null;
+      state.coverBackgroundDraft = null;
       state.workspaceMode = "video";
       state.coverIconIds = [];
       state.coverIconPickerOpen = false;
