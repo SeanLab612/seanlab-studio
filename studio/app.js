@@ -3785,6 +3785,7 @@ const bindWorkspaceActions = () => {
   });
   $("#generate-cover")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
+    const submittedBackgroundId = $("#cover-background").value;
     button.disabled = true;
     button.textContent = "正在生成横竖两版…";
     try {
@@ -3794,7 +3795,7 @@ const bindWorkspaceActions = () => {
           selection: {
             templateId: $("#cover-template").value,
             personId: "user-portrait",
-            backgroundId: $("#cover-background").value,
+            backgroundId: submittedBackgroundId,
             iconIds: state.coverIconIds,
             titleLines: [$("#cover-title-1").value, $("#cover-title-2").value, $("#cover-title-3").value],
             portraitCrop: {
@@ -3808,10 +3809,15 @@ const bindWorkspaceActions = () => {
           },
         },
       });
-      state.coverBackgroundDraft = {
-        projectId: id,
-        backgroundId: state.cover.selection.backgroundId,
-      };
+      if (
+        state.coverBackgroundDraft?.projectId !== id ||
+        state.coverBackgroundDraft.backgroundId === submittedBackgroundId
+      ) {
+        state.coverBackgroundDraft = {
+          projectId: id,
+          backgroundId: state.cover.selection.backgroundId,
+        };
+      }
       toast("横版和竖版封面已生成");
       state.workspaceMode = "cover";
       renderWorkspace();

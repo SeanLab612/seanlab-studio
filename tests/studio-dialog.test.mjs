@@ -432,6 +432,8 @@ test("Studio cover workspace renders registered local layers without invoking an
   assert.match(app, /id="cover-background-preview"/);
   assert.match(app, /cover-background"\)\?\.addEventListener\("change"/);
   assert.match(app, /coverBackgroundDraft/);
+  assert.match(app, /const submittedBackgroundId = \$\("#cover-background"\)\.value/);
+  assert.match(app, /state\.coverBackgroundDraft\.backgroundId === submittedBackgroundId/);
   assert.doesNotMatch(covers, /detectAgent|generateNarration|semantic/);
 });
 
